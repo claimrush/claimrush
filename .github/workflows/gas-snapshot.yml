@@ -1,0 +1,192 @@
+name: Gas snapshot regression
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gas-snapshot-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Fail if any individual test's gas usage increases by more than this percentage.
+  # Tune as needed; 10% catches meaningful regressions without being overly noisy.
+  GAS_TOLERANCE_PCT: 10
+
+jobs:
+  gas-snapshot:
+    name: gas-snapshot
+    runs-on: ubuntu-24.04
+    # Cold-cache forge snapshot of the protocol contract set + test
+    # suite takes ~120-180 min with FOUNDRY_THREADS=1 on ubuntu-24.04
+    # (cycle-4 rehearsal seed showed 4-way parallel solc OOM-kills
+    # mid-compile despite 8 GiB extra swap; serializing solc bounds
+    # peak memory). Set 180 min to give the cold-cache run comfortable
+    # headroom. Warm-cache subsequent runs (when actions/cache below
+    # restores the prior out/ + cache/ trees) snapshot incrementally
+    # in single-digit minutes.
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Free disk space (remove unused runner bloat)
+        # See ci.yml for the cycle-8 disk-exhaustion diagnosis. The 16 GiB
+        # swap below leaves only ~1 GiB on / out of the runner's default
+        # 17 GiB, which is not enough for `make deps` to clone forge-std
+        # + OZ-contracts. Removing unused pre-installed toolchains
+        # (~30 GiB total) gives swap + clone + build comfortable headroom.
+        run: |
+          set -euo pipefail
+          df -h /
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo apt-get -y autoremove >/dev/null 2>&1 || true
+          sudo apt-get -y clean >/dev/null 2>&1 || true
+          df -h /
+
+      - name: Add swap space
+        # The protocol contract set + test suite (~430 .sol files)
+        # compiled with solc 0.8.34 + the via_ir + 200-run optimizer
+        # profile pegs ubuntu-24.04's ~7.8 GiB RAM + ~4 GiB pre-existing
+        # swap during peak codegen, leading the runner-side OOM-killer
+        # to send SIGTERM to the forge process mid-compile (visible as
+        # "Process completed with exit code 143" right after the
+        # "Compiling N files" log line, with no progress output
+        # between). Cycle-4 showed 8 GiB extra swap is not enough — bump
+        # to 16 GiB and serialize solc via FOUNDRY_THREADS=1 in the
+        # snapshot step below.
+        # mitigation. The runner has ~70 GiB free disk so the extra
+        # swap file is not a constraint. Slows individual page-fault
+        # writes but avoids the kill cliff. Note: ubuntu-24.04
+        # GitHub-hosted runners ship with /swapfile pre-allocated, so
+        # we use a distinct path here to avoid "fallocate failed: Text
+        # file busy".
+        run: |
+          set -euo pipefail
+          sudo fallocate -l 16G /swapfile-ci-extra
+          sudo chmod 600 /swapfile-ci-extra
+          sudo mkswap /swapfile-ci-extra
+          sudo swapon /swapfile-ci-extra
+          free -h
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@8b0419c685ef46cb79ec93fbdc131174afceb730 # v1.6.0
+        with:
+          version: v1.5.1
+
+      - name: Restore forge build cache
+        # See ci.yml for rationale. Same cache key shape so all three
+        # compile-heavy public workflows share a cache pool.
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            out
+            cache
+            ~/.foundry/cache
+          key: forge-build-${{ runner.os }}-v1.5.1-${{ hashFiles('foundry.toml', 'remappings.txt', 'src/**/*.sol', 'test/**/*.sol', 'script/**/*.sol', 'lib/**/*.sol') }}
+          restore-keys: |
+            forge-build-${{ runner.os }}-v1.5.1-
+
+      - name: Install Foundry dependencies
+        run: make deps
+
+      - name: Generate gas snapshot
+        env:
+          # Serialize solc to bound peak memory at ~5 GiB. See ci.yml
+          # for the cycle-4 OOM-kill diagnosis.
+          FOUNDRY_THREADS: "1"
+        run: forge snapshot --snap .gas-snapshot-new
+
+      - name: Compare against committed baseline
+        run: |
+          if [ ! -f .gas-snapshot ]; then
+            echo "::warning::No committed .gas-snapshot baseline found. Generating initial baseline."
+            echo "Run 'make gas-snapshot' locally and commit .gas-snapshot to enable regression tracking."
+            cp .gas-snapshot-new .gas-snapshot
+            exit 0
+          fi
+
+          echo "=== Gas snapshot diff ==="
+          # Show the diff for visibility (non-fatal)
+          diff -u .gas-snapshot .gas-snapshot-new || true
+
+          echo ""
+          echo "=== Checking for regressions (tolerance: ${GAS_TOLERANCE_PCT}%) ==="
+
+          FAILED=0
+          while IFS= read -r line; do
+            # Lines look like: TestContract:testName() (gas: 12345)
+            TEST=$(echo "$line" | sed 's/ (gas: .*//')
+            NEW_GAS=$(echo "$line" | grep -oP 'gas: \K[0-9]+')
+
+            if [ -z "$NEW_GAS" ] || [ -z "$TEST" ]; then
+              continue
+            fi
+
+            # Find matching test in baseline
+            OLD_LINE=$(grep -F "$TEST" .gas-snapshot 2>/dev/null || true)
+            if [ -z "$OLD_LINE" ]; then
+              echo "  [NEW]  $TEST: $NEW_GAS gas (no baseline)"
+              continue
+            fi
+
+            OLD_GAS=$(echo "$OLD_LINE" | grep -oP 'gas: \K[0-9]+')
+            if [ -z "$OLD_GAS" ] || [ "$OLD_GAS" -eq 0 ]; then
+              continue
+            fi
+
+            DELTA=$(( NEW_GAS - OLD_GAS ))
+            PCT=$(( (DELTA * 100) / OLD_GAS ))
+
+            if [ "$PCT" -gt "$GAS_TOLERANCE_PCT" ]; then
+              echo "  [FAIL] $TEST: $OLD_GAS -> $NEW_GAS (+${PCT}%, threshold ${GAS_TOLERANCE_PCT}%)"
+              FAILED=1
+            elif [ "$DELTA" -gt 0 ]; then
+              echo "  [WARN] $TEST: $OLD_GAS -> $NEW_GAS (+${PCT}%)"
+            elif [ "$DELTA" -lt 0 ]; then
+              echo "  [OK]   $TEST: $OLD_GAS -> $NEW_GAS (${PCT}%)"
+            fi
+          done < .gas-snapshot-new
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo ""
+            echo "ERROR: Gas regression exceeds ${GAS_TOLERANCE_PCT}% tolerance."
+            echo "If intentional, update baseline: make gas-snapshot && git add .gas-snapshot"
+            exit 1
+          fi
+
+          echo ""
+          echo "OK: No gas regressions beyond tolerance."
+
+      - name: Upload gas snapshot
+        if: always()
+        # See .github/workflows/gas-snapshot.yml for rationale — tolerate
+        # org-level Actions storage-quota exhaustion so a quota-saturated org
+        # doesn't red-X every push.
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gas-snapshot
+          path: .gas-snapshot-new
+          retention-days: 30
+          # See .github/workflows/gas-snapshot.yml for the same flag —
+          # upload-artifact@v4 skips dotfiles by default.
+          include-hidden-files: true

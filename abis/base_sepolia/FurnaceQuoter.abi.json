@@ -1,0 +1,1167 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "furnace_",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "baseUserBps",
+    "inputs": [
+      {
+        "name": "lockedSupply",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalSupply",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "claim",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IClaimToken"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "clampDurationSeconds",
+    "inputs": [
+      {
+        "name": "durationSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "computeLpTopupRateBps",
+    "inputs": [
+      {
+        "name": "userSpotBonusBps_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "durationWeightBps",
+    "inputs": [
+      {
+        "name": "durationSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "filterAutoMaxBonusEligible",
+    "inputs": [
+      {
+        "name": "tokenIds",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "eligible",
+        "type": "bool[]",
+        "internalType": "bool[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "furnace",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getFurnaceState",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "reserve",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lockedSupply",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "userSpotBonusBps_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lpTopupRateBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "quoteUserBonusBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "quoteLpTopupBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "virtualDepth",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lastUpdate",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "grossSpotBonusBps",
+    "inputs": [
+      {
+        "name": "userSpotBonusBps_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lpTopupRateBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lastAutoMaxBonusClaimBatch",
+    "inputs": [
+      {
+        "name": "tokenIds",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "lastClaims",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lpSaleShareBps",
+    "inputs": [
+      {
+        "name": "userSpotBonusBps_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "lpScaleBps",
+    "inputs": [
+      {
+        "name": "lockedSupply",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalSupply",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "reserve",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "elapsed",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "previewSellImpactVolumeAt",
+    "inputs": [
+      {
+        "name": "nowTs",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "previewVirtualDepthWithReserve",
+    "inputs": [
+      {
+        "name": "reserve",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "grossSpotBonusBps_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteAutoMaxBonus",
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "lockAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "bonusClaim",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteAutoMaxBonusBatch",
+    "inputs": [
+      {
+        "name": "tokenIds",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "bonuses",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "totalBonus",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteEnterWithClaim",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "claimIn",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "targetTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "durationSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "createAutoMax",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "principalClaim",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "bonusClaim",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "veOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "routeTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteEnterWithEth",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "ethIn",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "targetTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "durationSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "createAutoMax",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "principalClaim",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "bonusClaim",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "veOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "routeTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteEnterWithToken",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenIn",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amountIn",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "targetTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "durationSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "createAutoMax",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "principalClaim",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "bonusClaim",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "veOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "routeTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteExtendWithBonus",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "durationSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "lockAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "bonusClaim",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "newEndSec",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteSellLockForExecution",
+    "inputs": [
+      {
+        "name": "lockAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lockEnd",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "autoMax",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "exec",
+        "type": "tuple",
+        "internalType": "struct IFurnaceQuoter.SellExecutionQuote",
+        "components": [
+          {
+            "name": "claimOut",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "spreadBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lpReward",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "reserveAdd",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "bonusBpsUsed",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lpSaleShareBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "reserveBefore",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteSellLockToFurnace",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "lockAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "claimOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "spreadBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lpReward",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "reserveAdd",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteSellLockToFurnaceBreakdown",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "q",
+        "type": "tuple",
+        "internalType": "struct IFurnaceQuoter.SellLockQuoteBreakdown",
+        "components": [
+          {
+            "name": "lockAmount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "remainingSec",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lockedSupplyExcl",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "reserveBefore",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "elapsed",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "spotBonusBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "baseBonusBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "bonusRefBpsUsed",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "bonusBpsUsed",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "spreadSystemBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "durFactorBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "spreadDurBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "sizeRatioBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "spreadBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "claimOut",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lpReward",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "reserveAdd",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "isBonusClampBinding",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "quoteSellLockToFurnaceFromInfo",
+    "inputs": [
+      {
+        "name": "lockAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lockEnd",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "autoMax",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "claimOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "spreadBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lpReward",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "reserveAdd",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "reserveFactorBps",
+    "inputs": [
+      {
+        "name": "reserveFullnessBps_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "swingAlphaBps_",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "reserveFullnessBps",
+    "inputs": [
+      {
+        "name": "reserve",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "resolveFurnaceRoute",
+    "inputs": [
+      {
+        "name": "tokenIn",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "route",
+        "type": "tuple[]",
+        "internalType": "struct IEntryTokenRegistry.RegistryRoute[]",
+        "components": [
+          {
+            "name": "tokenIn",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "tokenOut",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "stable",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "pool",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "name": "routeTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "sellImpactBps",
+    "inputs": [
+      {
+        "name": "volAfter",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "elapsed",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "sellRoundTripLossBps",
+    "inputs": [
+      {
+        "name": "remainingSec",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "sellRoundTripSpreadFloorBps",
+    "inputs": [
+      {
+        "name": "userSpotBonusBps_",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "remainingSec",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "swingAlphaBps",
+    "inputs": [
+      {
+        "name": "elapsed",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "userSpotBonusBps",
+    "inputs": [
+      {
+        "name": "lockedSupply",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalSupply",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "reserve",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "elapsed",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "ve",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IVeClaimNFT"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "error",
+    "name": "AmountZero",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BatchTooLarge",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "DelegatedEOA",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidDuration",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidPool",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidToken",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvariantViolation",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "LockExpired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "LockListedOrFrozen",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "LockingPaused",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MathOverflowedMulDiv",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MinLockAmountNotMet",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotAContract",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotAuthorized",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "QuoteCallFailed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "RouterConfigNotSet",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TokenNotConfigured",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "WethClaimHopNotSet",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
+  }
+]

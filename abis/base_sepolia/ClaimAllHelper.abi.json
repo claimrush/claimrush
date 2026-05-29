@@ -1,0 +1,258 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "_royalties",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_mineCore",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimAll",
+    "inputs": [
+      {
+        "name": "mode",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "targetTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "durationSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "createAutoMax",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "minVeOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimAllFor",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "mode",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "targetTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "durationSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "createAutoMax",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "minVeOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimShareholderForUser",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "mode",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "targetTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "durationSeconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "createAutoMax",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "minVeOut",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "mineCore",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IMineCore"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "royalties",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IShareholderRoyalties"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "withdrawKingBalanceForUser",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "DelegationSessionUsed",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "delegate",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "actionType",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "permsUsed",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "refId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "KingWithdrawalFailed",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "reason",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "DelegatedEOA",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotAContract",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotAuthorized",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "WiringMismatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
+  }
+]

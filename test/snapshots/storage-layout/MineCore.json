@@ -1,0 +1,374 @@
+{
+  "contract": "src/MineCore.sol:MineCore",
+  "storage": [
+    {
+      "label": "_owner",
+      "offset": 0,
+      "slot": "0",
+      "type": "t_address"
+    },
+    {
+      "label": "_pendingOwner",
+      "offset": 0,
+      "slot": "1",
+      "type": "t_address"
+    },
+    {
+      "label": "_reentrancyStatus",
+      "offset": 0,
+      "slot": "2",
+      "type": "t_uint256"
+    },
+    {
+      "label": "_initialized",
+      "offset": 0,
+      "slot": "3",
+      "type": "t_bool"
+    },
+    {
+      "label": "__gap",
+      "offset": 0,
+      "slot": "4",
+      "type": "t_array(t_uint256)_storage"
+    },
+    {
+      "label": "furnace",
+      "offset": 0,
+      "slot": "54",
+      "type": "t_contract(IFurnace)"
+    },
+    {
+      "label": "entryTokenRegistry",
+      "offset": 0,
+      "slot": "55",
+      "type": "t_address"
+    },
+    {
+      "label": "configFrozen",
+      "offset": 20,
+      "slot": "55",
+      "type": "t_bool"
+    },
+    {
+      "label": "guardian",
+      "offset": 0,
+      "slot": "56",
+      "type": "t_address"
+    },
+    {
+      "label": "claimAllHelper",
+      "offset": 0,
+      "slot": "57",
+      "type": "t_address"
+    },
+    {
+      "label": "delegationHub",
+      "offset": 0,
+      "slot": "58",
+      "type": "t_address"
+    },
+    {
+      "label": "takeoversPaused",
+      "offset": 20,
+      "slot": "58",
+      "type": "t_bool"
+    },
+    {
+      "label": "currentKing",
+      "offset": 0,
+      "slot": "59",
+      "type": "t_address"
+    },
+    {
+      "label": "currentReignId",
+      "offset": 0,
+      "slot": "60",
+      "type": "t_uint256"
+    },
+    {
+      "label": "currentReignStartTime",
+      "offset": 0,
+      "slot": "61",
+      "type": "t_uint256"
+    },
+    {
+      "label": "currentReignLastAccrualTime",
+      "offset": 0,
+      "slot": "62",
+      "type": "t_uint256"
+    },
+    {
+      "label": "referencePrice",
+      "offset": 0,
+      "slot": "63",
+      "type": "t_uint256"
+    },
+    {
+      "label": "emissionStartTime",
+      "offset": 0,
+      "slot": "64",
+      "type": "t_uint256"
+    },
+    {
+      "label": "GENESIS_ACCRUAL_DURATION",
+      "offset": 0,
+      "slot": "65",
+      "type": "t_uint256"
+    },
+    {
+      "label": "genesisKingClaimCollected",
+      "offset": 0,
+      "slot": "66",
+      "type": "t_bool"
+    },
+    {
+      "label": "genesisKingClaimMinted",
+      "offset": 0,
+      "slot": "67",
+      "type": "t_uint256"
+    },
+    {
+      "label": "kingEthBalance",
+      "offset": 0,
+      "slot": "68",
+      "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "label": "totalKingEthOwed",
+      "offset": 0,
+      "slot": "69",
+      "type": "t_uint256"
+    },
+    {
+      "label": "pendingKingClaim",
+      "offset": 0,
+      "slot": "70",
+      "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "label": "totalPendingKingClaim",
+      "offset": 0,
+      "slot": "71",
+      "type": "t_uint256"
+    },
+    {
+      "label": "reignEthRecipient",
+      "offset": 0,
+      "slot": "72",
+      "type": "t_mapping(t_uint256,t_address)"
+    },
+    {
+      "label": "reignClaimRecipient",
+      "offset": 0,
+      "slot": "73",
+      "type": "t_mapping(t_uint256,t_address)"
+    },
+    {
+      "label": "refundEthBalance",
+      "offset": 0,
+      "slot": "74",
+      "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "label": "totalRefundEthOwed",
+      "offset": 0,
+      "slot": "75",
+      "type": "t_uint256"
+    },
+    {
+      "label": "shareholderEthPending",
+      "offset": 0,
+      "slot": "76",
+      "type": "t_uint256"
+    },
+    {
+      "label": "lastShareholderRetryTs",
+      "offset": 0,
+      "slot": "77",
+      "type": "t_uint256"
+    },
+    {
+      "label": "totalVeForReign",
+      "offset": 0,
+      "slot": "78",
+      "type": "t_mapping(t_uint256,t_uint256)"
+    },
+    {
+      "label": "reignInfo",
+      "offset": 0,
+      "slot": "79",
+      "type": "t_mapping(t_uint256,t_struct(ReignInfo)_storage)"
+    },
+    {
+      "label": "kingReigns",
+      "offset": 0,
+      "slot": "80",
+      "type": "t_mapping(t_address,t_array(t_uint256)dyn_storage)"
+    },
+    {
+      "label": "kingAutoLockConfig",
+      "offset": 0,
+      "slot": "81",
+      "type": "t_mapping(t_address,t_struct(KingAutoLockConfig)_storage)"
+    }
+  ],
+  "types": {
+    "t_address": {
+      "encoding": "inplace",
+      "label": "address",
+      "numberOfBytes": "20"
+    },
+    "t_array(t_uint256)_storage": {
+      "encoding": "inplace",
+      "label": "uint256[50]",
+      "numberOfBytes": "1600"
+    },
+    "t_array(t_uint256)dyn_storage": {
+      "encoding": "dynamic_array",
+      "label": "uint256[]",
+      "numberOfBytes": "32"
+    },
+    "t_bool": {
+      "encoding": "inplace",
+      "label": "bool",
+      "numberOfBytes": "1"
+    },
+    "t_contract(IFurnace)": {
+      "encoding": "inplace",
+      "label": "contract IFurnace",
+      "numberOfBytes": "20"
+    },
+    "t_mapping(t_address,t_array(t_uint256)dyn_storage)": {
+      "encoding": "mapping",
+      "label": "mapping(address => uint256[])",
+      "numberOfBytes": "32"
+    },
+    "t_mapping(t_address,t_struct(KingAutoLockConfig)_storage)": {
+      "encoding": "mapping",
+      "label": "mapping(address => struct MineCore.KingAutoLockConfig)",
+      "numberOfBytes": "32"
+    },
+    "t_mapping(t_address,t_uint256)": {
+      "encoding": "mapping",
+      "label": "mapping(address => uint256)",
+      "numberOfBytes": "32"
+    },
+    "t_mapping(t_uint256,t_address)": {
+      "encoding": "mapping",
+      "label": "mapping(uint256 => address)",
+      "numberOfBytes": "32"
+    },
+    "t_mapping(t_uint256,t_struct(ReignInfo)_storage)": {
+      "encoding": "mapping",
+      "label": "mapping(uint256 => struct IMineCore.ReignInfo)",
+      "numberOfBytes": "32"
+    },
+    "t_mapping(t_uint256,t_uint256)": {
+      "encoding": "mapping",
+      "label": "mapping(uint256 => uint256)",
+      "numberOfBytes": "32"
+    },
+    "t_struct(KingAutoLockConfig)_storage": {
+      "encoding": "inplace",
+      "label": "struct MineCore.KingAutoLockConfig",
+      "members": [
+        {
+          "label": "enabled",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_bool"
+        },
+        {
+          "label": "createAutoMax",
+          "offset": 1,
+          "slot": "0",
+          "type": "t_bool"
+        },
+        {
+          "label": "durationSeconds",
+          "offset": 2,
+          "slot": "0",
+          "type": "t_uint32"
+        },
+        {
+          "label": "targetTokenId",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint256"
+        },
+        {
+          "label": "pinnedTokenId",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_uint256"
+        },
+        {
+          "label": "minVeOut",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_uint256"
+        }
+      ],
+      "numberOfBytes": "128"
+    },
+    "t_struct(ReignInfo)_storage": {
+      "encoding": "inplace",
+      "label": "struct IMineCore.ReignInfo",
+      "members": [
+        {
+          "label": "king",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_address"
+        },
+        {
+          "label": "startTime",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint256"
+        },
+        {
+          "label": "endTime",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_uint256"
+        },
+        {
+          "label": "pricePaid",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_uint256"
+        },
+        {
+          "label": "referencePrice",
+          "offset": 0,
+          "slot": "4",
+          "type": "t_uint256"
+        },
+        {
+          "label": "totalClaimMined",
+          "offset": 0,
+          "slot": "5",
+          "type": "t_uint256"
+        },
+        {
+          "label": "totalEthToKing",
+          "offset": 0,
+          "slot": "6",
+          "type": "t_uint256"
+        }
+      ],
+      "numberOfBytes": "224"
+    },
+    "t_uint256": {
+      "encoding": "inplace",
+      "label": "uint256",
+      "numberOfBytes": "32"
+    },
+    "t_uint32": {
+      "encoding": "inplace",
+      "label": "uint32",
+      "numberOfBytes": "4"
+    }
+  }
+}

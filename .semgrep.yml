@@ -1,0 +1,412 @@
+rules:
+  # ============================================================
+  # Solidity – targeted correctness & security rules
+  # ============================================================
+
+  # not enforce that the return value (bool success) is checked.
+  # A contract can guard the address yet silently ignore failure.
+  # FIX: Add companion rule requiring `require(success, ...)`.
+  - id: sol-arbitrary-delegatecall
+    patterns:
+      - pattern: |
+          $ADDR.delegatecall($DATA)
+      - pattern-not-regex: _guardHelper\s*\.delegatecall\s*\(\s*abi\.encodeCall\s*\(\s*FurnaceGuardHelper\.
+      - pattern-not-inside: |
+          require($COND, ...);
+          ...
+          $ADDR.delegatecall($DATA)
+    message: >
+      Unguarded delegatecall – ensure the target address is trusted or validated.
+    languages: [solidity]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-829
+
+  - id: sol-delegatecall-unchecked-return
+    pattern-regex: (?m)^[^=\n]*\.delegatecall\s*\(
+    message: >
+      delegatecall return value not captured. A failed delegatecall will
+      silently continue execution. Capture and check the bool return.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-252
+    paths:
+      include:
+        - '/src/**/*.sol'
+      exclude:
+        - '/src/mocks/**'
+
+  - id: sol-arbitrary-selfdestruct
+    pattern: selfdestruct($ADDR)
+    message: >
+      selfdestruct is deprecated since Solidity 0.8.18 and dangerous.
+      Ensure this is intentional and access-controlled.
+    languages: [solidity]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-284
+
+  - id: sol-tx-origin-auth
+    pattern-either:
+      - pattern: require(tx.origin == $ADDR, ...)
+      - pattern: require(tx.origin != $ADDR, ...)
+      - pattern: |
+          if (tx.origin != $ADDR) {
+            ...
+          }
+      - pattern: |
+          if (tx.origin == $ADDR) {
+            ...
+          }
+    message: >
+      Using tx.origin for authentication is vulnerable to phishing attacks.
+      Use msg.sender instead.
+    languages: [solidity]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-346
+
+  - id: sol-unchecked-transfer
+    patterns:
+      - pattern: $TOKEN.transfer($TO, $AMOUNT)
+      - pattern-not-inside: require($TOKEN.transfer($TO, $AMOUNT), ...)
+      - pattern-not-inside: |
+          bool $OK = $TOKEN.transfer($TO, $AMOUNT);
+          ...
+      - pattern-not-inside: |
+          if ($TOKEN.transfer($TO, $AMOUNT)) { ... }
+    message: >
+      ERC-20 transfer return value not checked. Use SafeERC20 or check the return.
+    languages: [solidity]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-252
+    paths:
+      exclude:
+        - '**/src/mocks/**'
+
+  - id: sol-unchecked-transferFrom
+    patterns:
+      - pattern: $TOKEN.transferFrom($FROM, $TO, $AMOUNT)
+      - pattern-not-inside: require($TOKEN.transferFrom($FROM, $TO, $AMOUNT), ...)
+      - pattern-not-inside: |
+          bool $OK = $TOKEN.transferFrom($FROM, $TO, $AMOUNT);
+          ...
+      - pattern-not-inside: |
+          if ($TOKEN.transferFrom($FROM, $TO, $AMOUNT)) { ... }
+    message: >
+      ERC-20 transferFrom return value not checked. Use SafeERC20.safeTransferFrom
+      or check the return value to prevent silent failures.
+    languages: [solidity]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-252
+
+  - id: sol-unchecked-low-level-call
+    pattern-regex: (?m)^[^=\n]*\.call\s*\(
+    message: >
+      Low-level .call() return value not captured. Silently swallowed failures
+      can lead to lost funds. Capture the bool return and revert on failure.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-252
+    paths:
+      include:
+        - '/src/**/*.sol'
+      exclude:
+        - '/src/mocks/**'
+
+  - id: sol-block-timestamp-strict-equality
+    pattern-either:
+      - pattern: require(block.timestamp == $VAL, ...)
+      - pattern: |
+          if (block.timestamp == $VAL) {
+            ...
+          }
+    message: >
+      Strict equality on block.timestamp is unreliable. Use >= or <= comparisons.
+    languages: [solidity]
+    severity: WARNING
+    metadata:
+      category: correctness
+
+  - id: sol-msg-value-in-loop
+    patterns:
+      - pattern-inside: |
+          for (...) {
+            ...
+          }
+      - pattern: msg.value
+    message: >
+      msg.value is constant across a transaction. Using it inside a loop
+      likely double-counts the sent value. Use a local variable instead.
+    languages: [solidity]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-682
+
+  # ============================================================
+  # Shell / ops scripts – targeted operational hardening rules
+  # ============================================================
+
+  - id: sh-curl-pipe-shell
+    pattern-regex: (?i)\b(?:curl|wget)\b[^\n|;]*\|\s*(?:sh|bash)\b
+    message: >
+      Avoid piping remote content directly into a shell in repo-managed scripts.
+      Download, verify, and execute explicitly instead.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-494
+    paths:
+      include:
+        - '**/*.sh'
+        - '**/*.bash'
+        - '**/*.zsh'
+
+  - id: sh-unsafe-eval
+    pattern-regex: (?m)\beval\s+["'$\{]
+    message: >
+      Shell eval with expanded input is dangerous. Prefer explicit argument passing
+      or a fixed command dispatch table.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-95
+    paths:
+      include:
+        - '**/*.sh'
+        - '**/*.bash'
+        - '**/*.zsh'
+
+  # ============================================================
+  # TypeScript / JavaScript – targeted security rules
+  # ============================================================
+
+  - id: ts-eval-usage
+    pattern-either:
+      - pattern: eval($CODE)
+      - pattern: new Function($CODE)
+    message: >
+      Avoid eval() and new Function() – they enable code injection.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-95
+
+  # **/test/**, and **/fixtures/** but test directories may contain
+  # real-looking API keys that were accidentally left from debugging.
+  # FIX: Either tighten excludes to only unit-test dirs or add a separate
+  # integration-test scan with stricter secret detection:
+  #   paths:
+  #     exclude:
+  #       - '**/*.test.*'     # keep
+  #       - '**/*.spec.*'     # keep
+  #       # REMOVE: '**/test/**' and '**/fixtures/**'
+  #       # ADD: '**/test/unit/**' '**/test/__mocks__/**'
+  - id: ts-hardcoded-secret
+    patterns:
+      - pattern: |
+          $KEY = "..."
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i)(password|secret|api[_]?key|private[_]?key|access[_]?token|auth[_]?token|session[_]?secret|jwt[_]?secret|signing[_]?key)
+    message: >
+      Potential hardcoded secret. Use environment variables or a secrets manager.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-798
+    paths:
+      exclude:
+        - '**/*.spec.*'
+        - '**/test/unit/**'
+        - '**/test/__mocks__/**'
+        - '**/fixtures/unit/**'
+        - '**/test/fixtures/**'
+        - '**/test/integration/**'
+        - '**/src/test/**'
+
+  - id: sol-assert-for-validation
+    pattern: assert($COND)
+    message: >
+      assert() should only check invariants, not user input.
+      Use require() for input validation to avoid consuming all gas.
+    languages: [solidity]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-400
+
+  - id: sol-state-change-after-call
+    pattern-regex: (?m)^[^=\n]*\.call\s*\{
+    message: >
+      Low-level .call{...}() with uncaptured return value. This risks silent
+      failure and potential CEI violations. Capture the bool return, check it,
+      and verify state changes precede this call. Slither reentrancy detectors
+      provide deeper cross-function CEI analysis.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: security
+      cwe: CWE-841
+    paths:
+      include:
+        - '/src/**/*.sol'
+      exclude:
+        - '/src/mocks/**'
+
+  - id: ts-unsafe-regex
+    pattern: new RegExp($INPUT)
+    message: >
+      Constructing RegExp from user input may cause ReDoS.
+      Validate/escape the input first.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-1333
+
+  - id: ts-innerhtml-assignment
+    pattern: $EL.innerHTML = $VAL
+    message: >
+      Direct innerHTML assignment risks XSS. Use textContent or sanitize first.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-79
+
+  - id: ts-console-log-in-prod
+    pattern: console.log(...)
+    message: >
+      Remove console.log before merging. Use a structured logger instead.
+    languages: [typescript, javascript]
+    severity: INFO
+    metadata:
+      category: best-practice
+    paths:
+      include:
+        - '**/ui-runtime/**'
+      exclude:
+        - '**/*.test.*'
+        - '**/*.spec.*'
+        - '**/test/**'
+        - '**/scripts/**'
+        - '**/dev/**'
+
+  # ============================================================
+  # Solidity – additional security rules (recommended)
+  # ============================================================
+
+  # Prefer OpenZeppelin ECDSA.recover or SignatureChecker over raw ecrecover.
+  - id: sol-ecrecover-usage
+    pattern: ecrecover($HASH, $V, $R, $S)
+    message: >
+      Raw ecrecover usage detected. Prefer OpenZeppelin ECDSA.recover or
+      SignatureChecker to handle malleability and zero-address returns safely.
+    languages: [solidity]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-347
+
+  - id: sol-assembly-extcodesize
+    pattern-regex: assembly\s*\{[^}]*extcodesize[^}]*\}
+    message: >
+      Inline assembly using extcodesize for contract-detection is unreliable
+      during constructor execution. Consider whether this check is necessary
+      and document the trust assumption.
+    languages: [generic]
+    severity: INFO
+    metadata:
+      category: security
+      cwe: CWE-693
+    paths:
+      include:
+        - '/src/**'
+
+  # ============================================================
+  # Solidity – gap coverage rules (coverage additions)
+  # ============================================================
+  # sol-uninitialized-storage-pointer and sol-phantom-function-override removed:
+  # their generic-mode regexes matched standard Solidity idioms (every storage
+  # pointer assignment, every function override) producing ~90 false positives.
+  # Slither and Aderyn provide semantic coverage for both concerns.
+
+  # ============================================================
+  # Solidity – accounting floor drift (TM-AccountingFloorDrift, see
+  # docs/security/threat-map-v1.0.0.md § 12)
+  # ============================================================
+  # Flag any `Math.mulDiv(_, _, Constants.BPS_DENOM)` site under /src/**/*.sol
+  # that is not on the reviewed allowlist. The shape of concern is a bps-only
+  # `mulDiv` over a user-supplied small delta, feeding directly into a value-
+  # paying call (`Transfer`, `addToLockFor`, `_applyBonusAmm`, `enterWith*`).
+  # On a sub-resolution delta the floor of the bps division produces a constant
+  # non-zero output and the resulting payout is independent of the actual
+  # delta — a continuity break in the M1 (rate continuity) and M6 (floor
+  # direction) invariants.
+  #
+  # Acceptable shapes for a value-paying mulDiv on a user-supplied delta:
+  #   - sub-bp curve scaled at `Constants.WEIGHT_PRECISION` then divided by
+  #     `Constants.WEIGHT_DENOM`,
+  #   - explicit `MIN_TOPUP_AMOUNT` / `MIN_LOCK_AMOUNT` gate on the input
+  #     before the mulDiv,
+  #   - carry-bucket pattern (e.g. `LpStakingVault7D._indexRewardsWithCarry`,
+  #     `ShareholderRoyalties.nextRemainder`).
+  - id: sol-mulDiv-bps-payout-without-min-gate
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      cwe: CWE-682
+      threat-map: TM-AccountingFloorDrift
+      invariants: M1, M6
+    message: >
+      `Math.mulDiv(_, _, Constants.BPS_DENOM)` on a value-paying path without
+      a sub-bp curve, min-input gate, or carry bucket is a continuity break
+      in the M1 / M6 accounting invariants. Use one of: (a) scale to
+      `Constants.WEIGHT_PRECISION` and divide by `Constants.WEIGHT_DENOM`,
+      (b) gate the input with `MIN_TOPUP_AMOUNT` / `MIN_LOCK_AMOUNT`, or
+      (c) absorb dust into a named carry slot. See
+      `docs/security/threat-map-v1.0.0.md` § 12 and
+      `docs/security/invariants-v1.0.0.md` § 15 (M1, M6).
+    pattern-regex: 'Math\.mulDiv\([^,)]+,[^,)]+,\s*Constants\.BPS_DENOM\s*\)'
+    paths:
+      include:
+        - '/src/**/*.sol'
+      # Each `mulDiv(_, _, BPS_DENOM)` site in the files below operates on
+      # validated bps values (capped at MAX_GROSS_BONUS_BPS or MAX_BPS) over
+      # already-bounded principals, not on user-supplied sub-resolution deltas.
+      # New Solidity files added under /src/ trip the rule by default;
+      # reviewers must triage and either fix or extend this list with a
+      # justifying comment.
+      exclude:
+        - '/src/mocks/**'
+        - '/src/lib/**'
+        - '/src/lens/**'
+        - '/src/Furnace.sol'
+        - '/src/FurnaceGuardHelper.sol'
+        - '/src/FurnaceQuoter.sol'
+        - '/src/EntryTokenRegistry.sol'
+        - '/src/MineCore.sol'
+        - '/src/MineCoreHelper.sol'
+        - '/src/MineCoreQuoter.sol'
+        - '/src/ShareholderRoyalties.sol'
+        - '/src/vault/LpStakingVault7D.sol'
+        - '/src/MarketRouter.sol'
+        - '/src/genesis/LaunchController.sol'

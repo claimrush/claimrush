@@ -1,0 +1,214 @@
+{
+  "name": "ClaimRush",
+  "version": "v1.0.0",
+  "chain": "base",
+  "chainId": 8453,
+  "generatedAtUtc": "2026-05-02T00:00:00.000Z",
+  "notes": [
+    "Template for the May 3 2026 fresh redeploy (T-0: 2026-05-03 09:00 America/New_York). Copy over deployments/base_mainnet.json immediately before running deploy_prod.mjs --deploy.",
+    "deploy_prod.mjs --deploy --wire overwrites every contracts.*.address / implementation / proxyAdmin / startBlock field from the live broadcast artefact. Leave them at 0x0 / 0 here; they are populated by the deploy, not by hand.",
+    "Canonical pins that MUST stay as-is in this template (checked by deploy_prod.mjs pre-flight):",
+    "  - contracts.GenesisLPVault24M.lpWithdrawRecipient = 0xE12f0a3557309c225890dBa8D4a42f5300110554 (immutable in the vault — Apr 14 canonical value is retained on redeploy).",
+    "  - contracts.MaintenanceHub.rescueRecipient = <NEW_ADMIN_SAFE from APR_24_ADMIN_SAFE_ROTATION_RUNBOOK.md>.",
+    "  - contracts.TimelockController.proposer = contracts.TimelockController.executor = <NEW_ADMIN_SAFE>.",
+    "  - aerodrome.router.address / aerodrome.poolFactory.address / aerodrome.wrappedNative.address stay at their canonical Base mainnet pins.",
+    "  - chainlink.ethUsdFeed.address stays at the canonical Base mainnet pin.",
+    "  - safes.adminSafe.address = <NEW_ADMIN_SAFE>. safes.guardianSafe.address = 0x3aC11B7649F399eA3497e579c538dED865c10BF4 (unchanged).",
+    "Supersedes deployments/archive/base_mainnet_apr14.json (decommissioned 2026-04-23). See docs/dev/internal/APR_24_DECOMMISSION_RUNBOOK.md and docs/dev/internal/MAY_19_MAINNET_REDEPLOY_RUNBOOK.md.",
+    "Start blocks are REQUIRED for efficient and correct Dune queries (filter-by-block).",
+    "Do not use this file to publish leaderboard outputs; it is configuration only.",
+    "After FinalizeGenesis on Base mainnet (May 13 09:00 EST), backfill aerodrome.claimWethPool / aerodrome.lpToken addresses and startBlocks from the finalize receipt before subgraph sync or public go-live.",
+    "FurnaceQuoter is deployed inline by Wire.s.sol (not Deploy.s.sol). `scripts/deploy_prod.mjs --wire` recovers and records it in this manifest from Furnace.furnaceQuoter().",
+    "Canonical governance handoff is: FinalizeTimelockBootstrap, pre-schedule TimelockAcceptOwnership while the deployer still owns the contracts, wait for the operation to become ready, then run FinalizeOwnership and immediately execute the ready accept batch so direct owner() control does not stay on the deployer through the full timelock delay."
+  ],
+  "analytics": {
+    "addressExclusions": []
+  },
+  "contracts": {
+    "ClaimToken": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "VeClaimNFT": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "MineCore": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "proxyAdmin": "0x0000000000000000000000000000000000000000",
+      "proxyAdminOwner": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "MineCoreQuoter": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "ShareholderRoyalties": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "proxyAdmin": "0x0000000000000000000000000000000000000000",
+      "proxyAdminOwner": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "Furnace": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "guardHelper": "0x0000000000000000000000000000000000000000",
+      "proxyAdmin": "0x0000000000000000000000000000000000000000",
+      "proxyAdminOwner": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "LpStakingVault7D": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "FurnaceEntryTokenRegistry": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "MineCoreEntryTokenRegistry": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "ClaimAllHelper": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "DelegationHub": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "MarketRouter": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "implementation": "0x0000000000000000000000000000000000000000",
+      "proxyAdmin": "0x0000000000000000000000000000000000000000",
+      "proxyAdminOwner": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "TimelockController": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "bootstrapAdmin": "0x0000000000000000000000000000000000000000",
+      "proposer": "0x0000000000000000000000000000000000000000",
+      "executor": "0x0000000000000000000000000000000000000000",
+      "minDelaySeconds": 172800,
+      "startBlock": 0
+    },
+    "DexAdapter": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "LaunchController": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "GenesisLPVault24M": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "lpWithdrawRecipient": "0xE12f0a3557309c225890dBa8D4a42f5300110554",
+      "startBlock": 0
+    },
+    "MaintenanceHub": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "rescueRecipient": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "AgentLens": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    },
+    "FurnaceQuoter": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    }
+  },
+  "aerodrome": {
+    "wrappedNative": {
+      "address": "0x4200000000000000000000000000000000000006",
+      "symbol": "WETH",
+      "startBlock": 0
+    },
+    "router": {
+      "address": "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",
+      "startBlock": 0
+    },
+    "poolFactory": {
+      "address": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+      "startBlock": 0
+    },
+    "claimWethPool": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0,
+      "poolType": "Aerodrome v2 vAMM"
+    },
+    "lpToken": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    }
+  },
+  "chainlink": {
+    "ethUsdFeed": {
+      "address": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"
+    }
+  },
+  "protocolParams": {
+    "furnace": {
+      "maxUserBonusBps": 10000,
+      "lpTopupRateMinBps": 750,
+      "lpTopupRateMaxBps": 1500,
+      "lockTargetClaim": 120000000,
+      "reserveTargetFinalClaim": 20000000,
+      "reserveMultMaxBps": 20000,
+      "swingTimeSeconds": 5184000,
+      "bonusDecayWindowSeconds": 10800,
+      "lockPctTargetBps": 700,
+      "lockPctMinForBoostCapBps": 500,
+      "lockPctFullBoostCapBps": 2000,
+      "reserveMultMaxBpsLowLock": 15000,
+      "sellSpreadFloor7dBps": 120
+    }
+  },
+  "optional": {
+    "GameRouter": {
+      "deployed": false,
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    }
+  },
+  "safes": {
+    "adminSafe": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "role": "admin",
+      "safeVersion": "1.4.1",
+      "threshold": 2,
+      "owners": [
+        "0x4220a8c5A6DED6BbBA25F8a108E8954CcBf61440",
+        "0xF3Ba993287972A8C3e7130f900E44078E895DF7D",
+        "0x225E5dEF940615D8eB32D9aa36e2e76608906155"
+      ],
+      "timelockRolesHeld": [
+        "PROPOSER_ROLE",
+        "EXECUTOR_ROLE"
+      ],
+      "notes": "Admin Safe (NEW — deployed per APR_24_ADMIN_SAFE_ROTATION_RUNBOOK.md). 2-of-3 Ledger multisig with the SAME signers as the Apr 14 Admin Safe. Holds PROPOSER_ROLE and EXECUTOR_ROLE on contracts.TimelockController; also pinned as TimelockController.proposer / TimelockController.executor at deploy time. NOT the direct owner() of protocol contracts — owner() is the TimelockController. Paste the new Safe address here after Apr 24-30 rotation and commit before May 3 deploy."
+    },
+    "guardianSafe": {
+      "address": "0x3aC11B7649F399eA3497e579c538dED865c10BF4",
+      "role": "guardian",
+      "safeVersion": "1.4.1",
+      "threshold": 2,
+      "owners": [
+        "0x5C6A84f627E15dC5A3E4Dc21CaafB9c5777a213f",
+        "0xd94D6e5a6BaBEe1F422c2726529aBDc546f9b36f",
+        "0x87434E3A4aE808B5fB1095B67bB14347025ABE11"
+      ],
+      "timelockRolesHeld": [],
+      "notes": "Guardian Safe. 2-of-3 Ledger multisig (separate signer set from the Admin Safe). Fast-response role for pause / emergency ops (no timelock). Becomes MineCore.guardian() and the guardian on protocol contracts AFTER post-genesis rotation (currently MineCore.guardian == LaunchController). Used as the GUARDIAN env var in Deploy.s.sol / Wire.s.sol / FinalizeTimelockBootstrap.s.sol. Unchanged across the May 3 redeploy — same address, nonce=0."
+    },
+    "verification": {
+      "verifiedAtUtc": "",
+      "verifiedAtBlock": 0,
+      "rpc": "https://mainnet.base.org",
+      "method": "cast code + cast call getOwners()/getThreshold()/VERSION()/nonce() + cast call TimelockController.hasRole() for Admin Safe PROPOSER_ROLE + EXECUTOR_ROLE. Re-run after May 3 deploy and fill these fields."
+    }
+  }
+}

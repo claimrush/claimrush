@@ -1,0 +1,96 @@
+name: abi-lint
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - 'abis/**'
+      - 'scripts/lint_maintenancehub_abi.py'
+      - 'scripts/check_abi_sanity.py'
+      - 'scripts/check_abi_event_schema.py'
+      - 'scripts/check_abi_strict_mode.py'
+      - 'scripts/check_abis_vs_dune_pack.py'
+      - 'scripts/check_subgraph_manifest_events_vs_abi.py'
+      - 'src/interfaces/**'
+      - 'src/lib/Events.sol'
+      - 'src/lib/Errors.sol'
+      - 'src/*.sol'
+      - 'src/vault/*.sol'
+      - 'src/genesis/*.sol'
+      - 'src/lens/*.sol'
+      - 'docs/spec/maintenance-hub-spec-v1.0.0.md'
+      - 'docs/spec/launchcontroller-implementer-checklist-v1.0.0.md'
+      - 'docs/analytics/dune-integration-pack-v1.0.0.md'
+      - 'subgraph/**'
+      - 'Makefile'
+      - '.github/workflows/abi-lint.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'abis/**'
+      - 'scripts/lint_maintenancehub_abi.py'
+      - 'scripts/check_abi_sanity.py'
+      - 'scripts/check_abi_event_schema.py'
+      - 'scripts/check_abi_strict_mode.py'
+      - 'scripts/check_abis_vs_dune_pack.py'
+      - 'scripts/check_subgraph_manifest_events_vs_abi.py'
+      - 'src/interfaces/**'
+      - 'src/lib/Events.sol'
+      - 'src/lib/Errors.sol'
+      - 'src/*.sol'
+      - 'src/vault/*.sol'
+      - 'src/genesis/*.sol'
+      - 'src/lens/*.sol'
+      - 'docs/spec/maintenance-hub-spec-v1.0.0.md'
+      - 'docs/spec/launchcontroller-implementer-checklist-v1.0.0.md'
+      - 'docs/analytics/dune-integration-pack-v1.0.0.md'
+      - 'subgraph/**'
+      - 'Makefile'
+      - '.github/workflows/abi-lint.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  abi-lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install pinned Python deps
+        # check_abi_strict_mode.py requires `pycryptodome` for keccak256
+        # selector/topic recomputation. Without it the script aborts with
+        # "No keccak256 library found. Strict Mode selector/topic checks
+        # would be incomplete." See requirements-ci.txt for the pinned set.
+        run: python3 -m pip install --disable-pip-version-check -r requirements-ci.txt
+
+      - name: Run ABI lint
+        run: make abi-lint
+
+      - name: Run ABI sanity
+        run: make abi-sanity
+
+      - name: Run ABI event schema
+        run: make abi-event-schema
+
+      - name: Run ABI strict mode
+        run: make abi-strict-mode
+
+      - name: Run Dune event schema parity
+        run: make abis-check
+
+      - name: Run subgraph ABI parity
+        run: make subgraph-abi-parity

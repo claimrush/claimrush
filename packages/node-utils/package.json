@@ -1,0 +1,27 @@
+{
+  "name": "@claimrush/node-utils",
+  "private": true,
+  "license": "MIT",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/env.d.mts",
+      "default": "./src/env.mjs"
+    },
+    "./env": {
+      "types": "./src/env.d.mts",
+      "default": "./src/env.mjs"
+    },
+    "./logger": {
+      "types": "./src/logger.d.mts",
+      "default": "./src/logger.mjs"
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

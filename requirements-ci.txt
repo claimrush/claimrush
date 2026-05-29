@@ -1,0 +1,7 @@
+# Python dependencies required for CI "make gates" and related repo scripts.
+# Keep this minimal and pinned for reproducibility.
+
+PyYAML==6.0.3
+
+# Crypto primitive used by scripts/check_abi_strict_mode.py for keccak256 selectors/topics.
+pycryptodome==3.23.0

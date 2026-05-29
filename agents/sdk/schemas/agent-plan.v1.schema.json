@@ -1,0 +1,785 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClaimRush Agent Plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "chain", "chainId", "blockNumber", "blockTimestamp", "agent", "actions"],
+  "properties": {
+    "version": { "const": "agentPlan.v1" },
+    "chain": { "type": "string", "minLength": 1 },
+    "chainId": { "type": "integer", "minimum": 1 },
+    "blockNumber": { "type": "string", "pattern": "^[0-9]+$" },
+    "blockTimestamp": { "type": "string", "pattern": "^[0-9]+$" },
+    "agent": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+    "actions": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "ethIn",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "furnace.enterWithEth" },
+              "ethIn": { "type": "string", "pattern": "^[0-9]+$" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "user",
+              "ethIn",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "furnace.enterWithEthFor" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "ethIn": { "type": "string", "pattern": "^[0-9]+$" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "claimIn",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "furnace.enterWithClaim" },
+              "claimIn": { "type": "string", "pattern": "^[0-9]+$" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "user",
+              "claimIn",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "furnace.enterWithClaimFromCallerFor" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "claimIn": { "type": "string", "pattern": "^[0-9]+$" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "tokenIn",
+              "amountIn",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "furnace.enterWithToken" },
+              "tokenIn": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "amountIn": { "type": "string", "pattern": "^[0-9]+$" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "user",
+              "tokenIn",
+              "amountIn",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "furnace.enterWithTokenFromCallerFor" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "tokenIn": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "amountIn": { "type": "string", "pattern": "^[0-9]+$" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "price"],
+            "properties": {
+              "kind": { "const": "mineCore.takeover" },
+              "price": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "newKing", "price"],
+            "properties": {
+              "kind": { "const": "mineCore.takeoverFor" },
+              "newKing": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "price": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenIn", "amountIn", "slippageBps"],
+            "properties": {
+              "kind": { "const": "mineCore.takeoverWithToken" },
+              "tokenIn": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "amountIn": { "type": "string", "pattern": "^[0-9]+$" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "ethRecipient", "claimRecipient"],
+            "properties": {
+              "kind": { "const": "mineCore.setCurrentReignRecipients" },
+              "ethRecipient": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "claimRecipient": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "enabled",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "minVeOut"
+            ],
+            "properties": {
+              "kind": { "const": "mineCore.setKingAutoLockConfig" },
+              "enabled": { "type": "boolean" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "minVeOut": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenIn", "amountIn", "slippageBps"],
+            "properties": {
+              "kind": { "const": "mineCore.takeoverWithToken" },
+              "tokenIn": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "amountIn": { "type": "string", "pattern": "^[0-9]+$" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "ethRecipient", "claimRecipient"],
+            "properties": {
+              "kind": { "const": "mineCore.setCurrentReignRecipients" },
+              "ethRecipient": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "claimRecipient": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "enabled",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "minVeOut"
+            ],
+            "properties": {
+              "kind": { "const": "mineCore.setKingAutoLockConfig" },
+              "enabled": { "type": "boolean" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "minVeOut": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "claimable"],
+            "properties": {
+              "kind": { "const": "royalties.claimShareholderEth" },
+              "claimable": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "royalties.claimShareholderLock" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "enabled",
+              "tokenId",
+              "durationSeconds",
+              "minCadenceSeconds",
+              "minEthToCompound"
+            ],
+            "properties": {
+              "kind": { "const": "royalties.setAutoCompoundConfig" },
+              "enabled": { "type": "boolean" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "minCadenceSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "minEthToCompound": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "royalties.claimShareholderLock" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "enabled",
+              "tokenId",
+              "durationSeconds",
+              "minCadenceSeconds",
+              "minEthToCompound"
+            ],
+            "properties": {
+              "kind": { "const": "royalties.setAutoCompoundConfig" },
+              "enabled": { "type": "boolean" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "minCadenceSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "minEthToCompound": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "user",
+              "claimable",
+              "mode",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "minVeOut"
+            ],
+            "properties": {
+              "kind": { "const": "claimAllHelper.claimShareholderForUser" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "claimable": { "type": "string", "pattern": "^[0-9]+$" },
+              "mode": { "type": "integer", "minimum": 0, "maximum": 1 },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "minVeOut": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "user", "amount"],
+            "properties": {
+              "kind": { "const": "claimAllHelper.withdrawKingBalanceForUser" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "amount": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "user",
+              "claimable",
+              "mode",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "minVeOut"
+            ],
+            "properties": {
+              "kind": { "const": "claimAllHelper.claimAllFor" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "claimable": { "type": "string", "pattern": "^[0-9]+$" },
+              "mode": { "type": "integer", "minimum": 0, "maximum": 1 },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "minVeOut": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "amount"],
+            "properties": {
+              "kind": { "const": "mineCore.withdrawKingBalance" },
+              "amount": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "amount", "to"],
+            "properties": {
+              "kind": { "const": "mineCore.withdrawRefundBalance" },
+              "amount": { "type": "string", "pattern": "^[0-9]+$" },
+              "to": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+            }
+          },
+
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "token", "spender", "amount"],
+            "properties": {
+              "kind": { "const": "erc20.approve" },
+              "token": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "spender": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "amount": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "token", "spender", "minAllowance", "approveAmount"],
+            "properties": {
+              "kind": { "const": "erc20.ensureAllowance" },
+              "token": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "spender": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "minAllowance": { "type": "string", "pattern": "^[0-9]+$" },
+              "approveAmount": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "spender", "tokenId"],
+            "properties": {
+              "kind": { "const": "ve.approve" },
+              "spender": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "operator", "approved"],
+            "properties": {
+              "kind": { "const": "ve.setApprovalForAll" },
+              "operator": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "approved": { "type": "boolean" }
+            }
+          },
+
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenId", "durationSeconds", "minBonusOut"],
+            "properties": {
+              "kind": { "const": "furnace.extendWithBonus" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "minBonusOut": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "user", "tokenId", "durationSeconds", "minBonusOut"],
+            "properties": {
+              "kind": { "const": "furnace.extendWithBonusFor" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "minBonusOut": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "fromTokenId", "intoTokenId", "minBonusOut"],
+            "properties": {
+              "kind": { "const": "furnace.mergeLocksWithBonus" },
+              "fromTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "intoTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "minBonusOut": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenId"],
+            "properties": {
+              "kind": { "const": "ve.unlock" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenId", "enabled"],
+            "properties": {
+              "kind": { "const": "ve.setAutoMax" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "enabled": { "type": "boolean" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "const": "ve.checkpointGlobalState" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "const": "ve.checkpointTotalVe" }
+            }
+          },
+
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "targetBonusBps",
+              "budgetClaim",
+              "durationSeconds",
+              "createAutoMax",
+              "escrowTtlSeconds",
+              "destinationLockId",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "marketRouter.createBonusTargetEscrowWithTarget" },
+              "targetBonusBps": { "type": "string", "pattern": "^[0-9]+$" },
+              "budgetClaim": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "escrowTtlSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "destinationLockId": { "type": "string", "pattern": "^[0-9]+$" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "offerId"],
+            "properties": {
+              "kind": { "const": "marketRouter.cancelBonusTargetEscrow" },
+              "offerId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "offerId", "ttlSecondsFromNow"],
+            "properties": {
+              "kind": { "const": "marketRouter.extendBonusTargetEscrowExpiry" },
+              "offerId": { "type": "string", "pattern": "^[0-9]+$" },
+              "ttlSecondsFromNow": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "offerId"],
+            "properties": {
+              "kind": { "const": "marketRouter.cancelExpiredBonusTargetEscrow" },
+              "offerId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "offerId"],
+            "properties": {
+              "kind": { "const": "marketRouter.executeAutoFurnace" },
+              "offerId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenId", "slippageBps", "deadlineSeconds"],
+            "properties": {
+              "kind": { "const": "marketRouter.sellLockToFurnace" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" },
+              "deadlineSeconds": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenId", "deadlineSeconds"],
+            "properties": {
+              "kind": { "const": "marketRouter.sellListedLockToFurnace" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "deadlineSeconds": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenId", "minClaimOut", "ttlSeconds"],
+            "properties": {
+              "kind": { "const": "marketRouter.listLock" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "minClaimOut": { "type": "string", "pattern": "^[0-9]+$" },
+              "ttlSeconds": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenId"],
+            "properties": {
+              "kind": { "const": "marketRouter.delistLock" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "tokenId"],
+            "properties": {
+              "kind": { "const": "marketRouter.cancelExpiredListing" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "targetBonusBps",
+              "budgetClaim",
+              "durationSeconds",
+              "createAutoMax",
+              "escrowTtlSeconds",
+              "destinationLockId",
+              "slippageBps"
+            ],
+            "properties": {
+              "kind": { "const": "marketRouter.createBonusTargetEscrowWithTarget" },
+              "targetBonusBps": { "type": "string", "pattern": "^[0-9]+$" },
+              "budgetClaim": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "escrowTtlSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "destinationLockId": { "type": "string", "pattern": "^[0-9]+$" },
+              "slippageBps": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "offerId"],
+            "properties": {
+              "kind": { "const": "marketRouter.cancelBonusTargetEscrow" },
+              "offerId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "offerId", "ttlSecondsFromNow"],
+            "properties": {
+              "kind": { "const": "marketRouter.extendBonusTargetEscrowExpiry" },
+              "offerId": { "type": "string", "pattern": "^[0-9]+$" },
+              "ttlSecondsFromNow": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "offerId"],
+            "properties": {
+              "kind": { "const": "marketRouter.cancelExpiredBonusTargetEscrow" },
+              "offerId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "offerId"],
+            "properties": {
+              "kind": { "const": "marketRouter.executeAutoFurnace" },
+              "offerId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "user", "fromTokenId", "intoTokenId", "minBonusOut"],
+            "properties": {
+              "kind": { "const": "furnace.mergeLocksWithBonusFor" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "fromTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "intoTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "minBonusOut": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "user", "tokenId"],
+            "properties": {
+              "kind": { "const": "ve.unlockExpiredForUser" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "user",
+              "enabled",
+              "targetTokenId",
+              "durationSeconds",
+              "createAutoMax",
+              "minVeOut"
+            ],
+            "properties": {
+              "kind": { "const": "mineCore.setKingAutoLockConfigForUser" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "enabled": { "type": "boolean" },
+              "targetTokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "createAutoMax": { "type": "boolean" },
+              "minVeOut": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "user",
+              "enabled",
+              "tokenId",
+              "durationSeconds",
+              "minCadenceSeconds",
+              "minEthToCompound"
+            ],
+            "properties": {
+              "kind": { "const": "royalties.setAutoCompoundConfigForUser" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "enabled": { "type": "boolean" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "minCadenceSeconds": { "type": "string", "pattern": "^[0-9]+$" },
+              "minEthToCompound": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "user", "enabled", "tokenId", "durationSeconds"],
+            "properties": {
+              "kind": { "const": "lpVault.setAutoCompoundConfigForUser" },
+              "user": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" },
+              "enabled": { "type": "boolean" },
+              "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+              "durationSeconds": { "type": "string", "pattern": "^[0-9]+$" }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

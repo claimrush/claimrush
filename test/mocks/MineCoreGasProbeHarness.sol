@@ -1,0 +1,174 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.34;
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import {Errors} from "src/lib/Errors.sol";
+import {Events} from "src/lib/Events.sol";
+import {SafeTransfer} from "src/lib/SafeTransfer.sol";
+import {IFurnace} from "src/interfaces/IFurnace.sol";
+import {MineCoreHelper} from "src/MineCoreHelper.sol";
+
+import {MineCoreHarness} from "./MineCoreHarness.sol";
+
+/// @notice Test-only MineCore harness that mirrors `_settlePrevKingClaim` and records gas snapshots.
+/// @dev Keep `probeSettlePrevKingClaim` in sync with `src/MineCore.sol::_settlePrevKingClaim`.
+contract MineCoreGasProbeHarness is MineCoreHarness {
+    struct SettleGasProbe {
+        uint256 gasEntry;
+        uint256 gasBeforeEnter;
+        uint256 gasRequestedForEnter;
+        uint256 gasAfterEnterOrCatch;
+        uint256 gasAfterSettle;
+        uint8 outcome;
+    }
+
+    uint8 internal constant OUTCOME_ZERO_CLAIM = 0;
+    uint8 internal constant OUTCOME_DISABLED = 1;
+    uint8 internal constant OUTCOME_PRECHECK_SKIPPED = 2;
+    uint8 internal constant OUTCOME_RESOLUTION_SKIPPED = 3;
+    uint8 internal constant OUTCOME_FURNACE_ZERO = 4;
+    uint8 internal constant OUTCOME_WIRING_FAILED = 5;
+    uint8 internal constant OUTCOME_ENTER_SUCCEEDED = 6;
+    uint8 internal constant OUTCOME_ENTER_CAUGHT = 7;
+
+    constructor(address claim_, address ve_, address royalties_, address initialOwner)
+        MineCoreHarness(claim_, ve_, royalties_, initialOwner)
+    {}
+
+    function settleClaimMinGasForTest() external pure returns (uint256) {
+        return SETTLE_CLAIM_MIN_GAS;
+    }
+
+    function settleClaimEnterReserveGasForTest() external pure returns (uint256) {
+        return SETTLE_CLAIM_ENTER_RESERVE_GAS;
+    }
+
+    function probeOutcomeEnterSucceeded() external pure returns (uint8) {
+        return OUTCOME_ENTER_SUCCEEDED;
+    }
+
+    function probeOutcomeEnterCaught() external pure returns (uint8) {
+        return OUTCOME_ENTER_CAUGHT;
+    }
+
+    function probeSettlePrevKingClaim(uint256 reignId, address king, uint256 claimAmount)
+        external
+        returns (SettleGasProbe memory probe)
+    {
+        probe.gasEntry = gasleft();
+
+        if (claimAmount == 0) {
+            probe.outcome = OUTCOME_ZERO_CLAIM;
+            probe.gasAfterSettle = gasleft();
+            return probe;
+        }
+
+        KingAutoLockConfig storage cfg = kingAutoLockConfig[king];
+
+        if (cfg.enabled && gasleft() < SETTLE_CLAIM_MIN_GAS) {
+            _mintClaimToKingOrCredit(king, claimAmount);
+            emit Events.KingAutoLockSkipped(reignId, king, claimAmount, 0xFF);
+            probe.outcome = OUTCOME_PRECHECK_SKIPPED;
+            probe.gasAfterSettle = gasleft();
+            return probe;
+        }
+
+        if (!cfg.enabled) {
+            _mintClaimToKingOrCredit(king, claimAmount);
+            probe.outcome = OUTCOME_DISABLED;
+            probe.gasAfterSettle = gasleft();
+            return probe;
+        }
+
+        uint256 preResolvedTokenId = cfg.targetTokenId;
+        if (preResolvedTokenId == 0 && cfg.pinnedTokenId != 0) preResolvedTokenId = cfg.pinnedTokenId;
+        (bool ok, uint256 targetTokenId, uint256 durationSeconds, bool createAutoMax, uint8 reasonCode) = MineCoreHelper(
+                _helper
+            )
+            .resolveKingAutoLockDestination(
+                address(ve), king, preResolvedTokenId, cfg.durationSeconds, cfg.createAutoMax
+            );
+
+        if (!ok) {
+            _mintClaimToKingOrCredit(king, claimAmount);
+            if (cfg.targetTokenId == 0 && cfg.pinnedTokenId != 0) {
+                cfg.pinnedTokenId = 0;
+            }
+            emit Events.KingAutoLockSkipped(reignId, king, claimAmount, reasonCode);
+            probe.outcome = OUTCOME_RESOLUTION_SKIPPED;
+            probe.gasAfterSettle = gasleft();
+            return probe;
+        }
+
+        IFurnace f = furnace;
+        address furnaceAddr = address(f);
+
+        if (furnaceAddr == address(0)) {
+            _mintClaimToKingOrCredit(king, claimAmount);
+            emit Events.KingAutoLockFailed(
+                reignId, king, claimAmount, abi.encodeWithSelector(Errors.ZeroAddress.selector)
+            );
+            probe.outcome = OUTCOME_FURNACE_ZERO;
+            probe.gasAfterSettle = gasleft();
+            return probe;
+        }
+        if (!_isReciprocallyWiredFurnace(furnaceAddr)) {
+            _mintClaimToKingOrCredit(king, claimAmount);
+            emit Events.KingAutoLockFailed(
+                reignId, king, claimAmount, abi.encodeWithSelector(Errors.WiringMismatch.selector)
+            );
+            probe.outcome = OUTCOME_WIRING_FAILED;
+            probe.gasAfterSettle = gasleft();
+            return probe;
+        }
+
+        claim.mint(address(this), claimAmount);
+        _forceApprove(IERC20(address(claim)), furnaceAddr, claimAmount);
+
+        uint256 minVeOut = cfg.minVeOut;
+        if (minVeOut == 0) minVeOut = 1;
+
+        probe.gasBeforeEnter = gasleft();
+        uint256 _gasLeft = gasleft();
+        uint256 gasForEnter = _gasLeft > SETTLE_CLAIM_ENTER_RESERVE_GAS ? _gasLeft - SETTLE_CLAIM_ENTER_RESERVE_GAS : 0;
+        probe.gasRequestedForEnter = gasForEnter;
+
+        try f.enterWithClaimFor{gas: gasForEnter}(
+            king, claimAmount, targetTokenId, durationSeconds, createAutoMax, minVeOut
+        ) returns (
+            uint256 tokenIdUsed
+        ) {
+            probe.gasAfterEnterOrCatch = gasleft();
+
+            _bestEffortResetApproval(IERC20(address(claim)), furnaceAddr);
+
+            if (cfg.targetTokenId == 0 && cfg.pinnedTokenId == 0) {
+                cfg.pinnedTokenId = tokenIdUsed;
+            }
+
+            emit Events.KingAutoLockExecuted(reignId, king, claimAmount, tokenIdUsed);
+            probe.outcome = OUTCOME_ENTER_SUCCEEDED;
+        } catch {
+            probe.gasAfterEnterOrCatch = gasleft();
+
+            if (cfg.targetTokenId == 0) {
+                cfg.pinnedTokenId = 0;
+            }
+
+            bytes memory bounded = _boundedRevertData();
+            _bestEffortResetApproval(IERC20(address(claim)), furnaceAddr);
+
+            if (!SafeTransfer.callTransfer(IERC20(address(claim)), king, claimAmount)) {
+                pendingKingClaim[king] += claimAmount;
+                totalPendingKingClaim += claimAmount;
+                emit Events.KingClaimCredited(king, claimAmount);
+            }
+
+            emit Events.KingAutoLockFailed(reignId, king, claimAmount, bounded);
+            probe.outcome = OUTCOME_ENTER_CAUGHT;
+        }
+
+        probe.gasAfterSettle = gasleft();
+    }
+}

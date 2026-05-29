@@ -1,0 +1,1330 @@
+{
+  "source": "src/lib/Events.sol",
+  "events": [
+    {
+      "name": "GuardianChanged",
+      "signature": "GuardianChanged(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0xa14fc14d8620a708a896fd11392a235647d99385500a295f0d7da2a258b2e967"
+    },
+    {
+      "name": "MineMarketChanged",
+      "signature": "MineMarketChanged(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0xd18b5a3d435d4153fac350d8034bc1207d2de01fff5885cac0f02ca0ab6fad8f"
+    },
+    {
+      "name": "FurnaceChanged",
+      "signature": "FurnaceChanged(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0xef76acbcda36a42069ac07f1509ef4bdd1bfb24802bb113b6cde98a24fb32c5b"
+    },
+    {
+      "name": "DelegationHubChanged",
+      "signature": "DelegationHubChanged(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0xeeee0b2339bbcbebd1e259471bc2b6118acb03cc457405c6f10b6e0f0964253d"
+    },
+    {
+      "name": "MineCoreChanged",
+      "signature": "MineCoreChanged(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0x6feef750fa5dff8840e5532fab6a2c2cb49e5d9c09050a55ac4cb55fc5a1c699"
+    },
+    {
+      "name": "ClaimAllHelperChanged",
+      "signature": "ClaimAllHelperChanged(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0x79957ede6a6bb084dcf4e330c2e5feefe6d5931db6bdb42c83e5e52ed1394c08"
+    },
+    {
+      "name": "ShareholderRoyaltiesChanged",
+      "signature": "ShareholderRoyaltiesChanged(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0x85ecb2841137c845c392fa6877ffe399ae2354306b9915b0efef9a4aa8fd1f53"
+    },
+    {
+      "name": "ShareholderWiringSet",
+      "signature": "ShareholderWiringSet(address,address,address)",
+      "indexed": [
+        true,
+        true,
+        true
+      ],
+      "topic0": "0x32ec57be6a0442990f9745a2e1bda28cede937741252bcd796bf2cf141aac586"
+    },
+    {
+      "name": "ConfigFrozen",
+      "signature": "ConfigFrozen()",
+      "indexed": [],
+      "topic0": "0xfe8292577024c8a70fcfbe74211dedb793d98ac31e1aefeb3a57b726b28bec3f"
+    },
+    {
+      "name": "OwnershipTransferStarted",
+      "signature": "OwnershipTransferStarted(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700"
+    },
+    {
+      "name": "OwnershipTransferred",
+      "signature": "OwnershipTransferred(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0"
+    },
+    {
+      "name": "SessionSet",
+      "signature": "SessionSet(address,address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x8dafa53044763b15d69364dc9f85f92646f62cbf75599be50fdcfdcf53140429"
+    },
+    {
+      "name": "NearSlippageLimitEntry",
+      "signature": "NearSlippageLimitEntry(address,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x6932e92b74f7cff1b4779ba2a05a2270524d6b6b8438ebfc9be947177a3fe0a3"
+    },
+    {
+      "name": "DelegationSessionUsed",
+      "signature": "DelegationSessionUsed(address,address,uint8,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x83ceff143ad4e2ae1ae6bf3b78fe2ce43d6807db4596779f3834741c795375af"
+    },
+    {
+      "name": "RouterConfigSet",
+      "signature": "RouterConfigSet(address,address,address,address)",
+      "indexed": [
+        true,
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x38485a8f822f7a0c6bbed41a5c762ec7afadaba62219b4064f20b79aab526808"
+    },
+    {
+      "name": "WethClaimPoolSet",
+      "signature": "WethClaimPoolSet(address,bool)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x321639788776ed1fc7c505524900dc6321525fad1309d8d73ff1c2852930e876"
+    },
+    {
+      "name": "TokenConfigSet",
+      "signature": "TokenConfigSet(address,bool,bool,bool,address,bool,address)",
+      "indexed": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xa87d220f96c947ccd20b3b55a6d2ec5e34b52662f2e84d9b6ebb5a72a2fea7b9"
+    },
+    {
+      "name": "FurnaceEntryTokenSafetySet",
+      "signature": "FurnaceEntryTokenSafetySet(address,bool)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x0fb42af5ace3a72ac81ff2bd1d5b2eb8d9ea987db0b9d22399ed7567353cf375"
+    },
+    {
+      "name": "TokenEnabledChanged",
+      "signature": "TokenEnabledChanged(address,bool)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x7210db4c8c2cf74a6e522ef7236b3bc86fd196570cdcb423cfd4cc180d1920e8"
+    },
+    {
+      "name": "EthRescued",
+      "signature": "EthRescued(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xff76eef98b5bdf97a95e78ef7e4f3da9681cd874619e7dbc5767e38ed162b803"
+    },
+    {
+      "name": "TokenRescued",
+      "signature": "TokenRescued(address,address,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x4143f7b5cb6ea007914c32b8a3e64cebc051d7f493fa0755454da1e47701e125"
+    },
+    {
+      "name": "LockCreated",
+      "signature": "LockCreated(address,uint256,uint256,uint256,bool)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xf2e434b25dc0642557c78f33e890ff32142d8b2266063fa31604f80607fc3629"
+    },
+    {
+      "name": "LockExtended",
+      "signature": "LockExtended(address,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x2880f4fc08dec6bc3c61687b882e88598cb950c1dbff72d4a2d20223174215b4"
+    },
+    {
+      "name": "LockAmountIncreased",
+      "signature": "LockAmountIncreased(address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0xce4b949c4a850bbc2397d4e496669b3970be305a53d62ef5cd4e7b43ce4b0c5b"
+    },
+    {
+      "name": "LockMerged",
+      "signature": "LockMerged(address,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        true,
+        false
+      ],
+      "topic0": "0xeda5347add04fd32e9c77f9b1d459a737490432c6721b1a98270c826d0ac0034"
+    },
+    {
+      "name": "LockUnlocked",
+      "signature": "LockUnlocked(address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0xb8467a67892a3eb9ca0a54a00960a7bb14970dc16c3b3da0803ca776c1e47a43"
+    },
+    {
+      "name": "AutoMaxSet",
+      "signature": "AutoMaxSet(address,uint256,bool)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x3c127c07e0311e24c89bf90ee72e70c354a009a75a989c7b1daf61d375902468"
+    },
+    {
+      "name": "EntryTokenRegistrySet",
+      "signature": "EntryTokenRegistrySet(address)",
+      "indexed": [
+        true
+      ],
+      "topic0": "0x066b082c44b01615829388c9f12f2d0d98eab6742428dd687990d2fad5b32393"
+    },
+    {
+      "name": "FurnaceQuoterSet",
+      "signature": "FurnaceQuoterSet(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0xdd1f8de67c27eaa757d2edd107f45d7489c4d4cd943221e782a0a858f23573c3"
+    },
+    {
+      "name": "Takeover",
+      "signature": "Takeover(uint256,address,address,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x9e8ea9ebe1eff3171e76905f1ded95f86073dde0bf181d85612dead42f2e430c"
+    },
+    {
+      "name": "ReignFinalized",
+      "signature": "ReignFinalized(uint256,address,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xea7e05e0c6823091a35698259c587e00a391487084bdb9f1c9028c1272f70ef6"
+    },
+    {
+      "name": "ReignRecipientsSet",
+      "signature": "ReignRecipientsSet(uint256,address,address,address)",
+      "indexed": [
+        true,
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x7e11a57fb4b07399a733aba12bd157f58bbf43db739b7b914eaea03f8861d28f"
+    },
+    {
+      "name": "TakeoversPausedChanged",
+      "signature": "TakeoversPausedChanged(bool)",
+      "indexed": [
+        false
+      ],
+      "topic0": "0xbf4a0e4577ca6dcd286c34dd2623bfff3becbd906daad4ffce27a47033764553"
+    },
+    {
+      "name": "KingWithdrawal",
+      "signature": "KingWithdrawal(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x24549b29df3f33d4054a693534e7ea565135bc0488cbe2b07b0e9f7eaa49a8db"
+    },
+    {
+      "name": "KingWithdrawalTo",
+      "signature": "KingWithdrawalTo(address,address,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x8ecd7c8d29b65609ad574d93aab3e0ff424d98a107ff7945a8c76389a9711a18"
+    },
+    {
+      "name": "KingEthCredited",
+      "signature": "KingEthCredited(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xd475e1d05350a3af371a5c084e786bab2b6528a7e3a4ecb08aa651e861ef86c3"
+    },
+    {
+      "name": "RefundCredited",
+      "signature": "RefundCredited(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x57b31d08aad1b08f38687f5d1a07c24f3c09768a493b5b11f4de021a3ac6fbb9"
+    },
+    {
+      "name": "RefundWithdrawn",
+      "signature": "RefundWithdrawn(address,address,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0xd55b5fe81317b854ac11454adf7e5a9a0adf69184d643ef9ae6bfda6a015c5bc"
+    },
+    {
+      "name": "KingAutoLockConfigured",
+      "signature": "KingAutoLockConfigured(address,bool,uint256,uint256,uint256,bool,uint256)",
+      "indexed": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xcbde3d8ed756d0bd33d8cee6285551a762495c25457eaba097efab196701c70e"
+    },
+    {
+      "name": "KingAutoLockExecuted",
+      "signature": "KingAutoLockExecuted(uint256,address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0xbf49aafcb50913908f2966f1c0ae199cd2b6157cdcd040b0c9e8d35b965a1c1e"
+    },
+    {
+      "name": "KingAutoLockSkipped",
+      "signature": "KingAutoLockSkipped(uint256,address,uint256,uint8)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x0b91072b883a9ddbe59dfecb51b1e0c419c14d0daea4528ceaee1af3773f1580"
+    },
+    {
+      "name": "KingAutoLockFailed",
+      "signature": "KingAutoLockFailed(uint256,address,uint256,bytes)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x29245bb1ccec1e1793448ce7baa804a5070eb2899083ba1438d7efea4a1e744b"
+    },
+    {
+      "name": "PendingClaimWithdrawn",
+      "signature": "PendingClaimWithdrawn(address,address,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0xfee10faf3fb132c6b7147c55b17c244303c22e7065ece787357073f125ab42c0"
+    },
+    {
+      "name": "KingClaimCredited",
+      "signature": "KingClaimCredited(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xe0e266af62119df324a9cfbe7b7ea30f3f0bf280512c6d54589ac84e583d99ed"
+    },
+    {
+      "name": "ShareholderTakeoverAllocation",
+      "signature": "ShareholderTakeoverAllocation(uint256,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xde37fa9ff15b2f57ff7ed33e835057988e39dc47760e0b4f23065fc41f6db014"
+    },
+    {
+      "name": "ShareholderFlush",
+      "signature": "ShareholderFlush(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0xeab9ed5b48405df20364c26a21fc26b9dc5d181fee8b1f766ee082327fb2a3f1"
+    },
+    {
+      "name": "ShareholderClaimed",
+      "signature": "ShareholderClaimed(address,address,uint256,uint8)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0xf8765d8a8194630dda5a3e7e458f461d32d1f0097b9b8152ff21b82cd64287f2"
+    },
+    {
+      "name": "ShareholderBatchTerminatedEarly",
+      "signature": "ShareholderBatchTerminatedEarly(uint256,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x72d50dff870403a48b026a59e5d14b2b3bcf74575f04c5b1b35c12ff879f640d"
+    },
+    {
+      "name": "UserCheckpointed",
+      "signature": "UserCheckpointed(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x042fab0d40bf1431f1b99aeb8ebe2d6d5fd2fd8a56ee7984b8f1064ff193ba13"
+    },
+    {
+      "name": "DustSwept",
+      "signature": "DustSwept(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xa4e6799a53d037c8e49217233616ac11a98bf48a7f8a9f9c53d318febcbb1b68"
+    },
+    {
+      "name": "RewardCheckpointCapReached",
+      "signature": "RewardCheckpointCapReached(uint256)",
+      "indexed": [
+        false
+      ],
+      "topic0": "0x941431a8593f412913d0f335760d118a11836b0898f28785b28009f38a246946"
+    },
+    {
+      "name": "OverflowCheckpointCapReached",
+      "signature": "OverflowCheckpointCapReached(uint256)",
+      "indexed": [
+        false
+      ],
+      "topic0": "0x765f7fe8f290824972d299d1b2af7f70d902429db1fb09794f0c93467a9e5db5"
+    },
+    {
+      "name": "ShareholderRoyaltiesTakeoverFailed",
+      "signature": "ShareholderRoyaltiesTakeoverFailed(uint256,uint256,bytes)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x08d453536441781c22d4fa85489fe1c0dda9b3e5b2ca3b5eaf8e086cd8612000"
+    },
+    {
+      "name": "ShareholderRoyaltiesFlushFailed",
+      "signature": "ShareholderRoyaltiesFlushFailed(bytes)",
+      "indexed": [
+        false
+      ],
+      "topic0": "0x4d1c2942f888d02dc5d4d1882ad4ab8a566ddbd73275b591430e761965c1e503"
+    },
+    {
+      "name": "FurnaceCreditReserveFailed",
+      "signature": "FurnaceCreditReserveFailed(address,uint256,bytes)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x32dcce24e2e3331fcd81b6636d8c5373dad3d6440d48e263fb6e6f0fff4e20f8"
+    },
+    {
+      "name": "ShareholderClaim",
+      "signature": "ShareholderClaim(address,uint8,uint256)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x974ae5737335021d786c060217f1afc742be2cde3661beebbc87875bc8a75ecd"
+    },
+    {
+      "name": "ShareholderAutoCompoundConfigured",
+      "signature": "ShareholderAutoCompoundConfigured(address,bool,uint256,uint256,uint32,uint256,uint32)",
+      "indexed": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xf461341e07e51c2757ff1257135efcd606e51f20659888ee8fb3b25f4659dfad"
+    },
+    {
+      "name": "ShareholderAutoCompoundKeeperSet",
+      "signature": "ShareholderAutoCompoundKeeperSet(address,bool)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x2d6eeb9d5f4fd4b9a7135b9a89a40e842390bfad6ca4d964f9a8018dd8da5eab"
+    },
+    {
+      "name": "MinAutoCompoundEthSet",
+      "signature": "MinAutoCompoundEthSet(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0x2f4a0d57fddcd6566e5e17b7aff0af726f9f4d0f072efb0a825a50d921678088"
+    },
+    {
+      "name": "EthPushGasCapSet",
+      "signature": "EthPushGasCapSet(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0xb5874db308a22e49f9bcb9ed76117a9a6e25614d7b28bd00346c56ba25389909"
+    },
+    {
+      "name": "OldestObservedNonAutoMaxLockEndSet",
+      "signature": "OldestObservedNonAutoMaxLockEndSet(uint40,uint40)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0x403b039b545e912ecadd6e7b8bb613287fd0dced2614bfe5db2d31bc73b72d3a"
+    },
+    {
+      "name": "ShareholderAutoCompoundPaused",
+      "signature": "ShareholderAutoCompoundPaused(address,uint256,uint8)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x8c98db0d38e86fea25441896f9754eccd5434056baa4527b6f570ab56a40dd1b"
+    },
+    {
+      "name": "ShareholderAutoCompoundFailed",
+      "signature": "ShareholderAutoCompoundFailed(address,uint256,uint256)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x376de3debc86330874525d25899bc976b6eed29dc740e289cc6b9b28a31fa185"
+    },
+    {
+      "name": "ShareholderAutoCompoundExecuted",
+      "signature": "ShareholderAutoCompoundExecuted(address,address,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x5454e0c11691a1ab7cff14b2ea65dab5ebc5dee32feb75ce9fe00a09919eccc3"
+    },
+    {
+      "name": "FurnaceEnter",
+      "signature": "FurnaceEnter(address,uint8,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x7f7f0de17f3500a1420b9cdc65ea622e20871e0abe71d5192560052b4999961f"
+    },
+    {
+      "name": "AutoMaxBonusClaimed",
+      "signature": "AutoMaxBonusClaimed(address,uint256,uint256)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x476c5f31557ae6c73642981ccceb3973f9c0ad0691b206cb6b83025151e1c713"
+    },
+    {
+      "name": "FurnaceMergeWithBonus",
+      "signature": "FurnaceMergeWithBonus(address,uint256,uint256,uint256,uint256,uint256,uint256,bool,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xaebdf593a1660c6bab85a368b876d6c046837aff308d54e55bafb0cdaa989613"
+    },
+    {
+      "name": "BonusPaid",
+      "signature": "BonusPaid(address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xc465b659478fb0fcbe9fcbc1b10229d633ba82ea04f79dd1066b526f24e8c843"
+    },
+    {
+      "name": "LpOverflowDripPaid",
+      "signature": "LpOverflowDripPaid(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x5b2f202c6b56905764125c99206b7ba31b5dfef2a1e43bd8ccc235001b5bf018"
+    },
+    {
+      "name": "LockSoldToFurnace",
+      "signature": "LockSoldToFurnace(address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x0b0e503258418bf9a719f51c4f8f0efa358d69f4462e6fbb852890fcd5f2110c"
+    },
+    {
+      "name": "LpRewardsVaultSet",
+      "signature": "LpRewardsVaultSet(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0x0c0b90550642f0df62e1d6bceecd57f53de7f22c9e7412d871a7077e0bf09179"
+    },
+    {
+      "name": "EmergencyVaultRewireRequested",
+      "signature": "EmergencyVaultRewireRequested(address,uint256,uint256)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0xd7ba4c3e9cda1ea4f53e910530dcf8af1bddbbb57be7eeb0223b824e2218e649"
+    },
+    {
+      "name": "EmergencyVaultRewireCancelled",
+      "signature": "EmergencyVaultRewireCancelled()",
+      "indexed": [],
+      "topic0": "0xceceb188fa4d70f5fd474e2a2d3afe94b05c4f7351b39494ef01993aae3759b0"
+    },
+    {
+      "name": "EmergencyVaultRewireExecuted",
+      "signature": "EmergencyVaultRewireExecuted(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xf9794946e4c4d3318ba04c80536f083c8ad7816f3bf91535bf8cb0cec5cd1bcb"
+    },
+    {
+      "name": "PendingSellNFTRescued",
+      "signature": "PendingSellNFTRescued(uint256,address,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x84fb15e44d2b89cf03af74c531594f361f73dde67f55402bbcc410b62205111e"
+    },
+    {
+      "name": "LpRewardsNotifyFailed",
+      "signature": "LpRewardsNotifyFailed(address,uint256,bytes)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x7531ab760e351ab0d362b246966d44ea87f59a4ce9bbae55b18195fb4dcc7cb3"
+    },
+    {
+      "name": "CarrySettlementFailed",
+      "signature": "CarrySettlementFailed(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x88ef20ace47d01115367fb4f03102c53363ba3b2eed43d8e0710418938d9495a"
+    },
+    {
+      "name": "LpStreamFunded",
+      "signature": "LpStreamFunded(uint256,uint256,uint256)",
+      "indexed": [
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xaac3c4a0553d42b7746628794eb41f6c0998ab7b6e4435bc34728dd060442b7c"
+    },
+    {
+      "name": "ReserveClamped",
+      "signature": "ReserveClamped(address,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xfa1d6cc7090ec87203c8468994d4b3804cae88d2a9a375498e4f4b71a70b8f81"
+    },
+    {
+      "name": "ReserveCredited",
+      "signature": "ReserveCredited(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0xdabab62bb5a37d58bbd337b15a2be421466305d7ae686b606e2b0c2f65613b52"
+    },
+    {
+      "name": "LockingPausedChanged",
+      "signature": "LockingPausedChanged(bool)",
+      "indexed": [
+        false
+      ],
+      "topic0": "0x30d5458a17f53d65b30c6863e5348a4a077e3b06f29c7751f9fee33ba1ab96af"
+    },
+    {
+      "name": "LpStaked",
+      "signature": "LpStaked(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x2abfcc9d80b43d717e5533359db27c2ae7431e6db04cf4fbeec8209cf4909112"
+    },
+    {
+      "name": "LpUnbondStarted",
+      "signature": "LpUnbondStarted(address,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x93dd2f7c6dcdfd3b81b8be8e81eefbe1baa7b95c6d7f16c68b6171d237a61d9e"
+    },
+    {
+      "name": "LpUnbondWithdrawn",
+      "signature": "LpUnbondWithdrawn(address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x8ffdf60a6e95504b1a6ba7a042df8425b2b670bf55e0c9db45a3af49917fc1e0"
+    },
+    {
+      "name": "LpRewardsNotified",
+      "signature": "LpRewardsNotified(uint256)",
+      "indexed": [
+        false
+      ],
+      "topic0": "0x2cf48f95bbdf3022e28f9dc9b8d2ca8be45f038a798b1be30d93872c4fb3a16e"
+    },
+    {
+      "name": "LpRewardsClaimed",
+      "signature": "LpRewardsClaimed(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xe83e71028996fba0f6ea77cea062f36355b8097e03996a9f2d6b662768bf9d69"
+    },
+    {
+      "name": "LpRewardsLocked",
+      "signature": "LpRewardsLocked(address,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xf5a036422cf13a001e6bee6cadcf9b56b2d16a58d9f019e664e7afb2fa413fd0"
+    },
+    {
+      "name": "AutoCompoundConfigured",
+      "signature": "AutoCompoundConfigured(address,bool,uint256,uint256,uint32,uint256)",
+      "indexed": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x6a48c3d44bc298ca5f8cc3d98376c621625618d49b241033833855ef6d1931ef"
+    },
+    {
+      "name": "AutoCompoundPaused",
+      "signature": "AutoCompoundPaused(address,uint256,uint8)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x5bced656345038c7e75520911eaec822894c53683d275172a24ea755d1b4cad3"
+    },
+    {
+      "name": "AutoCompoundUnpaused",
+      "signature": "AutoCompoundUnpaused(address)",
+      "indexed": [
+        true
+      ],
+      "topic0": "0x989a4de856f0398ad36a174ba9a6883dec75e4ffd0a3cf71000dd5ceb91d964d"
+    },
+    {
+      "name": "HarvestKeeperSet",
+      "signature": "HarvestKeeperSet(address,bool)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xc1272a3822bcc8e5d735c9b3041f95d443c3eb04c5abf9dbf55cd43bf98b9650"
+    },
+    {
+      "name": "MinHarvestClaimFloorSet",
+      "signature": "MinHarvestClaimFloorSet(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0x07da4cd22f1fc080f07d16446ac4c989e1892d62a87be231a24b66694b36f9fa"
+    },
+    {
+      "name": "MinCompoundRewardSet",
+      "signature": "MinCompoundRewardSet(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0x33ec875ab3ff53d655d162b3ac00e6a119e309b80ec4c152e3f32c4698e83d5e"
+    },
+    {
+      "name": "LpFeesHarvestedToRewards",
+      "signature": "LpFeesHarvestedToRewards(address,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x69b41840a96193a37a7faacf045821602187557deed1d55a9d1da0efb206deb9"
+    },
+    {
+      "name": "AccountedRewardBalanceClamped",
+      "signature": "AccountedRewardBalanceClamped(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0xfe2da77aa49be853ded783cce1a4603e97d100a9af9c3a28d5684b18a1216e4f"
+    },
+    {
+      "name": "GenesisFinalized",
+      "signature": "GenesisFinalized(uint256,uint256,uint256,uint256,address,address)",
+      "indexed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x0370c19689debc3a5c9f6df607f226650306a3a30516c21ac4d78d3a7985ff6c"
+    },
+    {
+      "name": "Poked",
+      "signature": "Poked(address,bool,bool,uint256,uint256,bool,uint256)",
+      "indexed": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xf6cf8ed483f0d9052c7b7406fa0e81311712a1f37fc3983bed2ab3fd85be1fbb"
+    },
+    {
+      "name": "Locked",
+      "signature": "Locked(uint256,uint256,uint256)",
+      "indexed": [
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xf26b23f4faf546e2647b477c0eb493c07bbb7bd04c865a3d33ba1d99687d88c6"
+    },
+    {
+      "name": "LockExtended",
+      "signature": "LockExtended(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0x4e4187a5cfd31a235276a431f3c394962d1b05cc4da52f6fa4e5460a5808ee21"
+    },
+    {
+      "name": "WithdrawLp",
+      "signature": "WithdrawLp(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x083193d4b8efe60ac1873877451565ecfc63268be186016e50dc18c6f901ce60"
+    },
+    {
+      "name": "ResidualLpSwept",
+      "signature": "ResidualLpSwept(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x9d9eb363b3ef2a822aaa0d6c2b9b2fa5ede3d40facb2c603cc6f32fedc3be1c9"
+    },
+    {
+      "name": "FeesClaimedAndForwarded",
+      "signature": "FeesClaimedAndForwarded(address,address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0xf1840ef825418791e18c7b4c88e53de8202141d3cd96414106f27512b61ab3eb"
+    },
+    {
+      "name": "LockListed",
+      "signature": "LockListed(uint256,address,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xb19d00ff19499651f10295eab5ed2728f506834ab38aef5582c3234d785ab53c"
+    },
+    {
+      "name": "LockDelisted",
+      "signature": "LockDelisted(uint256,address,uint8)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x5e29665a8a78403017927c22037096fabc3810f3f65369b4642330e0207d6750"
+    },
+    {
+      "name": "ListingSettled",
+      "signature": "ListingSettled(uint256,address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0xe3a7cfa26bda4fc90b8dce659eb0b58decd9d8e7161394f840f6a6db82cf6a5e"
+    },
+    {
+      "name": "MarketSellToFurnace",
+      "signature": "MarketSellToFurnace(uint256,address,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x985739016e56b1ad110e497bb7df09f253f571a5e7dbbf706971dbd09c446442"
+    },
+    {
+      "name": "TradingPausedChanged",
+      "signature": "TradingPausedChanged(bool)",
+      "indexed": [
+        false
+      ],
+      "topic0": "0xf78ff250b69e98213541130b65d0ce44f3ea2304653ec52368ed098a0cd76c49"
+    },
+    {
+      "name": "BonusTargetEscrowParamsChanged",
+      "signature": "BonusTargetEscrowParamsChanged(uint256,uint256,uint256,uint256)",
+      "indexed": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x8ae3b675a19fc4217371b5ec8e62ff433b86b45fc1c34303e8b4cbf8bd7555db"
+    },
+    {
+      "name": "BonusTargetEscrowCreated",
+      "signature": "BonusTargetEscrowCreated(uint256,address,uint256,uint256,bool,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x75edd89c9c245776de5c855721f2fdde9c26ea9df76a4648e049025b6fc955ce"
+    },
+    {
+      "name": "BonusTargetEscrowExecuted",
+      "signature": "BonusTargetEscrowExecuted(uint256,address,uint256,uint256,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0x1a2b34632f187322df7bf269052a81f01034c6bf372c7ef3b8ff372306c9c728"
+    },
+    {
+      "name": "BonusTargetEscrowExpired",
+      "signature": "BonusTargetEscrowExpired(uint256,address,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x2db79b83ed7699bd67fe2425615727028b3ec84c2a1d609c24b4bc296a21f28a"
+    },
+    {
+      "name": "BonusTargetEscrowExpiryExtended",
+      "signature": "BonusTargetEscrowExpiryExtended(uint256,address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x5195ac3120e180cccc926128ba362b874c1c565d6cca82e6977d710daafec479"
+    },
+    {
+      "name": "BonusTargetEscrowCancelled",
+      "signature": "BonusTargetEscrowCancelled(uint256,address,uint256)",
+      "indexed": [
+        true,
+        true,
+        false
+      ],
+      "topic0": "0x895c9ca933ac33f31f8a274e24c9a9090fda84f2d87d0d02b074f9f540956276"
+    },
+    {
+      "name": "BonusTargetEscrowConfigured",
+      "signature": "BonusTargetEscrowConfigured(uint256,address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x983e40c9d50c46c598c2bc126005bf23140dabd70b9b1b32e27ffbc75a51382b"
+    },
+    {
+      "name": "BonusTargetEscrowAutoFurnaceExecuted",
+      "signature": "BonusTargetEscrowAutoFurnaceExecuted(uint256,address,uint256,uint256,uint256,uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "topic0": "0xde21b52f3f82be51e2ecdbc708355550523426c775cb6d6cdfce323ff323d9a4"
+    },
+    {
+      "name": "SettlementKeeperSet",
+      "signature": "SettlementKeeperSet(address,bool)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0x7f6f100a3b06ca2c0f750696a29a9060ac91c0c4095756bc50081396b31e4faf"
+    },
+    {
+      "name": "HarvestMinClaimOutIgnored",
+      "signature": "HarvestMinClaimOutIgnored(uint256)",
+      "indexed": [
+        false
+      ],
+      "topic0": "0xbbb993259dc4566653e0e9d0c0a0db55b5cb75edefd76fb9a63dd3194c5d88f0"
+    },
+    {
+      "name": "ApprovalClearFailed",
+      "signature": "ApprovalClearFailed(address,address)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0x224f5c8373df6c90875a84c27dda578bac3a19532b372a0afcba434aa50d5a2a"
+    },
+    {
+      "name": "NotifyAmountDivergence",
+      "signature": "NotifyAmountDivergence(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0x7838ff4a74896f187e37adc5cc41da2a7ea7ad7133c65533edd2f6f9ba9a51b6"
+    },
+    {
+      "name": "KingWithdrawalFailed",
+      "signature": "KingWithdrawalFailed(address,bytes)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xfe4973236a67e15ecd13ed5055c87da1030826aac86190f4afad607482c9cab4"
+    },
+    {
+      "name": "SlopeDriftClamped",
+      "signature": "SlopeDriftClamped(uint256,uint256,uint256)",
+      "indexed": [
+        true,
+        false,
+        false
+      ],
+      "topic0": "0x2d15ad8c4d200da21d479efbbc6d82cf178cb202d1af86035f238afedb44dbfd"
+    },
+    {
+      "name": "ShareholderCheckpointFailed",
+      "signature": "ShareholderCheckpointFailed(address,address)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0x2bad3c85633789d660eb5c941516a8026b23b852246d5d74ec7a51c399b18a01"
+    },
+    {
+      "name": "KingEthPaid",
+      "signature": "KingEthPaid(address,uint256)",
+      "indexed": [
+        true,
+        false
+      ],
+      "topic0": "0xc4e0e0d8253f042ec57e7a8fd58a4a1e7c35d6cad6f018e0c5200cda61f469d3"
+    },
+    {
+      "name": "DestinationLockIneligible",
+      "signature": "DestinationLockIneligible(uint256,uint256)",
+      "indexed": [
+        true,
+        true
+      ],
+      "topic0": "0x387524f4b6d9080952e37b472ba5f06a49f1658dd575e844b2c3b6595db3b157"
+    },
+    {
+      "name": "MetadataUpdate",
+      "signature": "MetadataUpdate(uint256)",
+      "indexed": [
+        false
+      ],
+      "topic0": "0xf8e1a15aba9398e019f0b49df1a4fde98ee17ae345cb5f6b5e2c27f5033e8ce7"
+    },
+    {
+      "name": "BatchMetadataUpdate",
+      "signature": "BatchMetadataUpdate(uint256,uint256)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0x6bd5c950a8d8df17f772f5af37cb3655737899cbf903264b9795592da439661c"
+    },
+    {
+      "name": "BaseURISet",
+      "signature": "BaseURISet(string,string)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0x2e0a5b969d96a99aee0b35787d9a60516a02ca6f528a5f66d3f936468d8f0382"
+    },
+    {
+      "name": "ContractURISet",
+      "signature": "ContractURISet(string,string)",
+      "indexed": [
+        false,
+        false
+      ],
+      "topic0": "0xd144c5914915e649557dfce6d3199a18bae1ec7c249c1766603a2b76ade11c06"
+    },
+    {
+      "name": "ContractURIUpdated",
+      "signature": "ContractURIUpdated()",
+      "indexed": [],
+      "topic0": "0xa5d4097edda6d87cb9329af83fb3712ef77eeb13738ffe43cc35a4ce305ad962"
+    },
+    {
+      "name": "MetadataFrozen",
+      "signature": "MetadataFrozen()",
+      "indexed": [],
+      "topic0": "0xeef043febddf4e1d1cf1f72ff1407b84e036e805aa0934418cb82095da8d7164"
+    }
+  ]
+}

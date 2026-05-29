@@ -1,0 +1,51 @@
+{
+  "name": "claimrush-keeper",
+  "private": true,
+  "license": "MIT",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "preinstall": "node ./scripts/check-install-layout.mjs",
+    "build": "tsc",
+    "status": "tsx ./src/run.ts status",
+    "poke": "tsx ./src/run.ts poke",
+    "daemon": "tsx ./src/run.ts daemon",
+    "harvest:staking": "tsx ./src/run.ts harvest-staking",
+    "sweep:market": "tsx ./src/run.ts sweep-market",
+    "sweep:listings": "tsx ./src/run.ts sweep-listings",
+    "expire:offers": "tsx ./src/run.ts expire-offers",
+    "compound:shareholders": "tsx ./src/run.ts compound-shareholders",
+    "compound:lp": "tsx ./src/run.ts compound-lp",
+    "checkpoint:before-expiry": "tsx ./src/run.ts checkpoint-before-expiry",
+    "sanity": "tsx ./src/sanity.ts",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@claimrush/node-utils": "file:../packages/node-utils",
+    "tsx": "^4.21.0",
+    "viem": "^2.49.0",
+    "ws": "^8.20.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.8.0",
+    "@types/ws": "^8.18.1",
+    "eslint": "^10.3.0",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.3"
+  },
+  "overrides": {
+    "viem": {
+      "ws": ">=8.20.1"
+    }
+  }
+}

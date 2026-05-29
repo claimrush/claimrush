@@ -1,0 +1,54 @@
+## Echidna optimization-mode configuration for ClaimRush.
+##
+## Drives the optimization harnesses under test/echidna/optimize/. Each harness
+## defines `optimize_*` functions returning `int256`; Echidna maximizes them
+## and reports the worst observed value at the end of the run. Positive values
+## flag potential economic deviation and require triage.
+##
+## Single-harness usage:
+##   echidna test/echidna/optimize/EchidnaFurnaceOptimize.sol \
+##     --contract EchidnaFurnaceOptimize --config echidna-optimize.yaml
+##
+## Or via Docker:
+##   docker run --rm -v "$(pwd)":/repo -w /repo \
+##     ghcr.io/crytic/echidna/echidna:v2.3.1@sha256:730de1120065d2a8bfd1da836fca67db468b7e0b7248be6ddb31644bd9e254af \
+##     echidna test/echidna/optimize/EchidnaFurnaceOptimize.sol \
+##       --contract EchidnaFurnaceOptimize --config echidna-optimize.yaml
+##
+## Full optimization sweep (all 9 surfaces): driven by the optimize matrix
+## in .github/workflows/echidna.yml (informational for the first 30
+## days). The private operator monorepo also exposes
+## `scripts/echidna_optimize_sweep.sh` for local sweeps.
+
+# Optimization mode: each `optimize_*` function returns int256, maximized.
+testMode: "optimization"
+
+# Persistent corpus dedicated to optimization runs. Each harness overrides via
+# `--corpus-dir echidna-corpora-optimize/<Harness>` from the Makefile target so
+# property and optimization corpora do not cross-contaminate.
+corpusDir: "echidna-corpora-optimize/Furnace"
+
+# Per-harness sequence budget. Optimization mode benefits from longer sequences
+# than property mode because the search target is a continuous score rather
+# than a binary witness.
+testLimit: 100000
+shrinkLimit: 5000
+seqLen: 200
+
+# Addresses — match echidna.yaml so the same actor accounts are used across
+# property, assertion, and optimization runs. Cross-mode corpus seeding stays
+# consistent.
+deployer: "0x10000"
+sender: ["0x20000", "0x30000", "0x40000"]
+
+# Solidity compiler — match foundry.toml optimizer_runs = 550.
+solcArgs: "--optimize --optimize-runs 550"
+cryticArgs: ["--foundry-compile-all"]
+
+balanceAddr: 0xffffffff
+balanceContract: 0xffffffff
+
+# Time bounds — matched to echidna.yaml so the search space is comparable
+# across modes.
+maxTimeDelay: 604800
+maxBlockDelay: 50400

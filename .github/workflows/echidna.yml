@@ -1,0 +1,305 @@
+name: Echidna fuzz
+
+# Runs all standard + adversarial Echidna harnesses (13 standard + 3
+# adversarial = 16 in the gating matrix; an additional optimization-mode
+# matrix runs informationally) on any PR that touches contract or harness
+# code, and on manual dispatch. Designed to gate upgrade PRs against
+# property regressions before they reach a timelock-schedule.
+#
+# Why no `push: branches: [main]` and no `schedule:` cron:
+#   - The full standard + optimization sweep is ~25 jobs averaging 60-90min
+#     each, i.e. 25-37 runner-hours per trigger. Firing on every push to
+#     main saturates the GitHub Actions monthly minutes budget on a single
+#     contract-touching merge.
+#   - PR triggers already cover the only relevant pre-deploy case (a change
+#     proposing to modify contract bytecode). For a single-developer flow
+#     that pushes directly to main without a PR, use `workflow_dispatch`
+#     before publishing the deploy commit.
+#   - Post-genesis the deployed bytecode is immutable; re-fuzzing the same
+#     code on every push or every night learns nothing new. Big pre-deploy
+#     sweeps live in operator-run scripts/overnight_fuzz.sh (3M sequences/
+#     harness, 12 workers, ~6-12h, persistent corpus).
+#
+# The Echidna toolchain is pinned by digest to the same image used by
+# scripts/overnight_fuzz.sh. Bump both in lockstep.
+#
+# Failure semantics mirror the overnight script:
+#   1. Docker exit 0
+#   2. End-of-run "Saving coverage" line present
+#   3. No "echidna_*: failing", "FAILED", or "Deploying the contract ... failed"
+# Any one missing marker fails the harness job.
+
+on:
+  # Source-of-truth lives at .github/workflows/echidna.yml in the private repo
+  # (claimrush/claimrush-private) and ships to the same path in the public
+  # repo (claimrush/claimrush) via scripts/seed-public-repo.sh. The file is
+  # identical on both repos — the harness set, contract scope, and pinned
+  # toolchain digest are repo-invariant. The self-reference path filter
+  # therefore matches naturally on both sides; no separate public/private
+  # mirror is needed.
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'test/echidna/**'
+      - 'echidna.yaml'
+      - 'foundry.toml'
+      - 'lib/**'
+      - '.github/workflows/echidna.yml'
+  # NOTE: no `push: branches: [main]` — see header comment for rationale.
+  # Trigger manually via `gh workflow run echidna.yml` before any deploy
+  # commit on main, or as a periodic safety sweep.
+  workflow_dispatch:
+    inputs:
+      test_limit:
+        description: 'Per-harness echidna --test-limit'
+        required: false
+        default: '300000'
+      workers:
+        description: 'Per-harness echidna --workers'
+        required: false
+        default: '4'
+
+permissions:
+  contents: read
+
+concurrency:
+  # Cancel superseded PR runs; the latest commit's result is what matters.
+  group: echidna-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  echidna:
+    name: ${{ matrix.harness.contract }}
+    runs-on: ubuntu-24.04
+    # Echidna 2.3.1 + 4 workers + 300k sequences finishes well under 90min
+    # for every harness in our local profiling. Cap at 240min for safety.
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        harness:
+          - { contract: EchidnaFurnace,            file: test/echidna/EchidnaFurnace.sol,            corpus: Furnace }
+          - { contract: EchidnaClaimToken,         file: test/echidna/EchidnaClaimToken.sol,         corpus: ClaimToken }
+          - { contract: EchidnaDelegationHub,      file: test/echidna/EchidnaDelegationHub.sol,      corpus: DelegationHub }
+          - { contract: EchidnaDexAdapter,         file: test/echidna/EchidnaDexAdapter.sol,         corpus: DexAdapter }
+          - { contract: EchidnaEntryTokenRegistry, file: test/echidna/EchidnaEntryTokenRegistry.sol, corpus: EntryTokenRegistry }
+          - { contract: EchidnaGenesisLPVault24M,  file: test/echidna/EchidnaGenesisLPVault24M.sol,  corpus: GenesisLPVault24M }
+          - { contract: EchidnaLpStaking,          file: test/echidna/EchidnaLpStaking.sol,          corpus: LpStaking }
+          - { contract: EchidnaMarketRouter,       file: test/echidna/EchidnaMarketRouter.sol,       corpus: MarketRouter }
+          - { contract: EchidnaMineCore,           file: test/echidna/EchidnaMineCore.sol,           corpus: MineCore }
+          - { contract: EchidnaMineCoreExtended,   file: test/echidna/EchidnaMineCore_Extended.sol,  corpus: MineCoreExtended }
+          - { contract: EchidnaShareholder,        file: test/echidna/EchidnaShareholder.sol,        corpus: Shareholder }
+          - { contract: EchidnaVeClaimNFT,         file: test/echidna/EchidnaVeClaimNFT.sol,         corpus: VeClaimNFT }
+          - { contract: EchidnaVeClaimNFTExtended, file: test/echidna/EchidnaVeClaimNFT_Extended.sol, corpus: VeClaimNFTExtended }
+          # Adversarial composition harnesses
+          - { contract: EchidnaMaliciousERC20Entry, file: test/echidna/EchidnaMaliciousERC20Entry.sol, corpus: MaliciousERC20Entry }
+          - { contract: EchidnaReentrancyReceiver,  file: test/echidna/EchidnaReentrancyReceiver.sol,  corpus: ReentrancyReceiver }
+          - { contract: EchidnaMEVOrdering,         file: test/echidna/EchidnaMEVOrdering.sol,         corpus: MEVOrdering }
+
+    env:
+      # Pinned by digest. Update in lockstep with scripts/overnight_fuzz.sh.
+      ECHIDNA_IMAGE: ghcr.io/crytic/echidna/echidna:v2.3.1@sha256:730de1120065d2a8bfd1da836fca67db468b7e0b7248be6ddb31644bd9e254af
+      TEST_LIMIT: ${{ github.event.inputs.test_limit || '300000' }}
+      WORKERS: ${{ github.event.inputs.workers || '4' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@8b0419c685ef46cb79ec93fbdc131174afceb730 # v1.6.0
+        with:
+          version: v1.5.1
+
+      - name: Install Foundry dependencies
+        run: make deps
+
+      - name: Restore Echidna corpus cache
+        id: corpus-cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          # Per-harness corpus directory. PR runs append to the existing
+          # corpus so coverage compounds across PRs. Cache key intentionally
+          # omits the run id so successive runs share the corpus; the
+          # restore-keys fallback handles cold-start days.
+          path: echidna-corpora/${{ matrix.harness.corpus }}
+          key: echidna-corpus-${{ matrix.harness.corpus }}-v1
+          restore-keys: |
+            echidna-corpus-${{ matrix.harness.corpus }}-
+
+      - name: Pull pinned Echidna image
+        run: docker pull "$ECHIDNA_IMAGE"
+
+      - name: Run Echidna (${{ matrix.harness.contract }})
+        id: run
+        run: |
+          set -uo pipefail
+          mkdir -p "echidna-corpora/${{ matrix.harness.corpus }}" echidna-logs
+          LOG="echidna-logs/${{ matrix.harness.contract }}.log"
+
+          docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              -e HOME=/tmp \
+              -v "$(pwd)":/repo -w /repo \
+              "$ECHIDNA_IMAGE" \
+              echidna "${{ matrix.harness.file }}" \
+                  --contract "${{ matrix.harness.contract }}" \
+                  --config echidna.yaml \
+                  --corpus-dir "echidna-corpora/${{ matrix.harness.corpus }}" \
+                  --test-limit "$TEST_LIMIT" \
+                  --workers "$WORKERS" \
+              2>&1 | tee "$LOG"
+          DOCKER_EXIT=${PIPESTATUS[0]}
+
+          # Replicate the three-signal pass check from scripts/overnight_fuzz.sh:
+          #   - docker exit 0
+          #   - "Saving coverage" end marker present
+          #   - no explicit failure tokens
+          HARD_FAIL=0
+          grep -qE "^echidna_.*: failing|^FAILED|Deploying the contract.*failed" "$LOG" && HARD_FAIL=1
+          SAW_END_MARKER=0
+          grep -qE '^\[[0-9-]+ [0-9:.]+\] Saving coverage' "$LOG" && SAW_END_MARKER=1
+
+          if [ "$DOCKER_EXIT" -ne 0 ] || [ "$HARD_FAIL" -eq 1 ] || [ "$SAW_END_MARKER" -eq 0 ]; then
+            REASON=""
+            [ "$DOCKER_EXIT" -ne 0 ] && REASON="${REASON} docker-exit=${DOCKER_EXIT}"
+            [ "$HARD_FAIL" -eq 1 ] && REASON="${REASON} explicit-fail"
+            [ "$SAW_END_MARKER" -eq 0 ] && REASON="${REASON} missing-coverage-marker"
+            echo "::error::Echidna FAIL for ${{ matrix.harness.contract }} (${REASON## })"
+            exit 1
+          fi
+          echo "Echidna PASS for ${{ matrix.harness.contract }}"
+
+      - name: Upload Echidna log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: echidna-log-${{ matrix.harness.contract }}
+          path: echidna-logs/${{ matrix.harness.contract }}.log
+          retention-days: 14
+
+      - name: Upload Echidna reproducers (failures only)
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: echidna-reproducers-${{ matrix.harness.contract }}
+          path: echidna-corpora/${{ matrix.harness.corpus }}/reproducers/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  summary:
+    name: echidna-summary
+    needs: echidna
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate result
+        run: |
+          # Surface a single pass/fail for the whole matrix so branch
+          # protection / dashboards see one row, not many.
+          if [ "${{ needs.echidna.result }}" = "success" ]; then
+            echo "All standard Echidna harnesses (13 standard + 3 adversarial) PASS"
+          else
+            echo "::error::At least one Echidna harness failed; see per-job logs"
+            exit 1
+          fi
+
+  # ============================================================
+  # Optimization-mode matrix: 9 economic worst-case harnesses
+  # ============================================================
+  #
+  # Runs Echidna in optimization mode against the harnesses under
+  # test/echidna/optimize/. Each harness defines `optimize_*` functions
+  # returning int256 — Echidna maximizes them and reports the worst observed
+  # value at the end of the run.
+  #
+  # Status: INFORMATIONAL ONLY. The optimization sweep does not gate the PR.
+  # It is a discovery surface — positive max values are flagged in the job
+  # summary for manual triage. After 30 days of stable runs, promote to
+  # gating by adding `continue-on-error: false` and removing the matrix
+  # exclusion from branch protection.
+  echidna-optimize:
+    name: optimize/${{ matrix.harness.contract }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        harness:
+          - { contract: EchidnaFurnaceOptimize,             file: test/echidna/optimize/EchidnaFurnaceOptimize.sol,             corpus: Furnace }
+          - { contract: EchidnaMineCoreOptimize,            file: test/echidna/optimize/EchidnaMineCoreOptimize.sol,            corpus: MineCore }
+          - { contract: EchidnaShareholderOptimize,         file: test/echidna/optimize/EchidnaShareholderOptimize.sol,         corpus: Shareholder }
+          - { contract: EchidnaMarketRouterOptimize,        file: test/echidna/optimize/EchidnaMarketRouterOptimize.sol,        corpus: MarketRouter }
+          - { contract: EchidnaLpStakingOptimize,           file: test/echidna/optimize/EchidnaLpStakingOptimize.sol,           corpus: LpStaking }
+          - { contract: EchidnaGenesisLPVault24MOptimize,   file: test/echidna/optimize/EchidnaGenesisLPVault24MOptimize.sol,   corpus: GenesisLPVault24M }
+          - { contract: EchidnaVeClaimNFTOptimize,          file: test/echidna/optimize/EchidnaVeClaimNFTOptimize.sol,          corpus: VeClaimNFT }
+          - { contract: EchidnaClaimTokenOptimize,          file: test/echidna/optimize/EchidnaClaimTokenOptimize.sol,          corpus: ClaimToken }
+          - { contract: EchidnaEntryTokenRegistryOptimize,  file: test/echidna/optimize/EchidnaEntryTokenRegistryOptimize.sol,  corpus: EntryTokenRegistry }
+
+    env:
+      ECHIDNA_IMAGE: ghcr.io/crytic/echidna/echidna:v2.3.1@sha256:730de1120065d2a8bfd1da836fca67db468b7e0b7248be6ddb31644bd9e254af
+      TEST_LIMIT: '50000'
+      WORKERS: '4'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@8b0419c685ef46cb79ec93fbdc131174afceb730 # v1.6.0
+        with:
+          version: v1.5.1
+
+      - name: Install Foundry dependencies
+        run: make deps
+
+      - name: Restore optimization corpus cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: echidna-corpora-optimize/${{ matrix.harness.corpus }}
+          key: echidna-corpus-optimize-${{ matrix.harness.corpus }}-v1
+          restore-keys: |
+            echidna-corpus-optimize-${{ matrix.harness.corpus }}-
+
+      - name: Pull pinned Echidna image
+        run: docker pull "$ECHIDNA_IMAGE"
+
+      - name: Run Echidna optimization (${{ matrix.harness.contract }})
+        run: |
+          set -uo pipefail
+          mkdir -p "echidna-corpora-optimize/${{ matrix.harness.corpus }}" echidna-logs/optimize
+          LOG="echidna-logs/optimize/${{ matrix.harness.contract }}.log"
+
+          docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              -e HOME=/tmp \
+              -v "$(pwd)":/repo -w /repo \
+              "$ECHIDNA_IMAGE" \
+              echidna "${{ matrix.harness.file }}" \
+                  --contract "${{ matrix.harness.contract }}" \
+                  --config echidna-optimize.yaml \
+                  --corpus-dir "echidna-corpora-optimize/${{ matrix.harness.corpus }}" \
+                  --test-limit "$TEST_LIMIT" \
+                  --workers "$WORKERS" \
+              2>&1 | tee "$LOG" || true
+
+          # Surface positive max values in the job summary for triage. The
+          # job itself is informational — failures here do not block the PR.
+          echo "## Optimization max values for ${{ matrix.harness.contract }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "optimize_.*: max value:" "$LOG" >> "$GITHUB_STEP_SUMMARY" || echo "(none reported)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload optimization log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: echidna-optimize-log-${{ matrix.harness.contract }}
+          path: echidna-logs/optimize/${{ matrix.harness.contract }}.log
+          retention-days: 14

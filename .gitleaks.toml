@@ -1,0 +1,73 @@
+title = "ClaimRush gitleaks config"
+
+[allowlist]
+  description = "Global allowlist for the public repository."
+
+  paths = [
+    '''node_modules/''',
+    '''lib/''',
+    '''out/''',
+    '''dist/''',
+    '''\.gas-snapshot''',
+    '''package-lock\.json''',
+    '''pnpm-lock\.yaml''',
+    # The detect-secrets baseline stores SHA-256 hashes of reviewed findings,
+    # not real secrets, but high-entropy detection flags them every time.
+    '''\.secrets\.baseline''',
+    # Example / template files use documented REPLACE_ME placeholders.
+    '''\.env\.example$''',
+    '''config\.example\.env$''',
+    # Agent SDK replay fixtures contain run metadata; base64-encoded directory
+    # names trigger high-entropy false positives.
+    '''agents/sdk/fixtures/replay/''',
+    # Sepolia v* parity baselines are post-deploy provenance archives:
+    # IPFS CIDv0 deployment hashes, chain block hashes, GraphQL schema
+    # introspection, and the subgraph manifest YAML actually shipped.
+    '''baselines/sepolia-v[0-9]+\.[0-9]+\.[0-9]+/''',
+    # Anvil/Hardhat default test mnemonic used by local examples.
+    '''agents/sdk/src/harness/accounts\.ts''',
+    '''skills/claimrush/src/util/identity\.ts''',
+    # The gitleaks config references allowlisted public values (Anvil key,
+    # VAPID public key) that trigger high-entropy matches on itself.
+    '''\.gitleaks\.toml''',
+  ]
+
+  regexes = [
+    # Well-known Anvil/Foundry default account 0 private key. Documented in
+    # Foundry's public docs and reused by every local example.
+    '''0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80''',
+  ]
+
+[[rules]]
+  id = "openai-api-key"
+  description = "OpenAI API Key"
+  regex = '''sk-(?:proj-|svcacct-|ant-|org-)?[A-Za-z0-9_\-]{48,}'''
+  keywords = ["sk-"]
+
+[[rules]]
+  id = "alchemy-api-key-in-url"
+  description = "Alchemy RPC URL with embedded API key"
+  regex = '''https?://[^/]*\.alchemy\.com/v2/[A-Za-z0-9_\-]{32}'''
+  keywords = ["alchemy.com"]
+
+[[rules]]
+  id = "infura-api-key-in-url"
+  description = "Infura RPC URL with embedded API key"
+  regex = '''https?://[^/]*\.infura\.io/v3/[A-Fa-f0-9]{32}'''
+  keywords = ["infura.io"]
+
+[[rules]]
+  id = "raw-ethereum-private-key"
+  description = "Raw Ethereum private key (64 hex chars with or without 0x)"
+  regex = '''(?i)(?:private[\s_-]*key|secret[\s_-]*key|signer)\s*[=:]\s*["']?(?:0x)?[0-9a-fA-F]{64}["']?'''
+  keywords = ["private", "secret", "signer"]
+  [rules.allowlist]
+    regexes = [
+      '''0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80''',
+    ]
+
+[[rules]]
+  id = "mnemonic-seed-phrase"
+  description = "BIP-39 mnemonic seed phrase (12+ words)"
+  regex = '''(?i)(?:mnemonic|seed[\s_-]*phrase)\s*[=:]\s*["'](?:[a-z]+ ){11,23}[a-z]+["']'''
+  keywords = ["mnemonic", "seed"]

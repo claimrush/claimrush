@@ -1,0 +1,32 @@
+name: Dependency Review
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@05fe4576374b728f0c523d6a13d64c25081e0803 # v4.8.3
+        with:
+          fail-on-severity: high
+          # Include development scope: compromised devDependencies can attack the
+          # build pipeline (e.g. event-stream incident).  Runtime alone is not
+          # sufficient for supply-chain hardening.
+          fail-on-scopes: runtime, development

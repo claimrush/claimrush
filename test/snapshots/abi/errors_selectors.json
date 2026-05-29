@@ -1,0 +1,545 @@
+{
+  "source": "src/lib/Errors.sol",
+  "errors": [
+    {
+      "name": "NotAuthorized",
+      "signature": "NotAuthorized()",
+      "selector": "0xea8e4eb5"
+    },
+    {
+      "name": "InvariantViolation",
+      "signature": "InvariantViolation()",
+      "selector": "0x302e29cb"
+    },
+    {
+      "name": "OnlyGuardian",
+      "signature": "OnlyGuardian()",
+      "selector": "0xcae1d956"
+    },
+    {
+      "name": "OnlyMineCore",
+      "signature": "OnlyMineCore()",
+      "selector": "0x42d0dc42"
+    },
+    {
+      "name": "OnlyMineMarket",
+      "signature": "OnlyMineMarket()",
+      "selector": "0x7c816e82"
+    },
+    {
+      "name": "MarketMustTransferToFurnace",
+      "signature": "MarketMustTransferToFurnace()",
+      "selector": "0x92b39d64"
+    },
+    {
+      "name": "TransfersRestricted",
+      "signature": "TransfersRestricted()",
+      "selector": "0xf7c0f77a"
+    },
+    {
+      "name": "OnlyShareholderRoyalties",
+      "signature": "OnlyShareholderRoyalties()",
+      "selector": "0x3aa01f6b"
+    },
+    {
+      "name": "OnlyClaimAllHelper",
+      "signature": "OnlyClaimAllHelper()",
+      "selector": "0x1e70308a"
+    },
+    {
+      "name": "TakeoversPaused",
+      "signature": "TakeoversPaused()",
+      "selector": "0x180bdfce"
+    },
+    {
+      "name": "TradingPaused",
+      "signature": "TradingPaused()",
+      "selector": "0x02b874a6"
+    },
+    {
+      "name": "LockingPaused",
+      "signature": "LockingPaused()",
+      "selector": "0x59e55790"
+    },
+    {
+      "name": "ZeroAddress",
+      "signature": "ZeroAddress()",
+      "selector": "0xd92e233d"
+    },
+    {
+      "name": "ShareholderRoyaltiesNotSet",
+      "signature": "ShareholderRoyaltiesNotSet()",
+      "selector": "0xb583d90d"
+    },
+    {
+      "name": "ConfigFrozen",
+      "signature": "ConfigFrozen()",
+      "selector": "0xfe829257"
+    },
+    {
+      "name": "MetadataFrozen",
+      "signature": "MetadataFrozen()",
+      "selector": "0xeef043fe"
+    },
+    {
+      "name": "InvalidDuration",
+      "signature": "InvalidDuration()",
+      "selector": "0x76166401"
+    },
+    {
+      "name": "LockExpired",
+      "signature": "LockExpired()",
+      "selector": "0xf6fafba0"
+    },
+    {
+      "name": "LockListedOrFrozen",
+      "signature": "LockListedOrFrozen()",
+      "selector": "0x4f00e11b"
+    },
+    {
+      "name": "AutoMaxMismatch",
+      "signature": "AutoMaxMismatch()",
+      "selector": "0xd579fe33"
+    },
+    {
+      "name": "ListingNotActive",
+      "signature": "ListingNotActive()",
+      "selector": "0x66cb03e9"
+    },
+    {
+      "name": "ListingCooldown",
+      "signature": "ListingCooldown()",
+      "selector": "0x25284199"
+    },
+    {
+      "name": "InvalidListingExpiry",
+      "signature": "InvalidListingExpiry()",
+      "selector": "0xbdc52b5f"
+    },
+    {
+      "name": "ListingExpired",
+      "signature": "ListingExpired()",
+      "selector": "0x398cfd02"
+    },
+    {
+      "name": "ListingNotExpired",
+      "signature": "ListingNotExpired()",
+      "selector": "0x38d5df55"
+    },
+    {
+      "name": "EmergencyDelistTooSoon",
+      "signature": "EmergencyDelistTooSoon()",
+      "selector": "0x24f5707d"
+    },
+    {
+      "name": "OfferNotActive",
+      "signature": "OfferNotActive()",
+      "selector": "0x9b0104d6"
+    },
+    {
+      "name": "OfferExpired",
+      "signature": "OfferExpired()",
+      "selector": "0x9cb13087"
+    },
+    {
+      "name": "OfferNotExpired",
+      "signature": "OfferNotExpired()",
+      "selector": "0x7100cb6d"
+    },
+    {
+      "name": "InsufficientEthBalance",
+      "signature": "InsufficientEthBalance()",
+      "selector": "0xb6d6e7d6"
+    },
+    {
+      "name": "InvalidMode",
+      "signature": "InvalidMode()",
+      "selector": "0xa0042b17"
+    },
+    {
+      "name": "AutoCompoundNotEnabled",
+      "signature": "AutoCompoundNotEnabled()",
+      "selector": "0xde90d1b8"
+    },
+    {
+      "name": "AutoCompoundPaused",
+      "signature": "AutoCompoundPaused()",
+      "selector": "0xee77bedc"
+    },
+    {
+      "name": "CadenceNotMet",
+      "signature": "CadenceNotMet()",
+      "selector": "0x4da6338e"
+    },
+    {
+      "name": "CompoundQuoteFailed",
+      "signature": "CompoundQuoteFailed()",
+      "selector": "0x75691ae3"
+    },
+    {
+      "name": "QuoteCallFailed",
+      "signature": "QuoteCallFailed()",
+      "selector": "0x6a7912c1"
+    },
+    {
+      "name": "AmountZero",
+      "signature": "AmountZero()",
+      "selector": "0xcbca5aa2"
+    },
+    {
+      "name": "AmountTooLarge",
+      "signature": "AmountTooLarge()",
+      "selector": "0x06250401"
+    },
+    {
+      "name": "BatchTooLarge",
+      "signature": "BatchTooLarge()",
+      "selector": "0x0b7d62e2"
+    },
+    {
+      "name": "TooManyVeNFTs",
+      "signature": "TooManyVeNFTs()",
+      "selector": "0xd0d88033"
+    },
+    {
+      "name": "VeCheckpointStale",
+      "signature": "VeCheckpointStale()",
+      "selector": "0x7c739fd5"
+    },
+    {
+      "name": "URITooLong",
+      "signature": "URITooLong()",
+      "selector": "0x8b8d204c"
+    },
+    {
+      "name": "RouterConfigNotSet",
+      "signature": "RouterConfigNotSet()",
+      "selector": "0xbe97536c"
+    },
+    {
+      "name": "WethClaimHopNotSet",
+      "signature": "WethClaimHopNotSet()",
+      "selector": "0xe14cb4c1"
+    },
+    {
+      "name": "WethClaimHopAlreadySet",
+      "signature": "WethClaimHopAlreadySet()",
+      "selector": "0x7a8e82b2"
+    },
+    {
+      "name": "TokenNotEnabled",
+      "signature": "TokenNotEnabled()",
+      "selector": "0x3f9f188e"
+    },
+    {
+      "name": "TokenNotConfigured",
+      "signature": "TokenNotConfigured()",
+      "selector": "0xec398688"
+    },
+    {
+      "name": "UnsafeEntryToken",
+      "signature": "UnsafeEntryToken()",
+      "selector": "0x61a3bfe9"
+    },
+    {
+      "name": "InvalidToken",
+      "signature": "InvalidToken()",
+      "selector": "0xc1ab6dc1"
+    },
+    {
+      "name": "InvalidPool",
+      "signature": "InvalidPool()",
+      "selector": "0x2083cd40"
+    },
+    {
+      "name": "FactoryMismatch",
+      "signature": "FactoryMismatch()",
+      "selector": "0x14e6e5ec"
+    },
+    {
+      "name": "WrappedNativeMismatch",
+      "signature": "WrappedNativeMismatch()",
+      "selector": "0x98075125"
+    },
+    {
+      "name": "WrappedNativeImmutable",
+      "signature": "WrappedNativeImmutable()",
+      "selector": "0x6cf04568"
+    },
+    {
+      "name": "ClaimTokenImmutable",
+      "signature": "ClaimTokenImmutable()",
+      "selector": "0x4c0d2c1a"
+    },
+    {
+      "name": "InsufficientStake",
+      "signature": "InsufficientStake()",
+      "selector": "0xf1bc94d2"
+    },
+    {
+      "name": "TooManyUnbonds",
+      "signature": "TooManyUnbonds()",
+      "selector": "0x26baa0fb"
+    },
+    {
+      "name": "NotRewardNotifier",
+      "signature": "NotRewardNotifier()",
+      "selector": "0xb7db0ad8"
+    },
+    {
+      "name": "RewardIndexOverflow",
+      "signature": "RewardIndexOverflow()",
+      "selector": "0x907e730a"
+    },
+    {
+      "name": "LpRewardsVaultFurnaceMismatch",
+      "signature": "LpRewardsVaultFurnaceMismatch()",
+      "selector": "0x56cf0c6e"
+    },
+    {
+      "name": "LpRewardsStreamActive",
+      "signature": "LpRewardsStreamActive()",
+      "selector": "0xa32efea1"
+    },
+    {
+      "name": "EmergencyRewireNotRequested",
+      "signature": "EmergencyRewireNotRequested()",
+      "selector": "0x99c62753"
+    },
+    {
+      "name": "EmergencyRewireDelayNotMet",
+      "signature": "EmergencyRewireDelayNotMet()",
+      "selector": "0x1c6e3fcd"
+    },
+    {
+      "name": "EmergencyRewireAlreadyRequested",
+      "signature": "EmergencyRewireAlreadyRequested()",
+      "selector": "0xd5a8435b"
+    },
+    {
+      "name": "PriceExceeded",
+      "signature": "PriceExceeded()",
+      "selector": "0x07f782c8"
+    },
+    {
+      "name": "MinVeOutNotMet",
+      "signature": "MinVeOutNotMet()",
+      "selector": "0x7bb0c997"
+    },
+    {
+      "name": "MinVeOutRequired",
+      "signature": "MinVeOutRequired()",
+      "selector": "0x1c7560ee"
+    },
+    {
+      "name": "MinEthOutNotMet",
+      "signature": "MinEthOutNotMet()",
+      "selector": "0x7fc475e5"
+    },
+    {
+      "name": "MinAmountOutNotMet",
+      "signature": "MinAmountOutNotMet()",
+      "selector": "0xd2932843"
+    },
+    {
+      "name": "WiringMismatch",
+      "signature": "WiringMismatch()",
+      "selector": "0x2351953c"
+    },
+    {
+      "name": "DelegatedEOA",
+      "signature": "DelegatedEOA()",
+      "selector": "0x5d2ec444"
+    },
+    {
+      "name": "DeadlineExpired",
+      "signature": "DeadlineExpired()",
+      "selector": "0x1ab7da6b"
+    },
+    {
+      "name": "InvalidRoute",
+      "signature": "InvalidRoute()",
+      "selector": "0x84e505d2"
+    },
+    {
+      "name": "NotAContract",
+      "signature": "NotAContract()",
+      "selector": "0x09ee12d5"
+    },
+    {
+      "name": "ApprovalFailed",
+      "signature": "ApprovalFailed()",
+      "selector": "0x8164f842"
+    },
+    {
+      "name": "TransferFailed",
+      "signature": "TransferFailed()",
+      "selector": "0x90b8ec18"
+    },
+    {
+      "name": "ReturnDataTooLarge",
+      "signature": "ReturnDataTooLarge()",
+      "selector": "0xa644c3eb"
+    },
+    {
+      "name": "InsufficientTokenBalance",
+      "signature": "InsufficientTokenBalance()",
+      "selector": "0xe4455cae"
+    },
+    {
+      "name": "InsufficientTokenAllowance",
+      "signature": "InsufficientTokenAllowance()",
+      "selector": "0xa085b77b"
+    },
+    {
+      "name": "SettlementKeeperGracePeriod",
+      "signature": "SettlementKeeperGracePeriod()",
+      "selector": "0x94ae0313"
+    },
+    {
+      "name": "DiscountTooHigh",
+      "signature": "DiscountTooHigh()",
+      "selector": "0x35937253"
+    },
+    {
+      "name": "SlippageTooHigh",
+      "signature": "SlippageTooHigh()",
+      "selector": "0x850c6f76"
+    },
+    {
+      "name": "BonusTargetNotConfigured",
+      "signature": "BonusTargetNotConfigured()",
+      "selector": "0x7c943c67"
+    },
+    {
+      "name": "BonusTargetNotMet",
+      "signature": "BonusTargetNotMet()",
+      "selector": "0xbde31974"
+    },
+    {
+      "name": "BudgetTooSmall",
+      "signature": "BudgetTooSmall()",
+      "selector": "0x7f929651"
+    },
+    {
+      "name": "InvalidOfferTtl",
+      "signature": "InvalidOfferTtl()",
+      "selector": "0x57032ccd"
+    },
+    {
+      "name": "InvalidOfferExpiry",
+      "signature": "InvalidOfferExpiry()",
+      "selector": "0xbe3165f5"
+    },
+    {
+      "name": "MinLockAmountNotMet",
+      "signature": "MinLockAmountNotMet()",
+      "selector": "0xacecb5ea"
+    },
+    {
+      "name": "DecreaseNotAllowed",
+      "signature": "DecreaseNotAllowed()",
+      "selector": "0x8287afc5"
+    },
+    {
+      "name": "OfferInsufficientFunds",
+      "signature": "OfferInsufficientFunds()",
+      "selector": "0x54077d6f"
+    },
+    {
+      "name": "EthTransferFailed",
+      "signature": "EthTransferFailed()",
+      "selector": "0x6d963f88"
+    },
+    {
+      "name": "EthValueMismatch",
+      "signature": "EthValueMismatch()",
+      "selector": "0x42c0a68f"
+    },
+    {
+      "name": "GenesisWindowNotEnded",
+      "signature": "GenesisWindowNotEnded()",
+      "selector": "0x12057690"
+    },
+    {
+      "name": "GenesisKingClaimNotCollected",
+      "signature": "GenesisKingClaimNotCollected()",
+      "selector": "0x58f50f9f"
+    },
+    {
+      "name": "GenesisKingClaimAlreadyCollected",
+      "signature": "GenesisKingClaimAlreadyCollected()",
+      "selector": "0xfc39551f"
+    },
+    {
+      "name": "GenesisGuardianLocked",
+      "signature": "GenesisGuardianLocked()",
+      "selector": "0x7fa4804f"
+    },
+    {
+      "name": "GenesisAlreadyFinalized",
+      "signature": "GenesisAlreadyFinalized()",
+      "selector": "0xe80d8883"
+    },
+    {
+      "name": "GenesisExactSeedRequired",
+      "signature": "GenesisExactSeedRequired()",
+      "selector": "0x96d4a2eb"
+    },
+    {
+      "name": "GenesisAccrualWindowNotComplete",
+      "signature": "GenesisAccrualWindowNotComplete()",
+      "selector": "0x2c0b6dba"
+    },
+    {
+      "name": "GenesisMustBePaused",
+      "signature": "GenesisMustBePaused()",
+      "selector": "0x907c45fd"
+    },
+    {
+      "name": "GenesisPoolMismatch",
+      "signature": "GenesisPoolMismatch()",
+      "selector": "0xab15ba3c"
+    },
+    {
+      "name": "GenesisWethMismatch",
+      "signature": "GenesisWethMismatch()",
+      "selector": "0xbe06cdb4"
+    },
+    {
+      "name": "GenesisNoClaimForLiquidity",
+      "signature": "GenesisNoClaimForLiquidity()",
+      "selector": "0x9db2c9c2"
+    },
+    {
+      "name": "GenesisLpMintFailed",
+      "signature": "GenesisLpMintFailed()",
+      "selector": "0xefd96d36"
+    },
+    {
+      "name": "GenesisLpBalanceMismatch",
+      "signature": "GenesisLpBalanceMismatch()",
+      "selector": "0xeb3fe81a"
+    },
+    {
+      "name": "BudgetTooHigh",
+      "signature": "BudgetTooHigh()",
+      "selector": "0x26c24ecf"
+    },
+    {
+      "name": "AmountTooSmall",
+      "signature": "AmountTooSmall()",
+      "selector": "0xc2f5625a"
+    },
+    {
+      "name": "PendingEthNotDrained",
+      "signature": "PendingEthNotDrained()",
+      "selector": "0x6aa33b27"
+    },
+    {
+      "name": "CheckpointStale",
+      "signature": "CheckpointStale()",
+      "selector": "0x33cc1aca"
+    }
+  ]
+}

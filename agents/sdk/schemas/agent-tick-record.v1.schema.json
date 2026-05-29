@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClaimRush Agent Tick Record (v1)",
+  "type": "object",
+  "required": ["version", "ts", "nowMs", "policyState", "snapshot"],
+  "properties": {
+    "version": { "const": "v1" },
+    "ts": { "type": "integer" },
+    "nowMs": { "type": "integer" },
+    "chain": { "type": "string" },
+    "chainId": { "type": "integer" },
+    "agent": { "type": "string" },
+    "user": { "type": "string" },
+    "delegated": { "type": "boolean" },
+    "execute": { "type": "boolean" },
+    "policyState": { "type": "object" },
+    "caller": { "type": "object" },
+    "delegation": { "type": "object" },
+    "snapshot": { "type": "object" }
+  },
+  "additionalProperties": true
+}

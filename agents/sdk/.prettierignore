@@ -1,0 +1,3 @@
+dist/
+fixtures/replay/**/replay-*/
+out/

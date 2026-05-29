@@ -1,0 +1,518 @@
+name: ci
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'script/**'
+      - 'abis/**'
+      - 'agents/**'
+      - 'keeper/**'
+      - 'packages/node-utils/**'
+      - 'docs/**'
+      - 'brand/**'
+      - 'subgraph/**'
+      - 'analytics/**'
+      - 'deployments/**'
+      - '.github/**'
+      - 'foundry.toml'
+      - 'Makefile'
+      - 'requirements-ci.txt'
+      - '.nvmrc'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'script/**'
+      - 'abis/**'
+      - 'agents/**'
+      - 'keeper/**'
+      - 'packages/node-utils/**'
+      - 'docs/**'
+      - 'brand/**'
+      - 'subgraph/**'
+      - 'analytics/**'
+      - 'deployments/**'
+      - '.github/**'
+      - 'foundry.toml'
+      - 'Makefile'
+      - 'requirements-ci.txt'
+      - '.nvmrc'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-minimum:
+    name: security-minimum
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Fail on unsafe exec patterns
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "[check] unsafe exec patterns (supply-chain guardrails)"
+          if git grep -nI -E "curl[^|]*https?://[^|]*\|[^#]*\b(bash|sh)\b" -- .; then
+            echo "ERROR: Found curl piped into a shell. Download to a file, inspect, then execute."
+            exit 1
+          fi
+          if git grep -nI -E "wget[^|]*https?://[^|]*\|[^#]*\b(bash|sh)\b" -- .; then
+            echo "ERROR: Found wget piped into a shell. Download to a file, inspect, then execute."
+            exit 1
+          fi
+          if git grep -nI -E "curl[^|]*https?://[^|]*\|[^#]*\bsudo\b" -- .; then
+            echo "ERROR: Found curl piped into sudo. Download to a file, inspect, then execute/copy with sudo."
+            exit 1
+          fi
+          if git grep -nI -E "wget[^|]*https?://[^|]*\|[^#]*\bsudo\b" -- .; then
+            echo "ERROR: Found wget piped into sudo. Download to a file, inspect, then execute/copy with sudo."
+            exit 1
+          fi
+
+          if [ -f .gitmodules ]; then
+            echo "ERROR: .gitmodules present. Git submodules add a large supply-chain surface in CI."
+            echo "       Prefer package-manager pins / vendoring. If submodules are required, document + add an allowlist."
+            exit 1
+          fi
+          if git grep -nI -E "submodules:[[:space:]]*(true|recursive)" -- .github/workflows; then
+            echo "ERROR: Found actions/checkout configured to fetch git submodules."
+            echo "       Disable submodules in workflows (or add an explicit allowlist + security review)."
+            exit 1
+          fi
+
+          if git grep -nI -E "\bnpx (wrangler|playwright|lint-staged)\b" -- .; then
+            echo "ERROR: Found npx without --no-install for a repo-managed tool. Use npx --no-install or npm scripts."
+            exit 1
+          fi
+
+          if git grep -nI -E "\bnpx\b" -- scripts | grep -v -- "--no-install"; then
+            echo "ERROR: Found 'npx' without --no-install in scripts/. Use 'npx --no-install' or npm scripts."
+            exit 1
+          fi
+
+          if git grep -nI -E "^[[:space:]]*npm[[:space:]]+exec\b" -- scripts; then
+            echo "ERROR: Found 'npm exec' in scripts/. Prefer npm scripts or node_modules/.bin/<tool>."
+            exit 1
+          fi
+
+          if git grep -nI -E "\bnpm[[:space:]]+exec\b[^#]*\s--package\b" -- keeper agents packages subgraph scripts; then
+            echo "ERROR: Found 'npm exec --package'. This can download packages at runtime and bypass lockfile integrity."
+            echo "       Add the tool to devDependencies + lockfile, then run via npm scripts or local node_modules/.bin."
+            exit 1
+          fi
+
+
+          if git grep -nI -E "\bsudo[[:space:]]+npm[[:space:]]+(install|ci)\b" -- scripts; then
+            echo "ERROR: Found 'sudo npm install/ci'. Prefer running 'npm ci --omit=dev' as an unprivileged service user."
+            exit 1
+          fi
+
+          if git grep -nI -E "\bnpm[[:space:]]+install[[:space:]]+-g\b" -- scripts; then
+            echo "ERROR: Found 'npm install -g' in docs/scripts. Prefer distro packages or repo-local devDependencies (npm ci)."
+            exit 1
+          fi
+
+          if git grep -nI -E "\bsudo\b.*\b(bash|sh)\b[[:space:]]+/tmp/[^[:space:]]+\.sh\b" -- scripts; then
+            echo "ERROR: Found 'sudo bash/sh /tmp/*.sh'. Avoid running downloaded scripts as root; prefer signed packages or verified checksums."
+            exit 1
+          fi
+
+          echo "[check] GitHub Actions are SHA-pinned"
+          python3 - <<'PY'
+          import pathlib, re, sys
+
+          workflows = pathlib.Path(".github/workflows")
+          if not workflows.exists():
+              print("No .github/workflows directory found; skipping pin check.")
+              raise SystemExit(0)
+
+          uses_re = re.compile(r'^\s*uses:\s*([^\s#]+)\s*', re.IGNORECASE)
+          sha_re = re.compile(r'^[0-9a-fA-F]{40}$')
+
+          violations = []
+
+          workflow_files = sorted(workflows.rglob("*.yml")) + sorted(workflows.rglob("*.yaml"))
+          for wf in workflow_files:
+              try:
+                  wf_lines = wf.read_text(encoding="utf-8", errors="replace").splitlines()
+              except Exception as e:
+                  violations.append((str(wf), 0, f"Unable to read: {e}"))
+                  continue
+
+              for i, line in enumerate(wf_lines, start=1):
+                  m = uses_re.match(line)
+                  if not m:
+                      continue
+                  ref = m.group(1)
+
+                  if ref.startswith("./") or ref.startswith("docker://"):
+                      continue
+
+                  if "@" not in ref:
+                      violations.append((str(wf), i, f"uses without @ref: {ref}"))
+                      continue
+
+                  _action, version = ref.rsplit("@", 1)
+
+                  # Detect dynamic refs like @-some-expression-${- without
+                  # writing the literal expression marker, which the
+                  # surrounding YAML workflow parser would otherwise
+                  # mis-tokenise as the start of a GitHub Actions
+                  # expression embedded in this run block.
+                  if "$" + "{{" in version:
+                      violations.append((str(wf), i, f"uses with dynamic ref: {ref}"))
+                      continue
+
+                  if not sha_re.fullmatch(version):
+                      violations.append((str(wf), i, f"not SHA-pinned: {ref}"))
+
+          if violations:
+              print("ERROR: GitHub Actions must be pinned to full 40-char commit SHAs.")
+              for wf, i, msg in violations:
+                  loc = f"{wf}:{i}" if i else wf
+                  print(f"- {loc}: {msg}")
+              sys.exit(1)
+
+          print("OK: All GitHub Actions references are SHA-pinned.")
+          PY
+
+          echo "[check] pip installs in workflows are pinned"
+          python3 - <<'PY'
+          import pathlib, re, sys
+
+          workflows = pathlib.Path('.github/workflows')
+          if not workflows.exists():
+              print('No .github/workflows directory found; skipping pip pin check.')
+              raise SystemExit(0)
+
+          pip_re = re.compile(r'python\s+-m\s+pip\s+install\b', re.IGNORECASE)
+
+          violations = []
+          for wf in sorted(workflows.rglob('*.yml')) + sorted(workflows.rglob('*.yaml')):
+              try:
+                  wf_lines = wf.read_text(encoding='utf-8', errors='replace').splitlines()
+              except Exception as e:
+                  continue
+
+              for i, l in enumerate(wf_lines, start=1):
+                  if not pip_re.search(l):
+                      continue
+                  if re.search(r'\s-r\s+requirements[^\s]*\.txt', l):
+                      continue
+                  if '==' in l:
+                      continue
+                  violations.append((str(wf), i, l.strip()))
+
+          if violations:
+              print('ERROR: Unpinned pip installs found in workflows. Use exact version pins (pkg==X.Y.Z) or a pinned requirements file (-r requirements*.txt).')
+              for wf, i, l in violations:
+                  print(f'- {wf}:{i}: {l}')
+              sys.exit(1)
+
+          print('OK: pip installs in workflows are pinned.')
+          PY
+
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install Semgrep
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir "semgrep==1.152.0"
+
+      - name: Semgrep scan (minimum baseline)
+        # NOTE: p/solidity was retired upstream (semgrep.dev returns HTTP 404
+        # for /c/p/solidity). The remaining community Solidity packs
+        # (e.g. p/smart-contracts) are stylistic and produce thousands of
+        # false positives on protocol code. Solidity is covered separately
+        # by `make slither`, `make aderyn`, and the project-owned rules in
+        # `.semgrep.yml` (run from `make semgrep`); the baseline below
+        # focuses on generic OWASP / Node / TS / Python coverage.
+        # Keep this in sync with .github/workflows/public/semgrep.yml.
+        run: |
+          semgrep scan \
+            --config=p/owasp-top-ten \
+            --config=p/nodejs \
+            --config=p/typescript \
+            --config=p/python \
+            --error \
+            --metrics=off \
+            --exclude "node_modules" \
+            --exclude ".next" \
+            .
+
+      - name: Install osv-scanner
+        run: |
+          set -euo pipefail
+          OSV_VERSION="v2.3.3"
+          OSV_SHA256="777b4bb7ddd10bdcc8a1aa398d37d05e91e866e7586f9cff3fca2f72b8153033"
+          OSV_BIN="${RUNNER_TEMP:-/tmp}/osv-scanner"
+          OSV_DIR="$(dirname "$OSV_BIN")"
+          curl -fsSL "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" -o "$OSV_BIN"
+          echo "${OSV_SHA256}  ${OSV_BIN}" | sha256sum -c -
+          chmod +x "$OSV_BIN"
+          echo "$OSV_DIR" >> "$GITHUB_PATH"
+
+      - name: OSV scan lockfiles (minimum baseline)
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXIT=0
+          while IFS= read -r -d '' lockfile; do
+            echo "Scanning ${lockfile}"
+            # osv-scanner exits 128 ("No package sources found") on empty
+            # lockfiles (e.g. an internal package with zero deps). That is
+            # not a vulnerability and must not fail the gate. Any other
+            # non-zero exit is treated as a real finding.
+            set +e
+            osv-scanner --lockfile="${lockfile}"
+            CODE=$?
+            set -e
+            case "$CODE" in
+              0) ;;
+              128)
+                echo "  (skipping empty lockfile: $lockfile)"
+                ;;
+              *)
+                EXIT=1
+                ;;
+            esac
+          done < <(git ls-files -z '*package-lock.json')
+          exit $EXIT
+
+  # ────────────────────────────────────────────────────────────────────
+  # The compile-heavy Solidity gates are split into a dedicated job
+  # below (`solidity`). Reason: github-hosted ubuntu-24.04 runners only
+  # have ~7.8 GiB RAM and a 72 GB / partition with ~17 GB free after
+  # the runner image. Cold-cache `forge build` on the 433-file protocol
+  # contract set needs 16 GiB of swap to avoid OOM-kill (see
+  # abi-sync.yml + gas-snapshot.yml for the same mitigation), and that
+  # swap file occupies the same / partition that setup-node needs to
+  # extract Node 22 + populate the npm cache. Cycle-5e proved this
+  # head-on: the 16 GiB swap left only 857 MB free on /, and the
+  # subsequent setup-node step silently killed the runner with no log
+  # output (4 consecutive reproductions across cycles 5b/5c/5d/5e).
+  #
+  # The `node` job below carries every Node-using step (Subgraph,
+  # Agent SDK, Keeper, Node lockfile hygiene). It runs without the
+  # swap mitigation and without forge build, so it has the full
+  # ~17 GB free disk for setup-node.
+  # ────────────────────────────────────────────────────────────────────
+
+  solidity:
+    name: solidity
+    runs-on: ubuntu-24.04
+    # Cold-cache forge build of the protocol's ~430 .sol files takes
+    # ~50-65 min on ubuntu-24.04 (with the swap mitigation below); the
+    # subsequent make test compiles the test suite + runs all tests for
+    # another ~10-20 min. Cycle-4 showed that 4-way parallel solc
+    # OOM-kills mid-compile despite 8 GiB extra swap; serializing solc
+    # via FOUNDRY_THREADS=1 below bounds peak memory but scales wall-
+    # clock ~4x (estimated ~120-180 min on cold cache). Set 180 min to
+    # give the cold-cache run comfortable headroom. Warm-cache
+    # subsequent runs (when actions/cache below restores the prior
+    # `out/` + `cache/` trees) compile incrementally in single-digit
+    # minutes.
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Free disk space (remove unused runner bloat)
+        # GitHub-hosted ubuntu-24.04 ships with ~17 GiB free on /. After
+        # the 16 GiB swap allocation below, only ~1 GiB remains, which is
+        # not enough for `make deps` to clone forge-std + OZ-contracts +
+        # 4 other libs from scratch (cycle-8 reproduction: "fatal: write
+        # error: No space left on device" inside the OZ clone).
+        # Removing the unused pre-installed toolchains (dotnet, android,
+        # swift, haskell, agent tools, codeql, powershell) frees ~30 GiB,
+        # giving the swap + clone + cache + build pipeline comfortable
+        # headroom (~16 GiB free on / after swap).
+        run: |
+          set -euo pipefail
+          df -h /
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo apt-get -y autoremove >/dev/null 2>&1 || true
+          sudo apt-get -y clean >/dev/null 2>&1 || true
+          df -h /
+
+      - name: Add swap space (compile-OOM mitigation)
+        # See abi-sync.yml + gas-snapshot.yml for the same comment block:
+        # the protocol contract set + test suite (~430 .sol files)
+        # compiled with solc 0.8.34 + via_ir + 200-run optimizer pegs
+        # ubuntu-24.04's ~7.8 GiB RAM + ~4 GiB pre-existing swap during
+        # peak codegen, leading the runner-side OOM-killer to send
+        # SIGTERM to the forge process mid-compile (exit 143). Cycle-4
+        # showed that 8 GiB of extra swap is not enough — peak memory
+        # with 4-way parallel solc still SIGTERMs at ~45 min. Bumping
+        # to 16 GiB (total ~28 GiB virtual) plus FOUNDRY_THREADS=1 in
+        # the build step (serializes solc) brings compile under the
+        # kill cliff at the cost of ~4x wall-clock.
+        #
+        # No setup-node in this job — see job-block header above.
+        run: |
+          set -euo pipefail
+          sudo fallocate -l 16G /swapfile-ci-extra
+          sudo chmod 600 /swapfile-ci-extra
+          sudo mkswap /swapfile-ci-extra
+          sudo swapon /swapfile-ci-extra
+          free -h
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps (pinned)
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir -r requirements-ci.txt
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@8b0419c685ef46cb79ec93fbdc131174afceb730 # v1.6.0
+        with:
+          version: v1.5.1
+
+      - name: Restore forge build cache
+        # Cold compile is the long pole on ubuntu-24.04 (see job-level
+        # comment above). actions/cache restores `out/` + `cache/` from
+        # a prior identical-input run if available, letting forge's
+        # built-in incremental compiler skip rebuilding unchanged
+        # source files. Cache key includes every input that can change
+        # the build output. Restore-keys lets near-misses (e.g. a
+        # one-test-file change) still hit a useful base cache.
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            out
+            cache
+            ~/.foundry/cache
+          key: forge-build-${{ runner.os }}-v1.5.1-${{ hashFiles('foundry.toml', 'remappings.txt', 'src/**/*.sol', 'test/**/*.sol', 'script/**/*.sol', 'lib/**/*.sol') }}
+          restore-keys: |
+            forge-build-${{ runner.os }}-v1.5.1-
+
+      - name: Solidity formatting check
+        run: forge fmt --check
+
+      - name: Solidity gates (deps, build, test)
+        env:
+          # Serialize solc (default = num_cpus = 4). Each solc instance
+          # peaks at 5+ GiB during via_ir codegen on the protocol set;
+          # 4-way parallel x 5 GiB = 20 GiB peak >>> 7.8 GiB RAM + 4 GiB
+          # default swap, so OOM-killer fires mid-compile. With threads=1
+          # peak is ~5 GiB which fits comfortably in RAM + swap.
+          FOUNDRY_THREADS: "1"
+        run: |
+          make clean
+          make deps
+          make build
+          make test
+
+      - name: Solidity policy lint
+        run: make solidity-policy-lint
+
+      - name: Gas snapshot check
+        run: make gas-snapshot-check
+
+      - name: ABI checks
+        run: make gates-abis
+
+      - name: Release docs consistency check
+        run: python3 scripts/check_release_docs_consistency.py
+
+      - name: Foundry version consistency check
+        run: python3 scripts/check_foundry_version_consistency.py
+
+  node:
+    name: node
+    runs-on: ubuntu-24.04
+    # No forge build, no swap, no compile. setup-node + npm gates only.
+    # The full / partition (~17 GB free) is available for Node 22
+    # tarball extract + npm cache + per-package node_modules trees.
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps (pinned)
+        # Required for the gates-docs step below (some Python scripts
+        # use pycryptodome via requirements-ci.txt).
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir -r requirements-ci.txt
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check Node lockfile hygiene
+        run: bash scripts/check_node_lockfiles.sh
+
+      # Public-surface documentation, manifest, and brand gates.
+      # Includes: check_claim_as_verb (self-test + scan), check_banned_phrases
+      # (self-test + scan), subgraph-manifest parity, deployment-manifest
+      # EIP-55, public package manifest, docs truthiness, and the rest of
+      # public-release-surface-checks. Previously these gates existed in the
+      # Makefile but were not called from this workflow, so CI could stay
+      # green while the gates silently regressed.
+      - name: Docs + public-surface gates
+        run: make gates-docs
+
+      # Subgraph lint includes manifest parity (handlers + entities across
+      # prod/staging/local/base manifests).
+      - name: Subgraph lint
+        run: make subgraph-lint
+
+      - name: Agent SDK gates (build)
+        run: make gates-agents
+
+      - name: Keeper gates (typecheck, lint, format, test)
+        working-directory: keeper
+        run: |
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm run format:check
+          npm run test

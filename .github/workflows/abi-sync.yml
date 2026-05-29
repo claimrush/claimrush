@@ -1,0 +1,153 @@
+name: abi-sync
+
+concurrency:
+  group: abi-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'abis/**'
+      - 'docs/analytics/dune-integration-pack-v1.0.0.md'
+      - 'scripts/export_abis.py'
+      - 'scripts/check_abis_vs_dune_pack.py'
+      - 'scripts/check_abi_events_vs_dune.py'
+      - 'scripts/check_abi_event_schema.py'
+      - 'foundry.toml'
+      - 'remappings.txt'
+      - 'Makefile'
+      - '.github/workflows/abi-sync.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'abis/**'
+      - 'docs/analytics/dune-integration-pack-v1.0.0.md'
+      - 'scripts/export_abis.py'
+      - 'scripts/check_abis_vs_dune_pack.py'
+      - 'scripts/check_abi_events_vs_dune.py'
+      - 'scripts/check_abi_event_schema.py'
+      - 'foundry.toml'
+      - 'remappings.txt'
+      - 'Makefile'
+      - '.github/workflows/abi-sync.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  abi-sync:
+    runs-on: ubuntu-24.04
+    # Cold-cache forge build of the protocol's ~430 .sol files takes
+    # ~120-180 min with FOUNDRY_THREADS=1 on ubuntu-24.04 (cycle-4
+    # rehearsal seed showed 4-way parallel solc OOM-kills mid-compile
+    # despite 8 GiB extra swap; serializing solc bounds peak memory).
+    # Set 180 min to give the cold-cache run comfortable headroom.
+    # Warm-cache subsequent runs (when actions/cache below restores
+    # the prior out/ + cache/ trees) compile incrementally in
+    # single-digit minutes.
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Free disk space (remove unused runner bloat)
+        # See ci.yml for the cycle-8 disk-exhaustion diagnosis. The 16 GiB
+        # swap below leaves only ~1 GiB on / out of the runner's default
+        # 17 GiB, which is not enough for `make deps` to clone forge-std
+        # + OZ-contracts. Removing unused pre-installed toolchains
+        # (~30 GiB total) gives swap + clone + build comfortable headroom.
+        run: |
+          set -euo pipefail
+          df -h /
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo apt-get -y autoremove >/dev/null 2>&1 || true
+          sudo apt-get -y clean >/dev/null 2>&1 || true
+          df -h /
+
+      - name: Add swap space
+        # The protocol contract set (~430 .sol files) compiled with
+        # solc 0.8.34 + the via_ir + 200-run optimizer profile pegs
+        # ubuntu-24.04's ~7.8 GiB RAM + ~4 GiB pre-existing swap during
+        # peak codegen, leading the runner-side OOM-killer to send
+        # SIGTERM to the forge process mid-compile (visible as "Process
+        # completed with exit code 143" right after the "Compiling N
+        # files" log line, with no progress output between). Cycle-4
+        # showed 8 GiB extra swap is not enough — bump to 16 GiB and
+        # serialize solc via FOUNDRY_THREADS=1 in the build step below.
+        # See ci.yml for the same mitigation. The runner
+        # has ~70 GiB free disk so the extra swap file is not a
+        # constraint. Slows individual page-fault writes but avoids the
+        # kill cliff. Note: ubuntu-24.04 GitHub-hosted runners ship with
+        # /swapfile pre-allocated, so we use a distinct path here to
+        # avoid "fallocate failed: Text file busy".
+        run: |
+          set -euo pipefail
+          sudo fallocate -l 16G /swapfile-ci-extra
+          sudo chmod 600 /swapfile-ci-extra
+          sudo mkswap /swapfile-ci-extra
+          sudo swapon /swapfile-ci-extra
+          free -h
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@8b0419c685ef46cb79ec93fbdc131174afceb730 # v1.6.0
+        with:
+          # Pinned to a specific release (avoid floating toolchain versions in CI).
+          # Keep this aligned with the install-deps document.
+          version: v1.5.1
+
+      - name: Restore forge build cache
+        # See ci.yml for rationale. Same cache key shape so all three
+        # compile-heavy public workflows share a cache pool.
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            out
+            cache
+            ~/.foundry/cache
+          key: forge-build-${{ runner.os }}-v1.5.1-${{ hashFiles('foundry.toml', 'remappings.txt', 'src/**/*.sol', 'test/**/*.sol', 'script/**/*.sol', 'lib/**/*.sol') }}
+          restore-keys: |
+            forge-build-${{ runner.os }}-v1.5.1-
+
+      - name: Install Foundry deps
+        run: make deps
+
+      - name: Build contracts (incl. size check)
+        env:
+          # Serialize solc to bound peak memory at ~5 GiB (vs ~20 GiB
+          # at the default 4-way parallelism). See ci.yml for the
+          # cycle-4 OOM-kill diagnosis that motivates this.
+          FOUNDRY_THREADS: "1"
+        run: make build
+
+      - name: Regenerate ABIs (base_mainnet)
+        run: python3 scripts/export_abis.py --network base_mainnet --outdir abis/base_mainnet
+
+      - name: Regenerate ABIs (base_sepolia)
+        run: python3 scripts/export_abis.py --network base_sepolia --outdir abis/base_sepolia
+
+      - name: Check ABIs match canonical Dune schema (base_mainnet)
+        run: python3 scripts/check_abis_vs_dune_pack.py --docs docs/analytics/dune-integration-pack-v1.0.0.md --abi-dir abis/base_mainnet
+
+      - name: Check ABIs match canonical Dune schema (base_sepolia)
+        run: python3 scripts/check_abis_vs_dune_pack.py --docs docs/analytics/dune-integration-pack-v1.0.0.md --abi-dir abis/base_sepolia
+
+      - name: Fail if committed ABIs drift
+        run: git diff --exit-code

@@ -1,0 +1,38 @@
+{
+  "name": "@claimrush/openclaw-skill",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "OpenClaw / Cursor agent skill that drives the ClaimRush protocol via @claimrush/agent-sdk with CRAL safety rules enforced.",
+  "bin": {
+    "claimrush": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "SKILL.md",
+    "README.md",
+    "scripts"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/dedupe-viem.mjs",
+    "build": "tsc -p tsconfig.json && node -e \"require('node:fs').chmodSync('dist/cli.js', 0o755)\"",
+    "prepare": "npm run build",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@claimrush/agent-sdk": "file:../../agents/sdk",
+    "viem": "2.45.1",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "ws": ">=8.20.1"
+  }
+}

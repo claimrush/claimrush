@@ -1,0 +1,24 @@
+{
+  "filter_paths": "lib/,test/,script/,scripts/,node_modules/,src/mocks/",
+  "exclude_informational": true,
+  "exclude_optimization": true,
+  "exclude_low": false,
+  "solc_remaps": [
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "forge-std/=lib/forge-std/src/"
+  ],
+  "solc_args": "--optimize --optimize-runs 550",
+  "compile_force_framework": "foundry",
+  "fail_on": "medium",
+  "detectors_to_exclude": [
+    "incorrect-equality",
+    "unused-return",
+    "too-many-digits"
+  ],
+  "_detector_exclusion_rationale": {
+    "incorrect-equality": "ClaimRush uses intentional strict equality checks for wiring validation (address == expected) and mode enums; false positives dominate",
+    "unused-return": "SafeERC20 and SafeTransfer wrappers handle return values internally; raw ERC20 calls are banned by semgrep sol-unchecked-transfer rule",
+    "too-many-digits": "Large literal constants (1e18, 10_000e18, etc.) are intentional and match spec-defined values; Solidity underscore separators already improve readability"
+  },
+    "_review_note": "Excluded detectors are rationalized above. reentrancy-no-eth was re-enabled 2026-04-08 (pre-launch); verified-safe call sites use targeted inline slither-disable-next-line suppressions. The reentrancy-events detector is NOT excluded and should flag any missing event ordering. reentrancy-balance (LpStakingVault7D.harvestFeesToRewards) and reentrancy-eth (MineCore._executeTakeover) use slither-disable-start/end: guarded by nonReentrant on external entrypoints and/or intentional SPEC ordering."
+}

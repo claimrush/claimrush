@@ -1,0 +1,151 @@
+# Local-only deployment manifests
+
+# Deployment-manifest backups / archives (dev-local; never ship publicly)
+deployments/*.bak.*
+deployments/*.archive.*
+
+# Foundry artifacts
+out/
+cache/
+broadcast/
+out-fork/
+cache-fork/
+out-fast/
+cache-fast/
+out-audit/
+out-tmp/
+out-verify/
+out-halmos/
+cache-halmos/
+
+# Foundry deps (installed via `make deps`)
+# - These are pinned in Makefile/docs and should not be committed.
+lib/*
+!lib/.gitkeep
+
+# Anvil persisted state
+.anvil-state.json
+
+# Quarterly Genesis LP accrual snapshots (operator-local log).
+monitoring/genesis-lp-accrual.jsonl
+
+# Common local artifacts
+.DS_Store
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env files
+.env
+.env.*.local
+.dev.vars
+
+# Node deps everywhere
+node_modules/
+
+# Next.js
+.next/
+out/
+.turbo/
+.vercel/
+.open-next/
+.next/cache/
+
+# Generic build outputs
+dist/
+build/
+coverage/
+# patch backups
+*.orig
+*.rej
+
+# Patch/merge artifacts
+*.orig
+*.rej
+
+# patch rejects
+*.rej
+
+# Wrangler / Miniflare local state
+**/.wrangler/
+*.sqlite-wal
+*.sqlite-shm
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Generated code
+subgraph/generated/
+subgraph/src/generated/
+slither-reports/
+
+# Security tool artifacts
+.tmp/
+echidna-corpus/
+echidna-corpus-old/
+echidna-corpus-*/
+echidna-corpora/
+medusa-corpora/
+
+# Local artifacts from broadcast-prep sweep tooling (AWS Batch dispatcher
+# results, deterministic-replay manifests, CI-recheck summaries, Medusa
+# diagnoses, etc.). Regenerable; never check in.
+sweep-results/
+crytic-export/
+crytic-export-old/
+out2/
+.gas-snapshot-new
+semgrep-results.sarif
+
+# Static analysis reports (regenerate with: make aderyn)
+report.md
+
+# Gas reports (regenerate with: make gas)
+gas-report-*.txt
+
+# QA reports (Lighthouse, Axe, screenshots, etc.)
+.reports/
+BACKDROP-FILTER-INVESTIGATION*.md
+PORT-*-REPORT.md
+PORT-*-SUCCESS-REPORT.md
+
+
+# Patch files (feature branches, local patch exports, etc.)
+*.patch
+
+
+
+# tsx / jiti compilation caches
+**/tsx-*/
+**/node-jiti/
+
+.public-export/
+.public-export-ledger.json
+
+# Agent replay output dirs (machine-specific, regenerable)
+agents/sdk/fixtures/replay/**/replay-*/
+
+# OpenClaw skill build artifacts (regenerable via skills/claimrush/scripts/setup.sh)
+skills/*/dist/
+skills/*/node_modules/
+skills/*/*.tsbuildinfo
+
+# Background process PID files (e.g. pre-launch fuzz chain)
+*.pid
+
+# Local D1 SQL snapshots (regenerable via wrangler d1 export)
+baselines/d1-snapshots/

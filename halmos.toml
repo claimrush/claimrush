@@ -1,0 +1,20 @@
+# Halmos configuration for the ClaimRush bounded symbolic proofs.
+# Centralizes loop and solver timeouts so per-driver scripts only set the
+# contract / function selectors. The driver scripts that consume this file
+# are scripts/run_halmos_bounded_proofs.sh and scripts/run_halmos_meta_proofs.sh.
+#
+# Loop bound 2 keeps state-space exploration tractable while still covering
+# the multi-actor and multi-step obligations the proofs encode. Branching and
+# assertion timeouts hold every check_* under one minute end-to-end.
+
+[global]
+loop = 2
+solver-timeout-branching = 1000
+solver-timeout-assertion = 60000
+statistics = true
+# The dedicated `halmos` Foundry profile writes artifacts to `out-halmos/` so
+# AST emission does not slow down the default forge workflow. Halmos invokes
+# `forge build --ast` internally with FOUNDRY_PROFILE=halmos, then needs to
+# read those artifacts back from the same place; without this the loader
+# silently finds no test contracts in the default `out/` directory.
+forge-build-out = "out-halmos"

@@ -1,0 +1,206 @@
+{
+  "name": "ClaimRush",
+  "version": "v1.0.0",
+  "chain": "base_sepolia",
+  "chainId": 84532,
+  "generatedAtUtc": "2026-05-17T13:44:33.274Z",
+  "notes": [
+    "Staging/testnet manifest template for ClaimRush v1.0.0 on Base Sepolia.",
+    "Fill this manifest immediately after deployment on Base Sepolia.",
+    "Start blocks are REQUIRED for efficient and correct Dune queries (filter-by-block).",
+    "Do not use this file to publish leaderboard outputs; it is configuration only.",
+    "FurnaceEntryTokenRegistry + MineCoreEntryTokenRegistry addresses + startBlocks are REQUIRED for token-entry decoding and transparency dashboards.",
+    "FurnaceQuoter is deployed inline by Wire.s.sol (not Deploy.s.sol). `scripts/deploy_prod.mjs --wire` recovers and records it in this manifest from Furnace.furnaceQuoter().",
+    "contracts.Furnace.guardHelper records the FurnaceGuardHelper deployed alongside the Furnace impl and pinned as `address immutable` on the impl's bytecode. It is not a separately-callable user surface; it exists in the manifest so that bytecode parity tooling can resolve the construction-time immutable.",
+    "This file is NOT production-ready until all REQUIRED addresses + startBlocks are filled with non-zero values."
+  ],
+  "analytics": {
+    "addressExclusions": []
+  },
+  "contracts": {
+    "ClaimToken": {
+      "address": "0xbe55C3A426192c9f2A3Be6eB1AB29EeDf4842F82",
+      "startBlock": 41628570
+    },
+    "VeClaimNFT": {
+      "address": "0xd5f1b5394728ba9572403B339Ba5C6316dD2eE92",
+      "startBlock": 41628570
+    },
+    "MineCore": {
+      "address": "0x52Ac9B2eF3AcF163856F8Ea25f84e8eA55EAac56",
+      "implementation": "0xe98452D978829F7ABAEcc7f7632B93754fC5Fc74",
+      "proxyAdmin": "0xe1e27499edEF49Ac2b49D4Cd55173633a4611eDc",
+      "proxyAdminOwner": "0x806882B319AbdfB3a30D197feFea2d0D99A1BDF8",
+      "startBlock": 41628571
+    },
+    "MineCoreQuoter": {
+      "address": "0x12ec8Dd6Be11A51182B10D124e4d5a1fE9B77590",
+      "startBlock": 41628571
+    },
+    "ShareholderRoyalties": {
+      "address": "0xE3C141F38Ac05BA4BF571813B093c065744b5935",
+      "implementation": "0xF9152c8ccc092d66CdEE147a0CcFf0dfa1015E1c",
+      "proxyAdmin": "0x9806e2B92B3E03acA49addCBE52af925a8305663",
+      "proxyAdminOwner": "0x806882B319AbdfB3a30D197feFea2d0D99A1BDF8",
+      "startBlock": 41628570
+    },
+    "Furnace": {
+      "address": "0x6E00092d60478C7b9fB96EB7Cc06Bb6d65E14D45",
+      "implementation": "0x650eA8A71f872D1d8547F29b056a03007c587eea",
+      "guardHelper": "0x526a21E2C1fB4c1471c0EA6DeBD3a562f2Bb6c3c",
+      "proxyAdmin": "0xeF871b2E1E983faEeaA138e6B2975aC18357C46e",
+      "proxyAdminOwner": "0x806882B319AbdfB3a30D197feFea2d0D99A1BDF8",
+      "startBlock": 41628570
+    },
+    "LpStakingVault7D": {
+      "address": "0x58216F1740D36613EFfF8B8a7680666e8210Ffc6",
+      "startBlock": 41628571
+    },
+    "FurnaceEntryTokenRegistry": {
+      "address": "0xa7269CE8e199462cddfC873257344Ca0a25d8Cf5",
+      "startBlock": 41628571
+    },
+    "MineCoreEntryTokenRegistry": {
+      "address": "0xF302e5B430ebaDFcd9c891390CbF8C4a61662768",
+      "startBlock": 41628570
+    },
+    "ClaimAllHelper": {
+      "address": "0xEc921e0C0992cf998f82E9910634009d52841252",
+      "startBlock": 41628571
+    },
+    "DelegationHub": {
+      "address": "0x6c6428e3bC035C8e8d057bAf9Df55b90261A70aa",
+      "startBlock": 41628571
+    },
+    "MarketRouter": {
+      "address": "0x949eA3480c09b9E9C86e30a9Eb2a815442e8ba14",
+      "implementation": "0xEe7019eFC97a6324e7f3411DeCD937B5ad862343",
+      "proxyAdmin": "0x8Cf6617e7dF56a740dcCFdFee5cc959d0aaaFFc9",
+      "proxyAdminOwner": "0x806882B319AbdfB3a30D197feFea2d0D99A1BDF8",
+      "startBlock": 41628571
+    },
+    "TimelockController": {
+      "address": "0x2e40183e3d57a70241bEA7A64D96d6AF5c0cE0b0",
+      "bootstrapAdmin": "0x806882B319AbdfB3a30D197feFea2d0D99A1BDF8",
+      "proposer": "0x32bF220BbDF29d2ca3db9590A99C0fdA456e2725",
+      "executor": "0x32bF220BbDF29d2ca3db9590A99C0fdA456e2725",
+      "minDelaySeconds": 3600,
+      "startBlock": 41628566
+    },
+    "DexAdapter": {
+      "address": "0xd35A09d107da0D095404d6eaBaf1Af2D31De8cb1",
+      "startBlock": 41628570
+    },
+    "LaunchController": {
+      "address": "0x70b333582870334Db56157B7833D1e7D94Df5d25",
+      "startBlock": 41628571
+    },
+    "GenesisLPVault24M": {
+      "address": "0x713BC70a2E301B25bFcFe1f7F3Ed4f95a991FC40",
+      "lpWithdrawRecipient": "0x806882B319AbdfB3a30D197feFea2d0D99A1BDF8",
+      "startBlock": 41628571
+    },
+    "MaintenanceHub": {
+      "address": "0x1303BeC2384B1fdB7FAc5ec20E1D28C6110Dc43a",
+      "rescueRecipient": "0x806882B319AbdfB3a30D197feFea2d0D99A1BDF8",
+      "startBlock": 41628583
+    },
+    "AgentLens": {
+      "address": "0x19F34dbBe4E97EFDc7f795Bf8d57D6e681c8A083",
+      "startBlock": 41628592
+    },
+    "FurnaceQuoter": {
+      "address": "0x9bfF5EA31D5dFb0Ca9944fedB3577205b4252470",
+      "startBlock": 41628579
+    }
+  },
+  "aerodrome": {
+    "wrappedNative": {
+      "address": "0xc473eBc825e1bc2c10C86C82a394e8fc50e6cE03",
+      "symbol": "WETH",
+      "startBlock": 41456312
+    },
+    "router": {
+      "address": "0xa76B402FA783df611AE6C0e55a615C9e643dDa26",
+      "startBlock": 41628566
+    },
+    "poolFactory": {
+      "address": "0x83efC681977f32d6B2A7C961bB2a92f1661b80e9",
+      "startBlock": 41456312
+    },
+    "claimWethPool": {
+      "address": "0x2f95137514b8eD96C7011665958dD4AB6fF7107f",
+      "startBlock": 41672373,
+      "poolType": "TestnetSwapPool"
+    },
+    "lpToken": {
+      "address": "0x2f95137514b8eD96C7011665958dD4AB6fF7107f",
+      "startBlock": 41672373
+    }
+  },
+  "chainlink": {
+    "ethUsdFeed": {
+      "address": "0x0000000000000000000000000000000000000000"
+    }
+  },
+  "protocolParams": {
+    "furnace": {
+      "maxUserBonusBps": 10000,
+      "lpTopupRateMinBps": 750,
+      "lpTopupRateMaxBps": 1500,
+      "lockTargetClaim": 120000000,
+      "reserveTargetFinalClaim": 20000000,
+      "reserveMultMaxBps": 20000,
+      "swingTimeSeconds": 5184000,
+      "bonusDecayWindowSeconds": 10800,
+      "lockPctTargetBps": 700,
+      "lockPctMinForBoostCapBps": 500,
+      "lockPctFullBoostCapBps": 2000,
+      "reserveMultMaxBpsLowLock": 15000,
+      "sellSpreadFloor7dBps": 120
+    }
+  },
+  "optional": {
+    "GameRouter": {
+      "deployed": false,
+      "address": "0x0000000000000000000000000000000000000000",
+      "startBlock": 0
+    }
+  },
+  "safes": {
+    "adminSafe": {
+      "address": "0x32bF220BbDF29d2ca3db9590A99C0fdA456e2725",
+      "role": "admin",
+      "safeVersion": "1.4.1",
+      "threshold": 1,
+      "owners": [
+        "0x1C5Bcd22f10249F1d3fFaBa456b3cd9bD3AcbBc6"
+      ],
+      "timelockRolesHeld": [
+        "PROPOSER_ROLE",
+        "EXECUTOR_ROLE",
+        "CANCELLER_ROLE"
+      ],
+      "notes": "Staging Admin Safe (1-of-1, same operator signer as Guardian Safe). Holds PROPOSER + EXECUTOR + CANCELLER on TimelockController. NOT the direct owner() of protocol contracts -- owner() rotates to TimelockController at FinalizeOwnership."
+    },
+    "guardianSafe": {
+      "address": "0xd5afca027e492E1561330b46d2039D5454D06ca1",
+      "role": "guardian",
+      "safeVersion": "1.4.1",
+      "threshold": 1,
+      "owners": [
+        "0x1C5Bcd22f10249F1d3fFaBa456b3cd9bD3AcbBc6"
+      ],
+      "timelockRolesHeld": [
+        "CANCELLER_ROLE"
+      ],
+      "notes": "Staging Guardian Safe (1-of-1). Distinct address from Admin Safe; same operator signer. CANCELLER_ROLE granted by FinalizeTimelockBootstrap on 2026-05-18. Becomes MineCore + Router/FETR/METR.guardian post-rotation."
+    },
+    "verification": {
+      "verifiedAtUtc": "2026-05-18T04:00:00Z",
+      "verifiedAtBlock": 41653841,
+      "rpc": "https://sepolia.base.org",
+      "method": "cast code + cast call getOwners()/getThreshold()/VERSION()/nonce() against RPC_URL"
+    }
+  }
+}

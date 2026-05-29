@@ -1,0 +1,203 @@
+name: Medusa fuzz
+
+# Runs Crytic Medusa (Go-based parallel fuzzer, successor to Echidna) over
+# the same harness set as Echidna. Medusa reads the same Solidity files —
+# any function prefixed `echidna_` is treated as a property; any prefixed
+# `optimize_*` is treated as an optimization target. Surfaces sequences
+# Echidna does not.
+#
+# Status: INFORMATIONAL (continue-on-error: true) for the first 30 days
+# of stable runs. After that, promote to gating by removing
+# continue-on-error and adding the matrix to branch protection.
+#
+# Pin: medusa v1.5.1. Bump in lockstep with scripts/run_medusa.sh and
+#      medusa.json header comment.
+#
+# Why no `push: branches: [main]` and no `schedule:` cron:
+#   - The full 26-harness sweep averages 60-90min/job, i.e. 25-40 runner-
+#     hours per trigger. Firing on every push to main saturates the GitHub
+#     Actions monthly budget on a single contract-touching merge.
+#   - Same architectural reasoning as Echidna: the only relevant pre-deploy
+#     case is a contract-modifying change, which PR triggers already cover.
+#     For direct-to-main flows, use `workflow_dispatch` before deploy.
+#   - Post-genesis the bytecode is immutable; re-fuzzing the same code on
+#     every push learns nothing new.
+
+on:
+  # Source-of-truth lives at .github/workflows/medusa.yml in the private repo
+  # (claimrush/claimrush-private) and ships to the same path in the public
+  # repo (claimrush/claimrush) via scripts/seed-public-repo.sh. Identical on
+  # both repos — Medusa shares the Echidna harness set under test/echidna/**,
+  # so changes there trigger both fuzzers. Custom claimrush-medusa image
+  # bundles forge with the official medusa binary for crytic-compile.
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'test/echidna/**'
+      - 'medusa.json'
+      - 'foundry.toml'
+      - 'lib/**'
+      - '.github/workflows/medusa.yml'
+  # NOTE: no `push: branches: [main]` — see header comment for rationale.
+  # Trigger manually via `gh workflow run medusa.yml` before any deploy
+  # commit on main, or as a periodic safety sweep.
+  workflow_dispatch:
+    inputs:
+      test_limit:
+        description: 'Per-harness medusa testLimit'
+        required: false
+        default: '50000'
+      workers:
+        description: 'Per-harness medusa workers'
+        required: false
+        default: '4'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: medusa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  medusa:
+    name: ${{ matrix.harness.contract }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        harness:
+          # Standard property/assertion harnesses
+          - { contract: EchidnaFurnace,                 corpus: Furnace }
+          - { contract: EchidnaClaimToken,              corpus: ClaimToken }
+          - { contract: EchidnaDelegationHub,           corpus: DelegationHub }
+          - { contract: EchidnaDexAdapter,              corpus: DexAdapter }
+          - { contract: EchidnaEntryTokenRegistry,      corpus: EntryTokenRegistry }
+          - { contract: EchidnaGenesisLPVault24M,       corpus: GenesisLPVault24M }
+          - { contract: EchidnaLpStaking,               corpus: LpStaking }
+          - { contract: EchidnaMarketRouter,            corpus: MarketRouter }
+          - { contract: EchidnaMineCore,                corpus: MineCore }
+          - { contract: EchidnaMineCoreExtended,        corpus: MineCoreExtended }
+          - { contract: EchidnaShareholder,             corpus: Shareholder }
+          - { contract: EchidnaVeClaimNFT,              corpus: VeClaimNFT }
+          - { contract: EchidnaVeClaimNFTExtended,      corpus: VeClaimNFTExtended }
+          - { contract: EchidnaGameLoop,                corpus: GameLoop }
+          # Adversarial harnesses
+          - { contract: EchidnaMaliciousERC20Entry,     corpus: MaliciousERC20Entry }
+          - { contract: EchidnaReentrancyReceiver,      corpus: ReentrancyReceiver }
+          - { contract: EchidnaMEVOrdering,             corpus: MEVOrdering }
+          # Optimization-mode harnesses
+          - { contract: EchidnaFurnaceOptimize,             corpus: FurnaceOptimize }
+          - { contract: EchidnaMineCoreOptimize,            corpus: MineCoreOptimize }
+          - { contract: EchidnaShareholderOptimize,         corpus: ShareholderOptimize }
+          - { contract: EchidnaMarketRouterOptimize,        corpus: MarketRouterOptimize }
+          - { contract: EchidnaLpStakingOptimize,           corpus: LpStakingOptimize }
+          - { contract: EchidnaGenesisLPVault24MOptimize,   corpus: GenesisLPVault24MOptimize }
+          - { contract: EchidnaVeClaimNFTOptimize,          corpus: VeClaimNFTOptimize }
+          - { contract: EchidnaClaimTokenOptimize,          corpus: ClaimTokenOptimize }
+          - { contract: EchidnaEntryTokenRegistryOptimize,  corpus: EntryTokenRegistryOptimize }
+
+    env:
+      MEDUSA_VERSION: v1.5.1
+      # Custom image (`infra/medusa/Dockerfile`) bundles the official medusa
+      # binary with the Foundry toolchain (`forge`). The upstream
+      # `ghcr.io/crytic/medusa:v1.5.1` image lacks `forge`, so crytic-compile
+      # errors with `FileNotFoundError: 'forge'` on every harness — the run
+      # was effectively a no-op while continue-on-error masked it.
+      MEDUSA_IMAGE: claimrush-medusa:v1.5.1
+      TEST_LIMIT: '50000'
+      WORKERS: '4'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@8b0419c685ef46cb79ec93fbdc131174afceb730 # v1.6.0
+        with:
+          version: v1.5.1
+
+      - name: Install Foundry dependencies
+        run: make deps
+
+      - name: Restore Medusa corpus cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: medusa-corpora/${{ matrix.harness.corpus }}
+          key: medusa-corpus-${{ matrix.harness.corpus }}-v1
+          restore-keys: |
+            medusa-corpus-${{ matrix.harness.corpus }}-
+
+      - name: Build custom Medusa image (medusa + forge)
+        run: |
+          set -euo pipefail
+          docker build \
+              --build-arg "FOUNDRY_VERSION=v1.5.1" \
+              --tag "$MEDUSA_IMAGE" \
+              --file infra/medusa/Dockerfile \
+              infra/medusa/
+
+      - name: Generate per-harness Medusa config
+        run: |
+          set -euo pipefail
+          mkdir -p "medusa-corpora/${{ matrix.harness.corpus }}" medusa-logs
+          jq \
+            --arg c "${{ matrix.harness.contract }}" \
+            --arg d "medusa-corpora/${{ matrix.harness.corpus }}" \
+            --arg w "$WORKERS" \
+            --arg t "$TEST_LIMIT" \
+            '.fuzzing.targetContracts = [$c]
+             | .fuzzing.corpusDirectory = $d
+             | .fuzzing.workers = ($w | tonumber)
+             | .fuzzing.testLimit = ($t | tonumber)' \
+            medusa.json > medusa.runtime.json
+
+      - name: Run Medusa (${{ matrix.harness.contract }})
+        run: |
+          set -uo pipefail
+          LOG="medusa-logs/${{ matrix.harness.contract }}.log"
+
+          docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              -e HOME=/tmp \
+              -v "$(pwd)":/repo -w /repo \
+              "$MEDUSA_IMAGE" \
+              medusa fuzz --config medusa.runtime.json \
+              2>&1 | tee "$LOG" || true
+
+          # Surface sequence count + property results in the job summary.
+          echo "## Medusa results for ${{ matrix.harness.contract }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "(call sequences|FAILED|PASSED|test failed|fuzz_status)" "$LOG" | tail -20 >> "$GITHUB_STEP_SUMMARY" || echo "(no result lines)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Medusa log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: medusa-log-${{ matrix.harness.contract }}
+          path: medusa-logs/${{ matrix.harness.contract }}.log
+          retention-days: 14
+
+  summary:
+    name: medusa-summary
+    needs: medusa
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate result
+        run: |
+          # Medusa runs are informational for the first 30 days. The summary
+          # job always succeeds; per-harness results are visible in the
+          # matrix and the job summary.
+          if [ "${{ needs.medusa.result }}" = "success" ]; then
+            echo "All Medusa harnesses PASS"
+          else
+            echo "Medusa matrix: at least one harness reported failures or did not finish; see per-job logs and artifacts."
+            echo "Status: INFORMATIONAL (continue-on-error). Promote to gating after 30 days of stable runs."
+          fi

@@ -1,0 +1,111 @@
+services:
+  ipfs:
+    # Supply-chain hardening:
+    # - Avoid floating ":latest" tags.
+    # - Default pins are known-good versions; override via env vars if needed.
+    image: ${IPFS_KUBO_IMAGE:-ipfs/kubo:v0.39.0}
+    ports:
+      - '127.0.0.1:5001:5001'
+      - '127.0.0.1:8080:8080'
+    volumes:
+      - ipfs-data:/data/ipfs
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    mem_limit: 2g
+    cpus: 1
+
+  postgres:
+    mem_limit: 4g
+    cpus: 1
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+      - FOWNER
+    # Pin to an explicit patch+base tag to reduce drift. Override via POSTGRES_IMAGE if needed.
+    image: '${POSTGRES_IMAGE:-postgres:15.15-alpine3.23}'
+    environment:
+      # Local-only credentials — NOT used in any deployed environment.
+      #
+      # The port published below is bound to 127.0.0.1 only, so nothing outside
+      # this host (including other machines on the LAN) can reach this Postgres
+      # instance without additional configuration. The default "graph/graph"
+      # credential pair matches the upstream graph-node quickstart and is kept
+      # only to make the first-run developer experience frictionless.
+      #
+      # YOU MUST override both of these before:
+      #   - exposing the container to any non-loopback interface,
+      #   - sharing the host with untrusted users / processes,
+      #   - running this compose file on a shared dev box or CI runner that
+      #     other jobs can reach over the Docker socket.
+      #
+      # Override pattern:
+      #   GRAPH_PG_USER=myuser GRAPH_PG_PASS="$(openssl rand -hex 24)" \
+      #     docker compose -f ops/graph-node/docker-compose.local.yml up
+      POSTGRES_USER: ${GRAPH_PG_USER:-graph}
+      POSTGRES_PASSWORD: ${GRAPH_PG_PASS:-graph} # pragma: allowlist secret
+      POSTGRES_DB: graph
+
+      # graph-node requires the DB collation to be `C`.
+      # This only applies on first init; if you already started once,
+      # you must recreate the postgres volume (see scripts/graphnode_local_down.sh + `docker compose ... down -v`).
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - graph-node-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GRAPH_PG_USER:-graph}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  graph-node:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 8g
+    cpus: 2
+    # Supply-chain hardening:
+    # - Avoid floating ":latest" tags.
+    # - Default pin tracks the stable graph-node release used by this local stack.
+    # - Override via env var if you need a newer/older image.
+    image: ${GRAPH_NODE_IMAGE:-graphprotocol/graph-node:v0.41.2}
+    depends_on:
+      - ipfs
+      - postgres
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment:
+      postgres_host: postgres
+      postgres_user: ${GRAPH_PG_USER:-graph}
+      postgres_pass: ${GRAPH_PG_PASS:-graph} # pragma: allowlist secret
+      postgres_db: graph
+      ipfs: 'ipfs:5001'
+      # Local chain (Anvil) running on the host.
+      # In WSL2 host.docker.internal may not route back to WSL; use ANVIL_HOST override.
+      ethereum: 'local:http://${ANVIL_HOST:-host.docker.internal}:8545'
+      GRAPH_LOG: info
+    ports:
+      - '127.0.0.1:8000:8000' # GraphQL
+      - '127.0.0.1:8001:8001' # Graph node admin / status
+      - '127.0.0.1:8020:8020' # JSON-RPC (graph create/deploy)
+      - '127.0.0.1:8030:8030' # Index node
+      - '127.0.0.1:8040:8040' # Metrics
+
+volumes:
+  ipfs-data:
+  graph-node-postgres:

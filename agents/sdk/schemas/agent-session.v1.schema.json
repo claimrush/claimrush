@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClaimRush Agent Run Session (v1)",
+  "type": "object",
+  "required": [
+    "version",
+    "ts",
+    "chain",
+    "chainId",
+    "agent",
+    "user",
+    "delegated",
+    "execute",
+    "policyConfig"
+  ],
+  "properties": {
+    "version": {
+      "const": "v1"
+    },
+    "ts": {
+      "type": "integer"
+    },
+    "chain": {
+      "type": "string"
+    },
+    "chainId": {
+      "type": "integer"
+    },
+    "agent": {
+      "type": "string"
+    },
+    "user": {
+      "type": "string"
+    },
+    "delegated": {
+      "type": "boolean"
+    },
+    "execute": {
+      "type": "boolean"
+    },
+    "outdir": {
+      "type": "string"
+    },
+    "stateDir": {
+      "type": "string"
+    },
+    "privateRpcMode": {
+      "enum": ["off", "route", "only"]
+    },
+    "autoApproveEnabled": {
+      "type": "boolean"
+    },
+    "autoApproveMode": {
+      "enum": ["exact", "max"]
+    },
+    "autoApproveIncludeNftApprovals": {
+      "type": "boolean"
+    },
+    "writeTickRecords": {
+      "type": "boolean"
+    },
+    "policyConfig": {
+      "type": "object"
+    },
+    "planning": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": ["policy", "strategies"]
+        },
+        "strategies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "priority"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

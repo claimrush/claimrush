@@ -1,0 +1,74 @@
+## Echidna configuration for ClaimRush.
+## Drives the standard property/assertion harnesses (14 standard + 3
+## adversarial) in test/echidna/. The four-category layout is:
+##
+##   Standard (14): Furnace, ClaimToken, DelegationHub, DexAdapter,
+##     EntryTokenRegistry, GenesisLPVault24M, LpStakingVault7D, MarketRouter,
+##     MineCore +Extended, ShareholderRoyalties, VeClaimNFT +Extended, GameLoop
+##   Adversarial (3): MaliciousERC20Entry, ReentrancyReceiver, MEVOrdering
+##   Optimization (9): driven by echidna-optimize.yaml against
+##     test/echidna/optimize/Echidna<Surface>Optimize.sol
+##   Medusa parallel: driven by medusa.json (see .github/workflows/medusa.yml)
+##
+## See test/echidna/README.md for the full layout and
+## docs/security/ci-security-gates-v1.0.0.md § Echidna coverage for rationale.
+##
+## Single-harness usage (quick smoke):
+##   echidna test/echidna/EchidnaFurnace.sol --contract EchidnaFurnace --config echidna.yaml
+##
+## Or via Docker:
+##   docker run --rm -v "$(pwd)":/repo -w /repo \
+##     ghcr.io/crytic/echidna/echidna:v2.3.1@sha256:730de1120065d2a8bfd1da836fca67db468b7e0b7248be6ddb31644bd9e254af \
+##     echidna test/echidna/EchidnaFurnace.sol --contract EchidnaFurnace --config echidna.yaml
+##
+## Full overnight suite (corpus seeding + 17 standard/adversarial + 9
+## optimization + Medusa, persistent per-harness corpora):
+##   bash scripts/overnight_fuzz.sh
+
+# Property mode: echidna_* functions must always return true
+testMode: "property"
+
+# Persistent corpus for resumption across runs.
+# Individual harnesses override this via --corpus-dir (see scripts/overnight_fuzz.sh);
+# this default is used for single-harness quick smoke runs against the Furnace corpus.
+corpusDir: "echidna-corpora/Furnace"
+
+# Fuzzing limits
+testLimit: 500000          # sequences to run (increase for overnight: 2000000)
+shrinkLimit: 5000          # shrinking iterations for counterexamples
+seqLen: 150                # max transactions per sequence for lock-expiry coverage
+
+# Addresses
+deployer: "0x10000"
+sender: ["0x20000", "0x30000", "0x40000"]
+
+# Solidity compiler (match foundry.toml optimizer_runs = 550)
+solcArgs: "--optimize --optimize-runs 550"
+
+# Crytic-compile integration with Foundry
+cryticArgs: ["--foundry-compile-all"]
+
+# Block/time settings
+balanceAddr: 0xffffffff    # initial ETH balance for senders
+balanceContract: 0xffffffff
+
+# Time bounds - keep jumps meaningful for lock-expiry and pause-clamping invariants.
+# Default echidna time jumps can be extremely large and skip past interesting windows.
+maxTimeDelay: 604800       # max 7 days per step (covers MIN_LOCK_DURATION boundary)
+maxBlockDelay: 50400       # ~7 days of Base blocks at 12s
+
+# Coverage-guided mode (recommended):
+# Enable assertion mode in addition to property mode for harnesses
+# that want to use Solidity assert() statements.
+# To run assertion mode: override testMode to "assertion" via CLI flag.
+
+# NOTE: 7-day cap is per step; with seqLen=150, total elapsed time in one
+# sequence can reach ~1050 days (150 x 7d), so MAX_LOCK_DURATION = 365 days
+# remains reachable. Steps spent beyond the lock boundary reduce exploration
+# depth around expiry.
+#
+# This config is shared by all 17 harnesses (14 standard + 3 adversarial).
+# Remaining production contracts without dedicated Echidna harnesses
+# (ClaimAllHelper, LaunchController, MaintenanceHub) are covered by
+# deterministic Foundry and invariant tests; see
+# docs/security/ci-security-gates-v1.0.0.md § Echidna coverage (v1.0.0).

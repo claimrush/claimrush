@@ -1,0 +1,110 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+solc_version = "0.8.34"
+optimizer = true
+optimizer_runs = 550
+via_ir = true
+ffi = false
+extra_output = ["storageLayout"]
+fs_permissions = [
+    { access = "read", path = "./docs" },
+    { access = "read", path = "./deployments" },
+]
+
+ignored_error_codes = [2018, 3860, 5740]
+evm_version = "cancun"
+
+[profile.default.fuzz]
+runs = 2048
+
+[profile.default.invariant]
+runs = 512
+depth = 64
+
+[profile.release]
+via_ir = true
+optimizer_runs = 550
+bytecode_hash = "ipfs"
+
+[profile.deploy]
+via_ir = true
+optimizer_runs = 550
+bytecode_hash = "ipfs"
+
+[profile.heavy]
+# Pre-audit-freeze sweep profile. ~4x fuzz/invariant coverage vs default.
+# Used by `make test-heavy` and `scripts/overnight_fuzz.sh` Phase 1.
+# Default is fuzz.runs=2048, invariant.runs=512, invariant.depth=64.
+
+[profile.heavy.fuzz]
+runs = 8192
+
+[profile.heavy.invariant]
+runs = 2048
+depth = 256
+
+[rpc_endpoints]
+base_mainnet = "${BASE_MAINNET_RPC_URL}"
+base_mainnet_public = "https://mainnet.base.org"
+
+[profile.fork]
+
+[profile.fork.fuzz]
+runs = 256
+
+# Fast iteration profile for Pass-2 audit work. Keeps via_ir = true (required to
+# avoid stack-too-deep in Furnace / VeClaimNFT / FurnaceGuardHelper) but drops
+# optimizer runs to 1 so the IR-to-EVM optimizer cost is minimal. NOT
+# bytecode-equivalent to production — always re-run the default profile once at
+# sign-off to capture true sizes.
+[profile.audit_fast]
+src = "src"
+out = "out-fast"
+libs = ["lib"]
+test = "test"
+solc_version = "0.8.34"
+optimizer = true
+optimizer_runs = 1
+via_ir = true
+ffi = false
+ignored_error_codes = [2018, 3860, 5740]
+evm_version = "cancun"
+
+[profile.audit_fast.fuzz]
+runs = 32
+
+[profile.audit_fast.invariant]
+runs = 16
+depth = 16
+
+# Halmos symbolic verification needs AST in build artifacts. Enabled in this
+# dedicated profile so default forge builds (CI hot path, local dev, fuzzers)
+# stay fast. Halmos's own `forge build` will run under FOUNDRY_PROFILE=halmos
+# in scripts/run_halmos_meta_proofs.sh and the public Halmos workflow.
+#
+# The dedicated `out-halmos` and `cache-halmos` directories keep default and
+# halmos artifacts/cache from invalidating each other's incremental builds.
+# The AST flip changes every artifact's hash, and forge stores `paths.artifacts`
+# inside the cache file — sharing `cache/` would force a full recompile each
+# time the active profile flipped between default and halmos.
+[profile.halmos]
+src = "src"
+out = "out-halmos"
+cache_path = "cache-halmos"
+libs = ["lib"]
+test = "test"
+solc_version = "0.8.34"
+optimizer = true
+optimizer_runs = 550
+via_ir = true
+ffi = false
+extra_output = ["storageLayout"]
+ast = true
+ignored_error_codes = [2018, 3860, 5740]
+evm_version = "cancun"
+
+[lint]
+severity = ["high", "med", "low"]

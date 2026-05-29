@@ -1,0 +1,30 @@
+{
+  "version": "v1",
+  "ts": 0,
+  "chain": "fixture",
+  "chainId": 31337,
+  "agent": "0x0000000000000000000000000000000000000001",
+  "user": "0x0000000000000000000000000000000000000001",
+  "delegated": false,
+  "execute": false,
+  "policyConfig": {
+    "agent": "0x0000000000000000000000000000000000000001",
+    "enableFurnaceEntry": false,
+    "enableTakeovers": false,
+    "enableRoyaltiesClaim": false,
+    "enableWithdrawals": false,
+
+    "furnaceEthIn": "0",
+    "lockDurationSeconds": "0",
+    "targetTokenId": "0",
+    "createAutoMax": false,
+    "slippageBps": "0",
+
+    "maxTakeoverEth": "0",
+    "takeoverCooldownSeconds": 0,
+
+    "minRoyaltiesEthToClaim": "0",
+    "minKingEthToWithdraw": "0",
+    "minRefundEthToWithdraw": "0"
+  }
+}

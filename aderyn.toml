@@ -1,0 +1,11 @@
+version = 1
+
+root = "."
+src  = "src/"
+
+# Exclude test-only mock contracts from production analysis to reduce noise.
+# These are local dev stubs (WETH, Aerodrome fakes, etc.) never deployed on-chain.
+exclude = ["src/mocks/", "test/"]
+
+output_format = "sarif"
+severity_filter = ["high", "medium", "low"]

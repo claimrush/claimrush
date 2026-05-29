@@ -1,0 +1,327 @@
+{
+  "contract": "src/ShareholderRoyalties.sol:ShareholderRoyalties",
+  "storage": [
+    {
+      "label": "_owner",
+      "offset": 0,
+      "slot": "0",
+      "type": "t_address"
+    },
+    {
+      "label": "_pendingOwner",
+      "offset": 0,
+      "slot": "1",
+      "type": "t_address"
+    },
+    {
+      "label": "_reentrancyStatus",
+      "offset": 0,
+      "slot": "2",
+      "type": "t_uint256"
+    },
+    {
+      "label": "_initialized",
+      "offset": 0,
+      "slot": "3",
+      "type": "t_bool"
+    },
+    {
+      "label": "__gap",
+      "offset": 0,
+      "slot": "4",
+      "type": "t_array(t_uint256)_storage"
+    },
+    {
+      "label": "configFrozen",
+      "offset": 0,
+      "slot": "54",
+      "type": "t_bool"
+    },
+    {
+      "label": "furnace",
+      "offset": 1,
+      "slot": "54",
+      "type": "t_contract(IFurnace)"
+    },
+    {
+      "label": "mineCore",
+      "offset": 0,
+      "slot": "55",
+      "type": "t_address"
+    },
+    {
+      "label": "mineMarket",
+      "offset": 0,
+      "slot": "56",
+      "type": "t_address"
+    },
+    {
+      "label": "claimAllHelper",
+      "offset": 0,
+      "slot": "57",
+      "type": "t_address"
+    },
+    {
+      "label": "ethPerVe",
+      "offset": 0,
+      "slot": "58",
+      "type": "t_uint256"
+    },
+    {
+      "label": "pendingShareholderETH",
+      "offset": 0,
+      "slot": "59",
+      "type": "t_uint256"
+    },
+    {
+      "label": "indexedEthOwed",
+      "offset": 0,
+      "slot": "60",
+      "type": "t_uint256"
+    },
+    {
+      "label": "totalCrystallisedStored",
+      "offset": 0,
+      "slot": "61",
+      "type": "t_uint256"
+    },
+    {
+      "label": "_batchWiringVerified",
+      "offset": 0,
+      "slot": "62",
+      "type": "t_bool"
+    },
+    {
+      "label": "rewardCheckpoints",
+      "offset": 0,
+      "slot": "63",
+      "type": "t_array(t_struct(RewardCheckpoint)_storage)dyn_storage"
+    },
+    {
+      "label": "ethPerVeTimeWeighted",
+      "offset": 0,
+      "slot": "64",
+      "type": "t_uint256"
+    },
+    {
+      "label": "_overflowCheckpoints",
+      "offset": 0,
+      "slot": "65",
+      "type": "t_array(t_struct(RewardCheckpoint)_storage)dyn_storage"
+    },
+    {
+      "label": "_overflowRingHead",
+      "offset": 0,
+      "slot": "66",
+      "type": "t_uint256"
+    },
+    {
+      "label": "userEthPerVePaid",
+      "offset": 0,
+      "slot": "67",
+      "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "label": "_claimableEthStored",
+      "offset": 0,
+      "slot": "68",
+      "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "label": "userTimeWeightedEthPerVePaid",
+      "offset": 0,
+      "slot": "69",
+      "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "label": "userLastRewardTs",
+      "offset": 0,
+      "slot": "70",
+      "type": "t_mapping(t_address,t_uint40)"
+    },
+    {
+      "label": "userRewardRemainder",
+      "offset": 0,
+      "slot": "71",
+      "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "label": "autoCompoundConfig",
+      "offset": 0,
+      "slot": "72",
+      "type": "t_mapping(t_address,t_struct(ShareholderAutoCompoundConfig)_storage)"
+    },
+    {
+      "label": "isAutoCompoundKeeper",
+      "offset": 0,
+      "slot": "73",
+      "type": "t_mapping(t_address,t_bool)"
+    },
+    {
+      "label": "minAutoCompoundEth",
+      "offset": 0,
+      "slot": "74",
+      "type": "t_uint256"
+    },
+    {
+      "label": "ethPushGasCap",
+      "offset": 0,
+      "slot": "75",
+      "type": "t_uint256"
+    },
+    {
+      "label": "_oldestObservedNonAutoMaxLockEnd",
+      "offset": 0,
+      "slot": "76",
+      "type": "t_uint40"
+    },
+    {
+      "label": "_userObservedMinNonAutoMaxLockEnd",
+      "offset": 0,
+      "slot": "77",
+      "type": "t_mapping(t_address,t_uint40)"
+    }
+  ],
+  "types": {
+    "t_address": {
+      "encoding": "inplace",
+      "label": "address",
+      "numberOfBytes": "20"
+    },
+    "t_array(t_struct(RewardCheckpoint)_storage)dyn_storage": {
+      "encoding": "dynamic_array",
+      "label": "struct ShareholderRoyalties.RewardCheckpoint[]",
+      "numberOfBytes": "32"
+    },
+    "t_array(t_uint256)_storage": {
+      "encoding": "inplace",
+      "label": "uint256[50]",
+      "numberOfBytes": "1600"
+    },
+    "t_bool": {
+      "encoding": "inplace",
+      "label": "bool",
+      "numberOfBytes": "1"
+    },
+    "t_contract(IFurnace)": {
+      "encoding": "inplace",
+      "label": "contract IFurnace",
+      "numberOfBytes": "20"
+    },
+    "t_mapping(t_address,t_bool)": {
+      "encoding": "mapping",
+      "label": "mapping(address => bool)",
+      "numberOfBytes": "32"
+    },
+    "t_mapping(t_address,t_struct(ShareholderAutoCompoundConfig)_storage)": {
+      "encoding": "mapping",
+      "label": "mapping(address => struct ShareholderRoyalties.ShareholderAutoCompoundConfig)",
+      "numberOfBytes": "32"
+    },
+    "t_mapping(t_address,t_uint256)": {
+      "encoding": "mapping",
+      "label": "mapping(address => uint256)",
+      "numberOfBytes": "32"
+    },
+    "t_mapping(t_address,t_uint40)": {
+      "encoding": "mapping",
+      "label": "mapping(address => uint40)",
+      "numberOfBytes": "32"
+    },
+    "t_struct(RewardCheckpoint)_storage": {
+      "encoding": "inplace",
+      "label": "struct ShareholderRoyalties.RewardCheckpoint",
+      "members": [
+        {
+          "label": "timestamp",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_uint40"
+        },
+        {
+          "label": "cumulativeEthPerVe",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint256"
+        },
+        {
+          "label": "cumulativeTimeWeightedEthPerVe",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_uint256"
+        }
+      ],
+      "numberOfBytes": "96"
+    },
+    "t_struct(ShareholderAutoCompoundConfig)_storage": {
+      "encoding": "inplace",
+      "label": "struct ShareholderRoyalties.ShareholderAutoCompoundConfig",
+      "members": [
+        {
+          "label": "enabled",
+          "offset": 0,
+          "slot": "0",
+          "type": "t_bool"
+        },
+        {
+          "label": "paused",
+          "offset": 1,
+          "slot": "0",
+          "type": "t_bool"
+        },
+        {
+          "label": "minCadenceSeconds",
+          "offset": 2,
+          "slot": "0",
+          "type": "t_uint32"
+        },
+        {
+          "label": "maxSlippageBps",
+          "offset": 6,
+          "slot": "0",
+          "type": "t_uint32"
+        },
+        {
+          "label": "lastCompoundTs",
+          "offset": 10,
+          "slot": "0",
+          "type": "t_uint40"
+        },
+        {
+          "label": "tokenId",
+          "offset": 0,
+          "slot": "1",
+          "type": "t_uint256"
+        },
+        {
+          "label": "durationSeconds",
+          "offset": 0,
+          "slot": "2",
+          "type": "t_uint256"
+        },
+        {
+          "label": "minEthToCompound",
+          "offset": 0,
+          "slot": "3",
+          "type": "t_uint256"
+        }
+      ],
+      "numberOfBytes": "128"
+    },
+    "t_uint256": {
+      "encoding": "inplace",
+      "label": "uint256",
+      "numberOfBytes": "32"
+    },
+    "t_uint32": {
+      "encoding": "inplace",
+      "label": "uint32",
+      "numberOfBytes": "4"
+    },
+    "t_uint40": {
+      "encoding": "inplace",
+      "label": "uint40",
+      "numberOfBytes": "5"
+    }
+  }
+}

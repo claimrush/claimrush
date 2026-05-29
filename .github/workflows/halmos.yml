@@ -1,0 +1,193 @@
+name: Halmos M1-M6 meta-proofs
+
+# Why no `push: branches: [main]` and no `schedule:` cron:
+#   - Each surface proof takes 5-30min; nine surfaces in parallel = 1-4
+#     runner-hours per trigger. Cheaper than Echidna/Medusa, but the
+#     architectural reasoning is identical: re-proving identical bytecode
+#     on every push learns nothing new (Halmos is symbolic, not random).
+#   - PR triggers cover the only relevant pre-deploy case (a change that
+#     might invalidate a meta-proof). For direct-to-main flows, use
+#     `workflow_dispatch` before deploy.
+#   - Kept symmetric with echidna.yml + medusa.yml so all three heavyweight
+#     tools have the same lifecycle.
+
+on:
+  # Source-of-truth lives at .github/workflows/halmos.yml in the private repo
+  # (claimrush/claimrush-private) and ships to the same path in the public
+  # repo (claimrush/claimrush) via scripts/seed-public-repo.sh. Identical on
+  # both repos — the meta-proof set, harness scope, and Halmos toolchain pin
+  # are repo-invariant. Self-reference path filter matches on both sides.
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'test/halmos/**'
+      - 'halmos.toml'
+      - 'scripts/run_halmos_meta_proofs.sh'
+      - '.github/workflows/halmos.yml'
+  # NOTE: no `push: branches: [main]` — see header comment for rationale.
+  # Trigger manually via `gh workflow run halmos.yml` before any deploy
+  # commit on main, or as a periodic safety sweep.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: halmos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  meta-proofs:
+    name: halmos / ${{ matrix.surface }}
+    runs-on: ubuntu-24.04
+    # `FOUNDRY_PROFILE=halmos forge build --skip script` compiles ~410
+    # files, which OOM-kills on stock ubuntu-24.04 mid-compile (cycle-4
+    # public-repo rehearsal seed: all 9 surfaces SIGTERM at ~10 min,
+    # exit 143). FOUNDRY_THREADS=1 in the build step below bounds peak
+    # memory at ~5 GiB but scales wall-clock ~4x. Cold-cache compile
+    # takes ~120-180 min; the actual halmos symbolic execution then
+    # runs another ~5-15 min per surface. Bumped 30 -> 180 to fit
+    # cold-cache compile + halmos under the job timeout.
+    timeout-minutes: 180
+    # Informational for the first 30 days; promote to required after stable runs.
+    continue-on-error: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        surface:
+          - Furnace
+          - MineCore
+          - ShareholderRoyalties
+          - MarketRouter
+          - VeClaimNFT
+          - LpStakingVault7D
+          - GenesisLPVault24M
+          - ClaimToken
+          - EntryTokenRegistry
+
+    env:
+      # Pin Halmos by version. The pinned version is documented in
+      # `test/halmos/README.md` and updated on a deliberate cadence.
+      # halmos 0.3.4 was never published to PyPI (or was yanked). Latest
+      # available is 0.3.3 (verified 2026-05-14: pip index shows
+      # 0.0.1, ..., 0.3.0, 0.3.1, 0.3.2, 0.3.3, then jumps). Older runs
+      # of this workflow on `main` looked green only because the
+      # halmos-0.3.4-py311 cache key was already populated from before
+      # 0.3.4 was yanked, so cache-hit runs didn't re-resolve via pip.
+      # Any PR branch (no cache) hits the install step and fails with
+      # "ERROR: Could not find a version that satisfies the requirement
+      # halmos==0.3.4". Pinning back to 0.3.3, which is the highest
+      # currently installable.
+      HALMOS_VERSION: "0.3.3"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Free disk space (remove unused runner bloat)
+        # See ci.yml for the cycle-8 disk-exhaustion diagnosis. The 16 GiB
+        # swap below leaves only ~1 GiB on / out of the runner's default
+        # 17 GiB, which is not enough for `make deps` to clone forge-std
+        # + OZ-contracts. Removing unused pre-installed toolchains
+        # (~30 GiB total) gives swap + clone + build comfortable headroom.
+        run: |
+          set -euo pipefail
+          df -h /
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/share/powershell || true
+          sudo rm -rf /usr/local/share/chromium || true
+          sudo rm -rf /usr/local/lib/node_modules || true
+          sudo apt-get -y autoremove >/dev/null 2>&1 || true
+          sudo apt-get -y clean >/dev/null 2>&1 || true
+          df -h /
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.11'
+
+      - name: Setup Foundry
+        uses: foundry-rs/foundry-toolchain@8b0419c685ef46cb79ec93fbdc131174afceb730 # v1.6.0
+        with:
+          version: v1.5.1
+
+      - name: Add swap space (compile-OOM mitigation)
+        # `FOUNDRY_PROFILE=halmos forge build --skip script` below
+        # compiles ~410 .sol files with solc 0.8.34 + via_ir + 200-run
+        # optimizer, which pegs ubuntu-24.04's ~7.8 GiB RAM and triggers
+        # the runner-side OOM-killer (cycle-4 rehearsal seed: SIGTERM
+        # ~10 min into compile across all 9 surface jobs). Adding 16 GiB
+        # of swap at /swapfile-ci-extra (the runner ships /swapfile
+        # pre-allocated, hence the distinct path) plus serializing solc
+        # via FOUNDRY_THREADS=1 in the build step clears the kill cliff.
+        # Same pattern as ci/abi-sync/gas-snapshot in the public mirror.
+        run: |
+          set -euo pipefail
+          sudo fallocate -l 16G /swapfile-ci-extra
+          sudo chmod 600 /swapfile-ci-extra
+          sudo mkswap /swapfile-ci-extra
+          sudo swapon /swapfile-ci-extra
+          free -h
+
+      - name: Restore forge build cache
+        # Same shared cache key shape as ci/abi-sync/gas-snapshot so all
+        # four compile-heavy public workflows hit each other's cache.
+        # Note: halmos uses FOUNDRY_PROFILE=halmos which is a distinct
+        # profile from the default; cache restoration handles that
+        # because forge keeps profile-specific subdirectories under
+        # `out/` and `cache/`.
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            out
+            cache
+            ~/.foundry/cache
+          key: forge-build-${{ runner.os }}-v1.5.1-${{ hashFiles('foundry.toml', 'remappings.txt', 'src/**/*.sol', 'test/**/*.sol', 'script/**/*.sol', 'lib/**/*.sol') }}
+          restore-keys: |
+            forge-build-${{ runner.os }}-v1.5.1-
+
+      - name: Install Foundry dependencies
+        run: make deps
+
+      - name: Cache Halmos and Z3
+        id: cache-halmos
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.local/lib/python3.11/site-packages
+            ~/.local/bin/halmos
+          key: halmos-${{ env.HALMOS_VERSION }}-py311
+
+      - name: Install Halmos
+        run: |
+          python -m pip install --disable-pip-version-check --user "halmos==${{ env.HALMOS_VERSION }}"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build artifacts (Halmos consumes Foundry artifacts)
+        env:
+          # Serialize solc to bound peak memory at ~5 GiB (vs ~20 GiB
+          # at 4-way default parallelism). See ci.yml for the cycle-4
+          # OOM-kill diagnosis that motivates this.
+          FOUNDRY_THREADS: "1"
+        run: FOUNDRY_PROFILE=halmos forge build --skip script
+
+      - name: Run Halmos meta-proofs (${{ matrix.surface }})
+        run: bash scripts/run_halmos_meta_proofs.sh --surface=${{ matrix.surface }}
+
+      - name: Upload Halmos logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: halmos-${{ matrix.surface }}-log
+          path: out/halmos-meta-proofs/${{ matrix.surface }}.log
+          retention-days: 14

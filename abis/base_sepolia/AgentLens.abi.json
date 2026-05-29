@@ -1,0 +1,2152 @@
+[
+  {
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "p",
+        "type": "tuple",
+        "internalType": "struct AgentLens.ConstructorParams",
+        "components": [
+          {
+            "name": "claimToken",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "veClaimNFT",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "mineCore",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "shareholderRoyalties",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "furnace",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "marketRouter",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "lpStakingVault7D",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "dexAdapter",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "furnaceEntryTokenRegistry",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "mineCoreEntryTokenRegistry",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "delegationHub",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "claimAllHelper",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "maintenanceHub",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "launchController",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "genesisLPVault24M",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "SNAPSHOT_VERSION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readClaimMetaExt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.TokenMetaV1",
+        "components": [
+          {
+            "name": "name",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "symbol",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "decimals",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "totalSupply",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readDexGlobalExt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.DexAdapterGlobalV1",
+        "components": [
+          {
+            "name": "aerodromeRouter",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "aerodromeFactory",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "wrappedNative",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readFurnaceGlobalExt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.FurnaceGlobalV1",
+        "components": [
+          {
+            "name": "lockingPaused",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "reserve",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lockedSupply",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "userSpotBonusBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lpTopupRateBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "quoteUserBonusBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "quoteLpTopupBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "virtualDepth",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lastUpdate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "sellImpactVolume",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lastSellImpactUpdate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lpStreamRatePerSec",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lpStreamPeriodFinish",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lpStreamLastUpdate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lpStreamRemaining",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readLpVaultGlobalExt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.LpVaultGlobalV1",
+        "components": [
+          {
+            "name": "furnace",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "totalStaked",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "rewardPerTokenStored",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "accountedRewardBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "queuedRewards",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lastFeeHarvestTs",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalClaimRewardsFundedFromFurnace",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalClaimRewardsFundedFromVaultFees",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalClaimRewardsClaimed",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalClaimRewardsLockedViaFurnace",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readLpVaultUserExt",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.LpVaultUserV1",
+        "components": [
+          {
+            "name": "stakedBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "earned",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "rewards",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "unbondCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "autoCompoundConfig",
+            "type": "tuple",
+            "internalType": "struct AgentLens.LpVaultAutoCompoundConfigV1",
+            "components": [
+              {
+                "name": "enabled",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "paused",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "tokenId",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "durationSeconds",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "maxSlippageBps",
+                "type": "uint32",
+                "internalType": "uint32"
+              },
+              {
+                "name": "minRewardToCompound",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readMarketGlobalExt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.MarketGlobalV1",
+        "components": [
+          {
+            "name": "guardian",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "tradingPaused",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "nextOfferId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "minBonusTargetEscrowBudget",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxBonusTargetEscrowDiscountBps",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readMarketUserExt",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.MarketUserV1",
+        "components": [
+          {
+            "name": "listingIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          },
+          {
+            "name": "offerIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          },
+          {
+            "name": "listingsTruncated",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "offersTruncated",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readMarketUserPaginatedExt",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "listingOffset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "listingLimit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "offerOffset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "offerLimit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.MarketUserPaginatedV1",
+        "components": [
+          {
+            "name": "listingIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          },
+          {
+            "name": "offerIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          },
+          {
+            "name": "listingsFetchOk",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "offersFetchOk",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "hasMoreListings",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "hasMoreOffers",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readMineCoreGlobalExt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.MineCoreGlobalV1",
+        "components": [
+          {
+            "name": "currentKing",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "currentReignId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "currentReignStartTime",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "currentReignLastAccrualTime",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "currentTakeoverPrice",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "referencePrice",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "emissionStartTime",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "currentFurnaceEmissionRate",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "takeoversPaused",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "guardian",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "claim",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "ve",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "royalties",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "furnace",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "entryTokenRegistry",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "delegationHub",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "claimAllHelper",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "currentReignEthRecipient",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "currentReignClaimRecipient",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "genesisKingClaimCollected",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "genesisKingClaimMinted",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readMineCoreUserExt",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.MineCoreUserV1",
+        "components": [
+          {
+            "name": "kingEthBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "refundEthBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "kingAutoLockConfig",
+            "type": "tuple",
+            "internalType": "struct AgentLens.KingAutoLockConfigV1",
+            "components": [
+              {
+                "name": "enabled",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "targetTokenId",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "pinnedTokenId",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "durationSeconds",
+                "type": "uint32",
+                "internalType": "uint32"
+              },
+              {
+                "name": "createAutoMax",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "minVeOut",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readRoyaltiesGlobalExt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.RoyaltiesGlobalV1",
+        "components": [
+          {
+            "name": "ethPerVe",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "pendingShareholderETH",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "ve",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "furnace",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "mineCore",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "mineMarket",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "claimAllHelper",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readRoyaltiesUserExt",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.RoyaltiesUserV1",
+        "components": [
+          {
+            "name": "shareholderState",
+            "type": "tuple",
+            "internalType": "struct AgentLens.ShareholderStateV1",
+            "components": [
+              {
+                "name": "claimable",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "userVe",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "paid",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "autoCompoundConfig",
+            "type": "tuple",
+            "internalType": "struct AgentLens.ShareholderAutoCompoundConfigV1",
+            "components": [
+              {
+                "name": "enabled",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "paused",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "tokenId",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "durationSeconds",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "minCadenceSeconds",
+                "type": "uint32",
+                "internalType": "uint32"
+              },
+              {
+                "name": "minEthToCompound",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "maxSlippageBps",
+                "type": "uint32",
+                "internalType": "uint32"
+              },
+              {
+                "name": "lastCompoundTs",
+                "type": "uint40",
+                "internalType": "uint40"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readVeGlobalExt",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.VeGlobalV1",
+        "components": [
+          {
+            "name": "totalLockedClaim",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalVeCached",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalVeBiasScaled",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalVeCurrent",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "globalLastTs",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "furnace",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "_readVeUserExt",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct AgentLens.VeUserV1",
+        "components": [
+          {
+            "name": "nftBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "veBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "claimAllHelper",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "claimToken",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "delegationHub",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "dexAdapter",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "furnace",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "furnaceEntryTokenRegistry",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "genesisLPVault24M",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getAddresses",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "a",
+        "type": "tuple",
+        "internalType": "struct AgentLens.Addresses",
+        "components": [
+          {
+            "name": "claimToken",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "veClaimNFT",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "mineCore",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "shareholderRoyalties",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "furnace",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "marketRouter",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "lpStakingVault7D",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "dexAdapter",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "furnaceEntryTokenRegistry",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "mineCoreEntryTokenRegistry",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "delegationHub",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "claimAllHelper",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "maintenanceHub",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "launchController",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "genesisLPVault24M",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "launchController",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lpStakingVault7D",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "maintenanceHub",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "marketRouter",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "mineCore",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "mineCoreEntryTokenRegistry",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "readGlobalV1",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "s",
+        "type": "tuple",
+        "internalType": "struct AgentLens.GlobalV1",
+        "components": [
+          {
+            "name": "blockNumber",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "blockTimestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "snapshotVersion",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "claim",
+            "type": "tuple",
+            "internalType": "struct AgentLens.TokenMetaV1",
+            "components": [
+              {
+                "name": "name",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "symbol",
+                "type": "string",
+                "internalType": "string"
+              },
+              {
+                "name": "decimals",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "totalSupply",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "mineCore",
+            "type": "tuple",
+            "internalType": "struct AgentLens.MineCoreGlobalV1",
+            "components": [
+              {
+                "name": "currentKing",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "currentReignId",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "currentReignStartTime",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "currentReignLastAccrualTime",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "currentTakeoverPrice",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "referencePrice",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "emissionStartTime",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "currentFurnaceEmissionRate",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "takeoversPaused",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "guardian",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "claim",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "ve",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "royalties",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "furnace",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "entryTokenRegistry",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "delegationHub",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "claimAllHelper",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "currentReignEthRecipient",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "currentReignClaimRecipient",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "genesisKingClaimCollected",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "genesisKingClaimMinted",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "furnace",
+            "type": "tuple",
+            "internalType": "struct AgentLens.FurnaceGlobalV1",
+            "components": [
+              {
+                "name": "lockingPaused",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "reserve",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "lockedSupply",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "userSpotBonusBps",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "lpTopupRateBps",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "quoteUserBonusBps",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "quoteLpTopupBps",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "virtualDepth",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "lastUpdate",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "sellImpactVolume",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "lastSellImpactUpdate",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "lpStreamRatePerSec",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "lpStreamPeriodFinish",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "lpStreamLastUpdate",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "lpStreamRemaining",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "royalties",
+            "type": "tuple",
+            "internalType": "struct AgentLens.RoyaltiesGlobalV1",
+            "components": [
+              {
+                "name": "ethPerVe",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "pendingShareholderETH",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "ve",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "furnace",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "mineCore",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "mineMarket",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "claimAllHelper",
+                "type": "address",
+                "internalType": "address"
+              }
+            ]
+          },
+          {
+            "name": "ve",
+            "type": "tuple",
+            "internalType": "struct AgentLens.VeGlobalV1",
+            "components": [
+              {
+                "name": "totalLockedClaim",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "totalVeCached",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "totalVeBiasScaled",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "totalVeCurrent",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "globalLastTs",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "furnace",
+                "type": "address",
+                "internalType": "address"
+              }
+            ]
+          },
+          {
+            "name": "market",
+            "type": "tuple",
+            "internalType": "struct AgentLens.MarketGlobalV1",
+            "components": [
+              {
+                "name": "guardian",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "tradingPaused",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "nextOfferId",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "minBonusTargetEscrowBudget",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "maxBonusTargetEscrowDiscountBps",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "lpVault",
+            "type": "tuple",
+            "internalType": "struct AgentLens.LpVaultGlobalV1",
+            "components": [
+              {
+                "name": "furnace",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "totalStaked",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "rewardPerTokenStored",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "accountedRewardBalance",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "queuedRewards",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "lastFeeHarvestTs",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "totalClaimRewardsFundedFromFurnace",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "totalClaimRewardsFundedFromVaultFees",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "totalClaimRewardsClaimed",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "totalClaimRewardsLockedViaFurnace",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "dex",
+            "type": "tuple",
+            "internalType": "struct AgentLens.DexAdapterGlobalV1",
+            "components": [
+              {
+                "name": "aerodromeRouter",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "aerodromeFactory",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "wrappedNative",
+                "type": "address",
+                "internalType": "address"
+              }
+            ]
+          },
+          {
+            "name": "status",
+            "type": "tuple",
+            "internalType": "struct AgentLens.ModuleStatus",
+            "components": [
+              {
+                "name": "claimOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "mineCoreOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "furnaceOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "royaltiesOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "veOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "marketOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "lpVaultOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "dexOk",
+                "type": "bool",
+                "internalType": "bool"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "readMarketUserPaginatedV1",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "listingOffset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "listingLimit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "offerOffset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "offerLimit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "u",
+        "type": "tuple",
+        "internalType": "struct AgentLens.MarketUserPaginatedV1",
+        "components": [
+          {
+            "name": "listingIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          },
+          {
+            "name": "offerIds",
+            "type": "uint256[]",
+            "internalType": "uint256[]"
+          },
+          {
+            "name": "listingsFetchOk",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "offersFetchOk",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "hasMoreListings",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "hasMoreOffers",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "readUserV1",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "s",
+        "type": "tuple",
+        "internalType": "struct AgentLens.UserV1",
+        "components": [
+          {
+            "name": "blockNumber",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "blockTimestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "user",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "snapshotVersion",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "ethBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "claimBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "mineCore",
+            "type": "tuple",
+            "internalType": "struct AgentLens.MineCoreUserV1",
+            "components": [
+              {
+                "name": "kingEthBalance",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "refundEthBalance",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "kingAutoLockConfig",
+                "type": "tuple",
+                "internalType": "struct AgentLens.KingAutoLockConfigV1",
+                "components": [
+                  {
+                    "name": "enabled",
+                    "type": "bool",
+                    "internalType": "bool"
+                  },
+                  {
+                    "name": "targetTokenId",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  },
+                  {
+                    "name": "pinnedTokenId",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  },
+                  {
+                    "name": "durationSeconds",
+                    "type": "uint32",
+                    "internalType": "uint32"
+                  },
+                  {
+                    "name": "createAutoMax",
+                    "type": "bool",
+                    "internalType": "bool"
+                  },
+                  {
+                    "name": "minVeOut",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "royalties",
+            "type": "tuple",
+            "internalType": "struct AgentLens.RoyaltiesUserV1",
+            "components": [
+              {
+                "name": "shareholderState",
+                "type": "tuple",
+                "internalType": "struct AgentLens.ShareholderStateV1",
+                "components": [
+                  {
+                    "name": "claimable",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  },
+                  {
+                    "name": "userVe",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  },
+                  {
+                    "name": "paid",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  }
+                ]
+              },
+              {
+                "name": "autoCompoundConfig",
+                "type": "tuple",
+                "internalType": "struct AgentLens.ShareholderAutoCompoundConfigV1",
+                "components": [
+                  {
+                    "name": "enabled",
+                    "type": "bool",
+                    "internalType": "bool"
+                  },
+                  {
+                    "name": "paused",
+                    "type": "bool",
+                    "internalType": "bool"
+                  },
+                  {
+                    "name": "tokenId",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  },
+                  {
+                    "name": "durationSeconds",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  },
+                  {
+                    "name": "minCadenceSeconds",
+                    "type": "uint32",
+                    "internalType": "uint32"
+                  },
+                  {
+                    "name": "minEthToCompound",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  },
+                  {
+                    "name": "maxSlippageBps",
+                    "type": "uint32",
+                    "internalType": "uint32"
+                  },
+                  {
+                    "name": "lastCompoundTs",
+                    "type": "uint40",
+                    "internalType": "uint40"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "ve",
+            "type": "tuple",
+            "internalType": "struct AgentLens.VeUserV1",
+            "components": [
+              {
+                "name": "nftBalance",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "veBalance",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "market",
+            "type": "tuple",
+            "internalType": "struct AgentLens.MarketUserV1",
+            "components": [
+              {
+                "name": "listingIds",
+                "type": "uint256[]",
+                "internalType": "uint256[]"
+              },
+              {
+                "name": "offerIds",
+                "type": "uint256[]",
+                "internalType": "uint256[]"
+              },
+              {
+                "name": "listingsTruncated",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "offersTruncated",
+                "type": "bool",
+                "internalType": "bool"
+              }
+            ]
+          },
+          {
+            "name": "lpVault",
+            "type": "tuple",
+            "internalType": "struct AgentLens.LpVaultUserV1",
+            "components": [
+              {
+                "name": "stakedBalance",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "earned",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "rewards",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "unbondCount",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "autoCompoundConfig",
+                "type": "tuple",
+                "internalType": "struct AgentLens.LpVaultAutoCompoundConfigV1",
+                "components": [
+                  {
+                    "name": "enabled",
+                    "type": "bool",
+                    "internalType": "bool"
+                  },
+                  {
+                    "name": "paused",
+                    "type": "bool",
+                    "internalType": "bool"
+                  },
+                  {
+                    "name": "tokenId",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  },
+                  {
+                    "name": "durationSeconds",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  },
+                  {
+                    "name": "maxSlippageBps",
+                    "type": "uint32",
+                    "internalType": "uint32"
+                  },
+                  {
+                    "name": "minRewardToCompound",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "status",
+            "type": "tuple",
+            "internalType": "struct AgentLens.UserModuleStatus",
+            "components": [
+              {
+                "name": "mineCoreOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "royaltiesOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "veOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "marketOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "lpVaultOk",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "claimBalanceOk",
+                "type": "bool",
+                "internalType": "bool"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "shareholderRoyalties",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "veClaimNFT",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "error",
+    "name": "DelegatedEOA",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotAContract",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SelfCallOnly",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ZeroAddress",
+    "inputs": []
+  }
+]

@@ -1,0 +1,1536 @@
+# ClaimRush v1.0.0 subgraph schema
+#
+# Graph CLI ≥0.98 requires an explicit `immutable` flag on every `@entity` (mutable aggregates use
+# `@entity(immutable: false)`; append-only event rows use `@entity(immutable: true)`).
+#
+# Canonical contract: docs/analytics/subgraph-schema-v1.0.0.md
+#
+# ABI parity: the full ABI-event → manifest-handler → schema-entity chain is
+# validated by scripts/check_subgraph_manifest_events_vs_abi.py (CI gate).
+# Intentionally unindexed admin events are listed in that script's allowlist.
+#
+# Notes:
+# - This schema intentionally includes a few extra "internal analytics" entities (furnace bonus paid, etc)
+#   that are not strictly required by the canonical UI contract.
+
+enum LeaderboardDuration {
+  LAST_24H
+  LAST_7D
+  LAST_30D
+  LIFETIME
+}
+
+# -----------------------------------------------------------------------------
+# Core protocol surfaces (required by docs/analytics/subgraph-schema-v1.0.0.md)
+# -----------------------------------------------------------------------------
+
+type Protocol @entity(immutable: false) {
+  id: ID! # always "1"
+  chainId: Int!
+  version: String! # "v1.0.0"
+  deployedAtBlock: BigInt!
+
+  # Core addresses (from deployments manifest and canonical wiring events).
+  # These fields represent the latest observed current wiring within the indexed event surface.
+  # ShareholderRoyalties may be discovered early from ShareholderWiringSet before Baron business activity.
+  claimToken: Bytes!
+  veClaimNft: Bytes!
+  mineCore: Bytes!
+  shareholderRoyalties: Bytes!
+  furnace: Bytes!
+  marketRouter: Bytes!
+
+  # EntryTokenRegistry wiring (discover from EntryTokenRegistrySet events)
+  furnaceEntryTokenRegistry: Bytes
+  mineCoreEntryTokenRegistry: Bytes
+
+  # Back-compat alias (required). MUST equal furnaceEntryTokenRegistry.
+  entryTokenRegistry: Bytes
+
+  # Optional wiring / infra. `dexAdapter` may remain null in the pure event-driven subgraph because
+  # current v1.0.0 indexed events do not emit it directly.
+  dexAdapter: Bytes
+  furnaceQuoter: Bytes
+  lpStakingVault: Bytes
+  launchController: Bytes
+  genesisLpVault24m: Bytes
+  maintenanceHub: Bytes
+
+  # Latest known flags (from events)
+  takeoversPaused: Boolean!
+  lockingPaused: Boolean!
+  tradingPaused: Boolean!
+}
+
+
+# -----------------------------------------------------------------------------
+# Info surfaces (pricing + APR). Fields may be null early / during degraded mode.
+# -----------------------------------------------------------------------------
+
+type TokenPricingSnapshot @entity(immutable: false) {
+  id: ID! # always "1"
+  updatedAt: BigInt
+  claimEthTwap30m: BigDecimal
+  ethUsd: BigDecimal
+  ethUsdUpdatedAt: BigInt
+  totalSupplyWei: BigInt
+  # CLAIM principal currently locked inside `VeClaimNFT` (Furnace-locked
+  # supply). Used by frontends to derive a circulating-supply market cap:
+  #
+  #   circulatingSupplyWei = totalSupplyWei - lockedSupplyWei
+  #
+  # Populator (write site is the same place that refreshes `totalSupplyWei`
+  # — e.g. a Furnace event handler, an ERC20 Transfer handler, or a
+  # contract-call refresh keyed off `Protocol.claimToken` +
+  # `Protocol.veClaimNft`) MUST set both fields together so the
+  # subtraction can never go negative.
+  lockedSupplyWei: BigInt
+}
+
+type AprSnapshot @entity(immutable: false) {
+  id: ID! # always "1"
+  updatedAt: BigInt
+  lpAprBps24h: BigInt
+  lpAvgTvl24hUsd: BigDecimal
+  veAprBps24h: BigInt
+}
+
+# Per-hour aggregation buckets that back the rolling 24h APR window defined in
+# docs/spec/apr-calculation-spec-v1.0.0.md. Each bucket stores both flow
+# (`lpRewardsClaimWei`, `shareholderEthWei`) and stock
+# (`lpTvlUsd`, `totalLockedClaimUsd`) measurements taken on the boundary the
+# bucket was touched, so the AprSnapshot refresh can compute the arithmetic
+# mean of TVL over the last 24 buckets and the floor-rounded sum of rewards
+# over the same window in a single O(24) pass.
+type LpAprHourlyBucket @entity(immutable: false) {
+  id: ID! # hour start in unix seconds, e.g. "1716240000"
+  hourStart: BigInt!
+
+  # Flow buckets (sum within the hour).
+  lpRewardsClaimWei: BigInt!
+  shareholderEthWei: BigInt!
+
+  # Stock snapshot at the most recent touch within the hour.
+  totalStakedLpWei: BigInt
+  lpTvlUsd: BigDecimal
+  totalLockedClaimUsd: BigDecimal
+
+  # Pricing inputs preserved for replay / debug.
+  claimUsd: BigDecimal
+  ethUsd: BigDecimal
+
+  updatedAt: BigInt!
+}
+
+type User @entity(immutable: false) {
+  id: ID! # address lowercase
+  address: Bytes!
+
+  # Queries filtering/sorting by takeoverCount, ethSpentOnTakeoversWei,
+  # longestReignSeconds, or furnaceEthInWei for leaderboards require full-table scans.
+  # The Graph does not currently support @index directives, so this is a known
+  # limitation. API consumers should use off-chain indexing (e.g., Postgres
+  # materialized views over the subgraph) for leaderboard queries to avoid
+  # timeout issues at scale.
+
+  # Display labels (cached; nullable)
+  basename: String
+  ens: String
+  displayName: String
+
+  # Aggregates for official leaderboards (lifetime)
+  takeoverCount: Int!
+  ethSpentOnTakeoversWei: BigInt!
+  kingClaimMinedWei: BigInt!
+  longestReignSeconds: Int!
+
+  shareholderEthClaimedWei: BigInt! # includes ETH + LOCK_FURNACE modes
+  furnaceEthInWei: BigInt! # sum FurnaceEnter.ethIn
+  furnacePrincipalClaimInWei: BigInt! # sum FurnaceEnter.principalClaim
+
+  # Event-driven ve/principal snapshots. `veBalanceWei` is refreshed on lock activity only and does
+  # not continuously decay between unrelated events. Consumers that need “ve now” MUST recompute from
+  # the full owner lock set (`locks { amountWei, lockEnd, autoMax }`) against the same payload's
+  # `_meta.block.timestamp`. Owner-scoped UIs MUST page that lock set; a capped `first: N` owner query
+  # is not sufficient.
+  veBalanceWei: BigInt
+  totalLockedClaimWei: BigInt
+
+  # delegationSessionsAsDelegate) are virtual reverse lookups. They cannot be
+  # paginated with `skip` safely on a moving head. Consumers MUST use cursor-based
+  # pagination with a pinned _meta block as documented in the schema comments.
+
+  # Convenience reverse links. Consumers still need to paginate this relation at one pinned head
+  # when they need the full owner lock set; `user(id: ...) { locks(first: N) }` is just a capped page.
+  locks: [VeLock!]! @derivedFrom(field: "owner")
+
+  # Bot sessions (DelegationHub)
+  delegationSessionsGranted: [DelegationSession!]! @derivedFrom(field: "user")
+  delegationSessionsAsDelegate: [DelegationSession!]! @derivedFrom(field: "delegate")
+}
+
+# -----------------------------------------------------------------------------
+# DelegationHub (bot sessions)
+# -----------------------------------------------------------------------------
+
+enum DelegationActionType {
+  UNKNOWN
+  TAKEOVER
+  REIGN_RECIPIENTS
+  CLAIM
+  FURNACE_ENTER
+  VE_LOCK
+  CONFIG
+}
+
+# Current session state (approvals-like).
+# A session is uniquely identified by (user, delegate).
+# Revoke is represented by perms=0, expiry=0.
+# Active UI state should therefore be derived as `perms > 0 && expiry >= _meta.block.timestamp`.
+#
+# For traceability:
+# - lastUsedAt / lastActionType / lastTxHash are updated from DelegationSessionUsed events
+# - uses[] stores the full history of session uses (tx hashes included)
+# - UI/API consumers MUST derive active vs expired from the same payload's `_meta.block.timestamp`, not wall clock
+# - active-session lists/counts MUST read the full `delegationSessions` snapshot via paginated `id` cursor reads
+#   at one pinned `_meta` head; a capped `first: N` page can hide active delegates and break revoke flows
+# - Radar-style delegation/reign-recipient alert polling MUST page forward from a pinned `(blockNumber,id)` cursor or fail closed
+
+type DelegationSession @entity(immutable: false) {
+  id: ID! # "{user}-{delegate}"
+  user: User!
+  delegate: User!
+
+  perms: BigInt!
+  expiry: BigInt!
+
+  createdAt: BigInt!
+  updatedAt: BigInt!
+  revokedAt: BigInt
+
+  lastUsedAt: BigInt
+  lastActionType: DelegationActionType
+  lastTxHash: Bytes
+
+  uses: [DelegationSessionUse!]! @derivedFrom(field: "session")
+}
+
+type DelegationSessionUse @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  # Zero-padded blockNumber + ':' + id. REQUIRED for deterministic cursor pagination
+  # on consumers that page by blockNumber: ordering by `blockNumber` alone leaves
+  # same-block ties non-deterministic and a (lastBlock,lastId) cursor can skip rows.
+  # Always paginate with `orderBy: sortKey, sortKey_gt: $afterSortKey` (see
+  # `frontend/src/lib/delegationSessions.ts` for the reference consumer).
+  sortKey: String!
+  session: DelegationSession!
+  user: User!
+  delegate: User!
+
+  actionType: DelegationActionType!
+  actionTypeId: Int!
+  permsUsed: BigInt!
+  refId: BigInt!
+
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  # Contract that emitted DelegationSessionUsed (MineCore / Furnace / ClaimAllHelper, etc).
+  emitter: Bytes!
+}
+
+type DelegationSessionSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  # See DelegationSessionUse.sortKey for the rationale and required usage pattern.
+  sortKey: String!
+  session: DelegationSession!
+  user: User!
+  delegate: User!
+
+  perms: BigInt!
+  expiry: BigInt!
+  isRevocation: Boolean!
+
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+
+type Reign @entity(immutable: false) {
+  id: ID! # reignId as string
+  reignId: BigInt!
+  king: User!
+  # Current takeover price / decay is derived downstream from `startedByTakeover.referencePriceWei`
+  # and this `startTime`. Consumers MUST use the same query payload's `_meta.block.timestamp`
+  # as “now”; wall-clock-only decay can drift ahead of the indexed head.
+  startTime: BigInt!
+  endTime: BigInt # null if ongoing
+  totalClaimMinedWei: BigInt # set at finalization only
+  totalEthToKingWei: BigInt # set at finalization only
+
+  startedByTakeover: Takeover!
+  finalizedBy: ReignFinalizedEvent
+
+  previousReign: Reign
+}
+
+type Takeover @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  # Zero-padded blockNumber + ':' + id. See DelegationSessionUse.sortKey.
+  # Leaderboard ingest (`workers/chat/src/lib/leaderboards/sync/fetchers/takeovers.ts`)
+  # MUST page by `orderBy: sortKey, sortKey_gt: $afterSortKey`.
+  sortKey: String!
+  reign: Reign!
+  previousKing: User
+  newKing: User!
+  pricePaidWei: BigInt!
+  referencePriceWei: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type ReignFinalizedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  # Zero-padded blockNumber + ':' + id. See DelegationSessionUse.sortKey.
+  sortKey: String!
+  reign: Reign!
+  king: User!
+  startTime: BigInt!
+  endTime: BigInt!
+  totalClaimMinedWei: BigInt!
+  totalEthToKingWei: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+# -----------------------------------------------------------------------------
+# MineCore: per-reign recipients routing (security / review)
+# -----------------------------------------------------------------------------
+
+# Rolling state for the active recipients config per reign. This is sourced from
+# MineCore's ReignRecipientsSet events and is useful for detecting mid-reign changes.
+
+type ReignRecipientsState @entity(immutable: false) {
+  id: ID! # reignId as string
+  reignId: BigInt!
+  king: User!
+  ethRecipient: Bytes!
+  claimRecipient: Bytes!
+  updateCount: Int!
+  createdAt: BigInt!
+  updatedAt: BigInt!
+  firstSetTxHash: Bytes
+  firstSetTimestamp: BigInt
+  lastSetTxHash: Bytes
+  lastSetTimestamp: BigInt
+}
+
+# Individual ReignRecipientsSet events (immutable) for session feeds + alerts.
+
+type ReignRecipientsSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  # Zero-padded blockNumber + ':' + id. See DelegationSessionUse.sortKey.
+  sortKey: String!
+  reignId: BigInt!
+  king: User!
+  ethRecipient: Bytes!
+  claimRecipient: Bytes!
+  isMidReignUpdate: Boolean!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type VeLock @entity(immutable: false) {
+  id: ID! # tokenId as string
+  tokenId: BigInt!
+  owner: User!
+
+  amountWei: BigInt!
+  lockEnd: BigInt!
+  autoMax: Boolean!
+  # If the subgraph starts indexing mid-history, listed may be false for locks that
+  # are actually listed on-chain. The hydrateVeLockIfNeeded() function in marketRouter.ts
+  # handles amountWei/lockEnd but does NOT hydrate the listed flag.
+  # IMPACT: UI may show stale "not listed" for locks that were listed before indexing started.
+  listed: Boolean!
+
+  createdAt: BigInt!
+  updatedAt: BigInt!
+
+  currentVeWei: BigInt # Event-driven snapshot at the lock's last activity; live consumers MUST recompute from amountWei + lockEnd (+ autoMax) using the full owner-lock snapshot
+}
+
+# -----------------------------------------------------------------------------
+# VeClaimNFT events (for achievements + analytics)
+# -----------------------------------------------------------------------------
+
+type VeLockCreatedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  tokenId: BigInt!
+  amountWei: BigInt!
+  lockEnd: BigInt!
+  autoMax: Boolean!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type VeLockExtendedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  tokenId: BigInt!
+  oldEnd: BigInt!
+  newEnd: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type VeLockAmountIncreasedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  tokenId: BigInt!
+  amountAddedWei: BigInt!
+  amountAfterWei: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type VeLockMergedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  fromTokenId: BigInt!
+  intoTokenId: BigInt!
+  amountMovedWei: BigInt!
+  fromAmountAfterWei: BigInt!
+  intoAmountAfterWei: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type VeLockUnlockedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  tokenId: BigInt!
+  amountReturnedWei: BigInt!
+  amountAfterWei: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type VeLockAutoMaxSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  tokenId: BigInt!
+  autoMax: Boolean!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type VeLockTransferEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  tokenId: BigInt!
+  from: User
+  to: User
+  amountWei: BigInt!
+  lockEnd: BigInt!
+  autoMax: Boolean!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+
+# -----------------------------------------------------------------------------
+# ShareholderRoyalties (Barons) flows
+# -----------------------------------------------------------------------------
+
+type ShareholderAllocation @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  reign: Reign!
+  amountEthWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type ShareholderClaimEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  # Zero-padded timestamp + ':' + id. This entity does not currently expose
+  # `blockNumber`, so the leaderboard ingest pages by timestamp; the same
+  # cursor-skip class as the block-based variants applies and is solved the
+  # same way (orderBy: sortKey, sortKey_gt: $afterSortKey).
+  sortKey: String!
+  user: User!
+  mode: Int! # 0 ETH, 1 LOCK_FURNACE
+  amountEthWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type ShareholderFlushEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  amountEthWei: BigInt!
+  deltaEthPerVeWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type ShareholderAutoCompoundConfiguredEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  enabled: Boolean!
+  tokenId: BigInt!
+  durationSeconds: BigInt!
+  minCadenceSeconds: BigInt!
+  minEthToCompoundWei: BigInt!
+  maxSlippageBps: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type ShareholderAutoCompoundPausedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  tokenId: BigInt!
+  reasonCode: Int!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+# Current-state mirror of ShareholderRoyalties.getAutoCompoundConfig(user).
+# id == user address (lowercase). Last-write-wins per user.
+#
+# Used by the activity feed (frontend) to label a FurnaceEnter row as
+# "Eternal Lock" using the SAME predicate as the lock page
+# (`frontend/src/lib/useEternalLockPrefs.ts`):
+#   enabled && !paused && tokenId == row.tokenId && VeLock.autoMax === true
+type ShareholderAutoCompoundConfig @entity(immutable: false) {
+  id: ID! # user address lowercase
+  user: User!
+  enabled: Boolean!
+  paused: Boolean!
+  tokenId: BigInt!
+  durationSeconds: BigInt!
+  minCadenceSeconds: BigInt!
+  minEthToCompoundWei: BigInt!
+  maxSlippageBps: BigInt!
+  # Last reasonCode emitted by a Paused event; 0 when never paused.
+  pausedReasonCode: Int!
+  updatedAt: BigInt!
+}
+
+type ShareholderAutoCompoundExecutedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  executor: User!
+  amountEthWei: BigInt!
+  tokenId: BigInt!
+  effectiveDurationSeconds: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+# Keeper allowlist (Baron auto-compound)
+
+type ShareholderAutoCompoundKeeper @entity(immutable: false) {
+  id: ID! # keeper address
+  keeper: User!
+  allowed: Boolean!
+  updatedAt: BigInt!
+}
+
+type ShareholderAutoCompoundKeeperSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  keeper: User!
+  allowed: Boolean!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type ShareholderMinAutoCompoundEthSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  oldFloorWei: BigInt!
+  newFloorWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+
+# -----------------------------------------------------------------------------
+# Furnace (required surfaces)
+# -----------------------------------------------------------------------------
+
+type FurnaceEnterEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  # Zero-padded blockNumber + ':' + id. See DelegationSessionUse.sortKey.
+  # Leaderboard ingest (`workers/chat/src/lib/leaderboards/sync/fetchers/furnaceEnter.ts`)
+  # MUST page by `orderBy: sortKey, sortKey_gt: $afterSortKey`.
+  sortKey: String!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  # Public 24h / 7d Furnace window stats that scan these rows MUST capture `_meta` first,
+  # pin reads to one block, and paginate with a stable cursor. `skip` pagination on a moving
+  # head is not sufficient for shipped metrics.
+
+  user: User!
+  mode: Int! # 0 ETH, 1 CLAIM, 2 LOCK_FURNACE, 3 TOKEN, 4 EXTEND_WITH_BONUS
+  ethInWei: BigInt!
+  principalClaimWei: BigInt!
+  bonusClaimWei: BigInt!
+  tokenId: BigInt!
+
+  # mode=3 (TOKEN): populated by calldata + ERC20 Transfer decoding
+  tokenIn: Bytes
+  amountInWei: BigInt
+}
+
+type AutoMaxBonusClaimedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+  user: User!
+  tokenId: BigInt!
+  bonusClaimWei: BigInt!
+}
+
+type FurnaceMergeWithBonusEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+  user: User!
+  fromTokenId: BigInt!
+  intoTokenId: BigInt!
+  fromAmount: BigInt!
+  intoAmount: BigInt!
+  newPrincipal: BigInt!
+  newEnd: BigInt!
+  newAutoMax: Boolean!
+  durationDelta: BigInt!
+  bonusClaimWei: BigInt!
+}
+
+# Internal event-order helpers. BonusPaid carries the raw AMM split; the
+# subsequent receipt event carries the actual user-delivered bonus after
+# sub-MIN_TOPUP dust is refunded to reserve. A single tx can emit multiple
+# bonus events for the same user, so matching is FIFO by (txHash,user).
+type PendingBonusPaidQueue @entity(immutable: false) {
+  id: ID! # "{txHash}-{user}"
+  head: Int!
+  tail: Int!
+}
+
+type PendingBonusPaid @entity(immutable: false) {
+  id: ID! # "{txHash}-{user}-{sequence}"
+  queueId: String!
+  sequence: Int!
+  txHash: Bytes!
+  user: Bytes!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  userBonusClaim: BigInt!
+  reserveAfter: BigInt!
+}
+
+# Internal join helper: one row per FurnaceEnter log in a tx that also contains
+# an auto-furnace execution receipt. Keyed by log identity so a batched helper
+# transaction with multiple FurnaceEnter logs cannot have a later sibling
+# overwrite an earlier row's token id. The MarketRouter execution-side
+# resolver looks up the join by the FurnaceEnter logIndex immediately
+# preceding the executing event in the same receipt.
+type TxFurnaceEnter @entity(immutable: false) {
+  id: ID! # "{txHash}-{logIndex}"
+  txHash: Bytes!
+  user: User!
+  logIndex: BigInt!
+  tokenId: BigInt!
+  principalClaimWei: BigInt!
+  bonusClaimWei: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+}
+
+
+type FurnaceBonusSnapshot @entity(immutable: false) {
+  id: ID! # always "1"
+  updatedAt: BigInt!
+  lastDayId: Int!          # day index (unix_seconds / 86400) of last 24h window reset
+
+  # Internal performance helper: 5m bucketStart timestamp (seconds) when the 24h window was last fully recomputed.
+  last24hRecomputeBucketStart: BigInt
+
+  currentBps: Int!
+  min24hBps: Int!
+  max24hBps: Int!
+  min7dBps: Int!
+  max7dBps: Int!
+  min30dBps: Int!
+  max30dBps: Int!
+  q33Bps: Int!
+  q66Bps: Int!
+  q95Bps: Int
+}
+
+# Kept for hourly LP-rewards refresh boundary detection.
+type FurnaceBonusSample @entity(immutable: false) {
+  id: ID! # "{bucketSeconds}-{bucketStart}"
+  bucketStart: BigInt!
+  bucketSeconds: Int!
+  quoteUserBonusBps: Int!
+}
+
+
+# -----------------------------------------------------------------------------
+# LP staking vault (7D) surfaces
+# -----------------------------------------------------------------------------
+
+type AutoCompoundConfiguredEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  enabled: Boolean!
+  tokenId: BigInt!
+  durationSeconds: BigInt!
+  maxSlippageBps: BigInt!
+  minRewardToCompoundWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type AutoCompoundPausedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  tokenId: BigInt!
+  reasonCode: Int!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type AutoCompoundUnpausedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+# Harvest keeper allowlist (fee harvest + auto-compound executor)
+
+type HarvestKeeper @entity(immutable: false) {
+  id: ID! # keeper address
+  keeper: User!
+  allowed: Boolean!
+  updatedAt: BigInt!
+}
+
+type HarvestKeeperSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  keeper: User!
+  allowed: Boolean!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpMinCompoundRewardSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  oldFloorWei: BigInt!
+  newFloorWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpMinHarvestClaimFloorSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  oldFloorWei: BigInt!
+  newFloorWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpNotifyAmountDivergenceEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  declaredWei: BigInt!
+  actualDeltaWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpAccountedRewardBalanceClampedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  requestedWei: BigInt!
+  availableWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpHarvestMinClaimOutIgnoredEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  minClaimOutWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpOwnershipTransferStartedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  previousOwner: User!
+  newOwner: User!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpOwnershipTransferredEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  previousOwner: User!
+  newOwner: User!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+
+type LpStakedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  amount: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpUnbondStartedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  unbondId: BigInt!
+  amount: BigInt!
+  unlockTime: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpUnbondWithdrawnEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  unbondId: BigInt!
+  amount: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpRewardsNotifiedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  amountClaim: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpRewardsClaimedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  amountClaim: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpRewardsLockedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  user: User!
+  amountClaim: BigInt!
+  principalClaim: BigInt!
+  bonusClaim: BigInt!
+  tokenId: BigInt!
+  # True if this lock was emitted from an auto-compound executor call.
+  autoCompounded: Boolean!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LpFeesHarvestedToRewardsEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  caller: User!
+  feeWeth: BigInt!
+  feeClaim: BigInt!
+  claimToRewards: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+# -----------------------------------------------------------------------------
+# MarketRouter marketplace
+# -----------------------------------------------------------------------------
+
+type MarketListing @entity(immutable: false) {
+  id: ID! # tokenId as string
+  tokenId: BigInt!
+  lock: VeLock!
+  seller: User!
+  minClaimOutWei: BigInt!
+  # Normalized ask price = minClaimOutWei / lock.amountWei, expressed in bps (scaled by 10_000).
+  # This is intended for server-side ordering in an orderbook view.
+  priceBps: BigInt!
+  listedAtTime: BigInt!
+  expiresAtTime: BigInt!
+  active: Boolean!
+  updatedAt: BigInt!
+}
+
+type MarketLockListedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  tokenId: BigInt!
+  seller: User!
+  minClaimOutWei: BigInt!
+  listedAtTime: BigInt!
+  expiresAtTime: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type MarketLockDelistedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  tokenId: BigInt!
+  seller: User!
+  # Mirrors MarketRouter.Events.LockDelisted(uint8 reason)
+  reason: Int!
+  # Optional snapshot of the last known listing price (null if unknown)
+  minClaimOutWei: BigInt
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+# ListingSettled event entity (Furnace settled a listing)
+type ListingSettledEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  tokenId: BigInt!
+  seller: User!
+  # CLAIM received by seller after penalty deduction
+  claimOutWei: BigInt!
+  # Duration-based penalty sent to Furnace reserve
+  penaltyWei: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+
+# Market sell (Sell now) executed directly into the Furnace
+type MarketSellToFurnaceEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  tokenId: BigInt!
+  seller: User!
+  minClaimOutWei: BigInt!
+  deadline: BigInt!
+  claimOutWei: BigInt!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+# Settlement keeper allowlist (MEV protection for listing settlement + offer execution)
+
+type MarketSettlementKeeper @entity(immutable: false) {
+  id: ID! # keeper address
+  keeper: User!
+  allowed: Boolean!
+  updatedAt: BigInt!
+}
+
+type MarketSettlementKeeperSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  keeper: User!
+  allowed: Boolean!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+# MarketRouter global offer params (anti-spam / safety)
+
+# Stores the latest known values of MarketRouter bonus-target escrow spam controls.
+# - minBudget is in CLAIM wei.
+# - maxDiscountBps is the extra discount cap (bps).
+#
+# maxBonusTargetEscrowDiscountBps is never negative onchain; -1 is used as a sentinel
+# for "unknown" when indexing starts mid-history and no snapshot is available.
+type MarketRouterParams @entity(immutable: false) {
+  id: ID! # always "current"
+  updatedAt: BigInt!
+  minBonusTargetEscrowBudgetClaimWei: BigInt!
+  maxBonusTargetEscrowDiscountBps: Int!
+}
+
+# Immutable history for MarketRouter.setBonusTargetEscrowParams(...) (pre-freeze).
+type BonusTargetEscrowParamsChangedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  oldMinBudgetClaimWei: BigInt!
+  newMinBudgetClaimWei: BigInt!
+  oldMaxDiscountBps: Int!
+  newMaxDiscountBps: Int!
+}
+
+
+type MarketTradeEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  kind: String! # "BUY" (strict mode: derived from Furnace.LockSoldToFurnace)
+  tokenId: BigInt!
+  seller: User!
+  buyer: User!
+  # Reserved for compatibility trade joins; null in the strict-mode subgraph.
+  offer: BonusTargetEscrow
+  priceInClaimWei: BigInt!
+  # Fee sent to Furnace reserve (duration-based: 25% at 365d, ~0.5% at 7d).
+  feeToFurnaceWei: BigInt
+  lockAmountWei: BigInt
+  discountBps: Int
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type BonusTargetEscrow @entity(immutable: false) {
+  id: ID! # offerId as string
+  offerId: BigInt!
+  buyer: User!
+  discountBps: Int!
+
+  # Normalized bid price, expressed in bps (scaled by 10_000).
+  #
+  # - For compatibility discount offers: priceBps = (10_000 - discountBps)
+  # - For bonus-target offers:    priceBps = 10_000 - floor(targetBonusBps * 10_000 / (10_000 + targetBonusBps))
+  #   NOTE: This can differ from floor(10_000^2 / (10_000 + targetBonusBps)) by up to 1 bps due to integer rounding.
+  #
+  # This is intended for server-side ordering in an orderbook view.
+  priceBps: BigInt!
+
+  # Compatibility field: per-offer minimum lock size. Null for AutoFill v2 offers.
+  minLockSizeWei: BigInt
+
+  budgetClaimWei: BigInt!
+  fundsRemainingWei: BigInt
+  createdAt: BigInt!
+  updatedAt: BigInt!
+  active: Boolean!
+
+  # AutoFill v2 settings
+  durationSeconds: BigInt
+  createAutoMax: Boolean!
+  expiresAt: BigInt!
+  destinationLockId: BigInt
+  destinationLock: VeLock
+
+  targetBonusBps: Int!
+  # Auto-furnace slippage protection in bps (0 if unknown / not configured).
+  slippageBps: Int!
+}
+
+# Offer status / history surface. Canonical execution history uses kind =
+# "FILLED" from the generic BonusTargetEscrowExecuted receipt.
+# AUTO_FURNACE_EXECUTED is retained as the same-tx companion for detail and compatibility consumers.
+type BonusTargetEscrowEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  offer: BonusTargetEscrow!
+  kind: String! # "CREATED" | "CANCELLED" | "EXPIRED" | "EXPIRY_EXTENDED" | "FILLED" | "BONUS_CONFIGURED" | "AUTO_FURNACE_EXECUTED"
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+# Canonical generic execution receipt from MarketRouter.BonusTargetEscrowExecuted.
+type BonusTargetEscrowExecutedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  offer: BonusTargetEscrow!
+  buyer: User!
+
+  claimInWei: BigInt!
+  principalClaimWei: BigInt!
+  bonusClaimWei: BigInt!
+  veOutWei: BigInt!
+  # Explicit ratio used by MarketRouter's BonusTarget gate: bonusClaim/principalClaim.
+  bonusBpsVsPrincipalClaim: Int!
+
+  routeTokenId: BigInt!
+  furnaceTokenId: BigInt
+
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+# Backward-compatible auto-furnace execution receipt retained for existing consumers.
+type BonusTargetEscrowAutoFurnaceExecutedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  offer: BonusTargetEscrow!
+  buyer: User!
+
+  claimInWei: BigInt!
+  principalClaimWei: BigInt!
+  bonusClaimWei: BigInt!
+  veOutWei: BigInt!
+  # Explicit ratio used by MarketRouter's BonusTarget gate: bonusClaim/principalClaim.
+  bonusBpsVsPrincipalClaim: Int!
+
+  # Route token id from the Furnace quote (0 means a new lock was created).
+  routeTokenId: BigInt!
+  # Actual token id used by FurnaceEnter (minted id when routeTokenId == 0).
+  furnaceTokenId: BigInt
+
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+
+# -----------------------------------------------------------------------------
+# Genesis infrastructure state (for /overview)
+# -----------------------------------------------------------------------------
+
+type GenesisState @entity(immutable: false) {
+  id: ID! # always "1"
+
+  genesisFinalized: Boolean!
+  finalizedAt: BigInt
+  finalizedTxHash: Bytes
+
+  genesisLpVaultLockStart: BigInt
+  genesisLpVaultUnlockTime: BigInt
+}
+
+# Forensic-only event mirrors for LaunchController. These are immutable and indexed
+# only to support post-launch debugging (donation skim attempts, pre-genesis wiring
+# evidence, residual dust sweeps). They do NOT participate in the main GenesisState
+# lifecycle entity.
+
+type LaunchControllerDeploymentValidatedEvent @entity(immutable: true) {
+  id: ID!
+  claim: Bytes!
+  mineCore: Bytes!
+  genesisLpVault: Bytes!
+  guardian: Bytes!
+  expectedPool: Bytes!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LaunchControllerTokenSweptEvent @entity(immutable: true) {
+  id: ID!
+  token: Bytes!
+  to: Bytes!
+  amountWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type LaunchControllerSkimFailedEvent @entity(immutable: true) {
+  id: ID!
+  pool: Bytes!
+  reason: Bytes!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+
+# -----------------------------------------------------------------------------
+# Genesis LP vault events (internal analytics)
+# -----------------------------------------------------------------------------
+
+
+type GenesisWithdrawLpEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  to: User!
+  amountWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type GenesisResidualLpSweepEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  to: User!
+  amountWei: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+# Aerodrome trading fees claimed-and-forwarded by GenesisLPVault24M.withdrawLp().
+# Emitted in the same transaction as (and immediately before) the corresponding
+# GenesisWithdrawLpEvent / GenesisResidualLpSweepEvent. Forwarded amounts are
+# token0 + token1 of the genesis pool (WETH/CLAIM ordering is pool-defined).
+# At least one of `amount0Wei` / `amount1Wei` is strictly > 0; the contract does
+# not emit this event for a zero-fee withdrawal.
+type GenesisLpFeeClaimEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  # Canonical recipient = `vault.lpWithdrawRecipient()` (resolved via contract
+  # call from the mapping handler). For Safe-multisig / batched / sponsored
+  # withdrawals this is the Safe address itself, NOT `event.transaction.from`
+  # (which would be the EOA submitter). If the contract read ever reverts (RPC
+  # blip, non-conforming vault, ABI drift) the handler routes attribution to the
+  # deterministic burn-style sentinel `0x000000000000000000000000000000000000dEaD`
+  # rather than `tx.from`, to avoid silently misattributing fee claims to a
+  # relayer / Safe-submitter EOA. Consumers MUST filter on
+  # `recipientResolvedByFallback == true` to detect / ignore those rows.
+  # The canonical recipient is also independently observable on the always-paired
+  # `GenesisWithdrawLpEvent` / `GenesisResidualLpSweepEvent` (`to` field) fired
+  # in the same transaction immediately after this event.
+  to: User!
+  # True when the handler routed `to` to the FALLBACK_RECIPIENT_SENTINEL because
+  # the on-chain `vault.lpWithdrawRecipient()` read reverted. Always false on
+  # healthy mainnet operation; an alert should fire on any true row.
+  recipientResolvedByFallback: Boolean!
+  token0: Bytes!
+  token1: Bytes!
+  amount0Wei: BigInt!
+  amount1Wei: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+# -----------------------------------------------------------------------------
+# Activity feed normalization
+# -----------------------------------------------------------------------------
+
+type ActivityItem @entity(immutable: true) {
+  id: ID! # txHash-logIndex; stable tie-breaker for timestamp-sorted consumers, but not time-monotonic by itself
+  sortKey: String! # zero-padded timestamp + id, ordered desc for stable cursor pagination
+  kind: String!
+  timestamp: BigInt!
+  txHash: Bytes!
+
+  reignId: BigInt
+  tokenId: BigInt
+  user: User
+  otherUser: User
+  amountEthWei: BigInt
+  amountClaimWei: BigInt
+}
+
+# -----------------------------------------------------------------------------
+# EntryTokenRegistry indexing (required events; optional UI surface)
+# -----------------------------------------------------------------------------
+
+type EntryTokenRegistry @entity(immutable: false) {
+  id: ID! # registry address lowercase
+  address: Bytes!
+
+  guardian: Bytes
+
+  router: Bytes
+  factory: Bytes
+  wrappedNative: Bytes
+  claimToken: Bytes
+
+  wethClaimPool: Bytes
+  wethClaimPoolStable: Boolean
+
+  updatedAt: BigInt
+}
+
+type EntryTokenConfig @entity(immutable: false) {
+  id: ID! # "{registry}-{token}"
+  registry: EntryTokenRegistry!
+  tokenIn: Bytes!
+  enabled: Boolean!
+  directToClaimEnabled: Boolean!
+  tokenClaimStable: Boolean!
+  tokenClaimPool: Bytes!
+  tokenWethStable: Boolean!
+  tokenWethPool: Bytes!
+  exactReceiptSafe: Boolean!
+
+  updatedAt: BigInt!
+}
+
+# -----------------------------------------------------------------------------
+# Existing / extra analytics entities (kept for back-compat)
+# -----------------------------------------------------------------------------
+
+type BonusPaidEvent @entity(immutable: true) {
+  id: ID!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+  user: User!
+  principal: BigInt!
+  principalEff: BigInt!
+  grossBonusClaim: BigInt!
+  userBonusClaim: BigInt!
+  lpTopupClaim: BigInt!
+  userSpotBonusBps: Int!
+  lpTopupRateBps: Int!
+  grossSpotBonusBps: Int!
+  quoteUserBonusBps: Int!
+  quoteLpTopupBps: Int!
+  lockDurationSec: Int!
+  reserveBefore: BigInt!
+  reserveAfter: BigInt!
+  virtualDepthBefore: BigInt!
+  virtualDepthAfter: BigInt!
+}
+
+type LpOverflowDripPaidEvent @entity(immutable: true) {
+  id: ID!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+  dripAmount: BigInt!
+  reserveBefore: BigInt!
+  reserveAfter: BigInt!
+  alphaBps: Int!
+  gateBps: Int!
+  capInflowPerDay: BigInt!
+  capFixedPerDay: BigInt!
+  reserveTarget: BigInt!
+  excessBefore: BigInt!
+}
+
+type LockSoldToFurnaceEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  seller: User!
+  tokenId: BigInt!
+  lockAmountWei: BigInt!
+  claimOutWei: BigInt!
+  spreadBps: Int!
+  cutWei: BigInt!
+  lpSaleShareBps: Int!
+  lpRewardWei: BigInt!
+  reserveAddWei: BigInt!
+  bonusRefBpsUsed: Int!
+
+}
+
+
+type DailyFurnaceAgg @entity(immutable: false) {
+  id: ID! # dayId (timestamp / 86400)
+  dayStartTimestamp: BigInt!
+  bonusPaidCount: Int!
+  dripCount: Int!
+  totalGrossBonus: BigInt!
+  totalUserBonus: BigInt!
+  totalLpTopup: BigInt!
+  totalLpDrip: BigInt!
+  totalLpFromFurnace: BigInt!
+  sellCount: Int!
+  totalSellLockAmount: BigInt!
+  totalSellClaimOut: BigInt!
+  totalSellLpReward: BigInt!
+  totalSellReserveAdd: BigInt!
+
+  reserveEnd: BigInt!
+
+  # Min/max of quoteUserBonusBps observed during this calendar day (from block handler).
+  quoteBonusMinBps: Int!
+  quoteBonusMaxBps: Int!
+}
+
+type FurnaceState @entity(immutable: false) {
+  id: ID! # always "current"
+  updatedAt: BigInt!
+  reserve: BigInt!
+
+  # --- Reserved info fields ---
+  # These fields are nullable and are NOT populated by any event handler in the shipped
+  # subgraph. They exist for optional block-handler or off-chain enrichment use. Consumers
+  # MUST NOT treat non-null as guaranteed; use RPC reads (getFurnaceState) for live values.
+  reserveFullnessBps: Int
+  reserveFactorBps: Int
+  swingAlphaBps: Int
+
+  userSpotBonusBps: Int
+  grossSpotBonusBps: Int
+  lpTopupRateBps: Int
+
+  # Reserved: not populated by event handlers. Use RPC reads for live values.
+  lpOverflowDripPerDay: BigInt
+  capInflowPerDay: BigInt
+
+  # Latest LP rewards stream schedule (CLAIM wei/sec and end timestamp).
+  lpStreamRatePerSec: BigInt!
+  lpStreamPeriodFinish: BigInt!
+
+  # Rolling 24h LP rewards totals (CLAIM wei), computed from 1h buckets.
+  # Includes:
+  # - Per-entry LP topup (BonusPaid.lpTopupClaim)
+  # - Overflow drip payouts (LpOverflowDripPaid.dripAmount)
+  # - Sellback LP rewards (LockSoldToFurnace.lpRewardWei)
+  lpRewardsClaim24h: BigInt!
+  lpRewardsTopupClaim24h: BigInt!
+  lpRewardsDripClaim24h: BigInt!
+  lpRewardsSellRewardClaim24h: BigInt!
+}
+
+# 1h bucket samples used to compute FurnaceState.lpRewards*24h.
+type LpRewardsSample @entity(immutable: false) {
+  id: ID! # "{bucketSeconds}-{bucketStart}"
+  bucketStart: BigInt!
+  bucketSeconds: Int!
+  lpTopupClaim: BigInt!
+  lpDripClaim: BigInt!
+  lpSellRewardClaim: BigInt!
+  lpRewardsClaim: BigInt!
+}
+
+
+type ReserveCreditedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  amount: BigInt!
+  newReserve: BigInt!
+}
+
+
+# Furnace wiring / health events (optional analytics)
+
+type LpRewardsVaultSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  oldVault: Bytes!
+  newVault: Bytes!
+}
+
+
+type FurnaceQuoterSetEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  oldQuoter: Bytes!
+  newQuoter: Bytes!
+}
+
+type LpRewardsNotifyFailedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  vault: Bytes!
+  amountClaim: BigInt!
+  revertData: Bytes!
+}
+
+type LpStreamFundedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  amountFunded: BigInt!
+  newRatePerSec: BigInt!
+  newPeriodFinish: BigInt!
+}
+
+type ReserveClampedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  caller: User!
+  oldReserve: BigInt!
+  newReserve: BigInt!
+  claimBalance: BigInt!
+  lpStreamRemaining: BigInt!
+}
+
+type KingWithdrawalEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  king: User!
+  amount: BigInt!
+}
+
+
+# Optional destination tracking for king withdrawals when to != king.
+type KingWithdrawalToEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  king: User!
+  to: User!
+  amount: BigInt!
+}
+
+# Refund ETH pull-payment fallback bucket.
+type RefundCreditedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  to: User!
+  amount: BigInt!
+}
+
+type RefundWithdrawnEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  user: User!
+  to: User!
+  amount: BigInt!
+}
+
+# MineCore shareholder royalties hardening (try/catch; never reverts takeovers on royalty failures).
+type ShareholderRoyaltiesTakeoverFailedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  reignId: BigInt!
+  amountEthWei: BigInt!
+  reason: Bytes!
+}
+
+type ShareholderRoyaltiesFlushFailedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  reason: Bytes!
+}
+
+
+# MaintenanceHub (ops transparency)
+type MaintenancePokedEvent @entity(immutable: true) {
+  id: ID! # txHash-logIndex
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  txHash: Bytes!
+
+  caller: User!
+  checkpointOk: Boolean!
+  flushOk: Boolean!
+  offersAttempted: BigInt!
+  offersSucceeded: BigInt!
+  furnaceTickSucceeded: Boolean!
+  bountyWethForwarded: BigInt!
+}

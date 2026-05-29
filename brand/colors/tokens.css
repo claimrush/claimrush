@@ -1,0 +1,37 @@
+:root {
+  /* Brand base */
+  --cr-gold: 212 175 55;      /* #D4AF37 */
+  --cr-gold-dim: 168 134 44;  /* #A8862C (subtle gold for outlines/dividers) */
+  --cr-blue: 0 0 255;         /* #0000FF */
+  --cr-ink: 10 13 20;         /* #0A0D14 */
+  --cr-white: 255 255 255;    /* #FFFFFF */
+
+  /* Dark UI semantic */
+  --cr-bg: 10 13 20;            /* ink */
+  --cr-surface: 17 24 39;       /* #111827 */
+  --cr-surface-2: 15 23 42;     /* #0F172A */
+  --cr-surface-3: 31 41 55;     /* #1F2937 (elevated/hover surface) */
+  --cr-overlay: 10 13 20;       /* #0A0D14 (use with alpha for modals/overlays) */
+
+  --cr-border: 36 48 65;        /* #243041 */
+  --cr-border-subtle: 26 36 55; /* #1A2437 */
+  --cr-border-strong: 51 65 85; /* #334155 */
+
+  --cr-text: 248 250 252;        /* #F8FAFC */
+  --cr-text-subtle: 203 213 225; /* #CBD5E1 */
+  --cr-text-muted: 148 163 184;  /* #94A3B8 */
+
+  /* Interaction */
+  --cr-primary: 0 0 255;         /* blue */
+  --cr-primary-fg: 255 255 255;  /* white */
+  --cr-ring: 0 0 255;            /* focus ring (match primary) */
+
+  /* Prestige */
+  --cr-accent: 212 175 55;       /* gold */
+  --cr-accent-fg: 10 13 20;      /* ink */
+
+  /* States (optional) */
+  --cr-success: 46 229 157;      /* #2EE59D */
+  --cr-warning: 249 115 22;      /* #F97316 */
+  --cr-danger: 239 68 68;        /* #EF4444 */
+}

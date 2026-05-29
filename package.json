@@ -1,0 +1,11 @@
+{
+  "name": "claimrush",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ClaimRush v1.0.0 protocol, subgraph, keeper, agents SDK, ABIs, and canonical docs.",
+  "license": "MIT",
+  "scripts": {
+    "deploy:protocol": "node ./scripts/deploy_prod.mjs"
+  }
+}

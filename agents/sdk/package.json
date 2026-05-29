@@ -1,0 +1,65 @@
+{
+  "name": "@claimrush/agent-sdk",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "schemas"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "example:quickstart": "npm run build && node ./dist/examples/quickstart.js",
+    "example:snapshot": "npm run build && node ./dist/examples/snapshot.js",
+    "example:events": "npm run build && node ./dist/examples/events.js",
+    "example:takeover-token-quote": "npm run build && node ./dist/examples/takeover-token-quote.js",
+    "example:prices": "npm run build && node ./dist/examples/prices.js",
+    "example:harness": "npm run build && node ./dist/examples/harness.js",
+    "example:agent": "npm run build && node ./dist/examples/agent.js",
+    "example:replay": "npm run build && node ./dist/examples/replay.js",
+    "example:strategy": "npm run build && node ./dist/examples/strategy.js",
+    "example:plan": "npm run build && node ./dist/examples/plan.js",
+    "example:execute-plan": "npm run build && node ./dist/examples/execute-plan.js",
+    "example:market": "npm run build && node ./dist/examples/market.js",
+    "example:subgraph-health": "npm run build && node ./dist/examples/subgraph-health.js",
+    "example:delegation": "npm run build && node ./dist/examples/delegation.js",
+    "example:session": "npm run build && node ./dist/examples/session.js",
+    "example:action-coverage": "npm run build && node ./dist/examples/action-coverage.js",
+    "example:delegation-full-test": "npm run build && node ./dist/examples/delegation-full-test.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run build && node --test test/url.test.mjs test/integers.test.mjs test/runnerUtils.test.mjs test/snapshot.test.mjs test/runtimeBounds.test.mjs test/agentParsers.test.mjs test/harnessBounds.test.mjs test/prices.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "viem": "^2.48.11"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.55.0",
+    "eslint": "^10.3.0",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "minimatch": ">=10.2.1",
+    "brace-expansion@5": ">=5.0.6",
+    "ws": ">=8.20.1"
+  }
+}

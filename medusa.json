@@ -1,0 +1,91 @@
+{
+    "_comment_pin": "Medusa pinned to release v1.5.1 (released 2026-03-11). Bump procedure: update the pin in scripts/run_medusa.sh and .github/workflows/medusa.yml in the same PR. Verify property prefix detection still maps to `echidna_` after the bump.",
+
+    "fuzzing": {
+        "workers": 8,
+        "workerResetLimit": 50,
+        "timeout": 0,
+        "testLimit": 100000,
+        "shrinkLimit": 5000,
+        "callSequenceLength": 200,
+        "corpusDirectory": "medusa-corpora/Furnace",
+        "coverageEnabled": true,
+        "coverageFormats": ["html", "lcov"],
+        "targetContracts": ["EchidnaFurnace"],
+        "predeployedContracts": {},
+        "targetContractsBalances": ["0xFFFFFFFFFFFFFFFF"],
+        "constructorArgs": {},
+        "deployerAddress": "0x10000",
+        "senderAddresses": ["0x20000", "0x30000", "0x40000"],
+        "blockNumberDelayMax": 50400,
+        "blockTimestampDelayMax": 604800,
+        "blockGasLimit": 125000000,
+        "transactionGasLimit": 12500000,
+        "testing": {
+            "stopOnFailedTest": false,
+            "stopOnFailedContractMatching": false,
+            "stopOnNoTests": true,
+            "testAllContracts": false,
+            "traceAll": false,
+            "assertionTesting": {
+                "enabled": true,
+                "testViewMethods": false,
+                "panicCodeConfig": {
+                    "failOnCompilerInsertedPanic": false,
+                    "failOnAssertion": true,
+                    "failOnArithmeticUnderflow": false,
+                    "failOnDivideByZero": false,
+                    "failOnEnumTypeConversionOutOfBounds": false,
+                    "failOnIncorrectStorageAccess": false,
+                    "failOnPopEmptyArray": false,
+                    "failOnOutOfBoundsArrayAccess": false,
+                    "failOnAllocateTooMuchMemory": false,
+                    "failOnCallUninitializedVariable": false
+                }
+            },
+            "propertyTesting": {
+                "enabled": true,
+                "testPrefixes": ["echidna_"]
+            },
+            "optimizationTesting": {
+                "enabled": true,
+                "testPrefixes": ["optimize_"]
+            },
+            "targetFunctionSignatures": [],
+            "excludeFunctionSignatures": []
+        },
+        "chainConfig": {
+            "codeSizeCheckDisabled": true,
+            "cheatCodes": {
+                "cheatCodesEnabled": true,
+                "enableFFI": false
+            },
+            "skipAccountChecks": true,
+            "forkConfig": {
+                "forkModeEnabled": false,
+                "rpcUrl": "",
+                "rpcBlock": 1,
+                "poolSize": 20
+            }
+        }
+    },
+    "compilation": {
+        "platform": "crytic-compile",
+        "platformConfig": {
+            "target": ".",
+            "solcVersion": "0.8.34",
+            "exportDirectory": "",
+            "args": ["--foundry-compile-all"]
+        }
+    },
+    "slither": {
+        "useSlither": false,
+        "cachePath": "slither_results.json",
+        "args": []
+    },
+    "logging": {
+        "level": "info",
+        "logDirectory": "medusa-logs/",
+        "noColor": true
+    }
+}

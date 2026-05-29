@@ -1,0 +1,1098 @@
+# ClaimRush Agent Language (CRAL)
+# Machine-readable companion to docs/manuals/developer/agents-and-automation.md
+#
+# Purpose
+# - Provide runnable-ish manifests for the Agent SDK examples and safe operational defaults.
+# - Keep prose and explanation in Markdown. Keep commands, flags, env, and guardrails here.
+
+pack_version: "1"
+pack_id: "agents-and-automation"
+title: "Agents and automation"
+audience: "developer"
+repo:
+  agent_tooling_root: "agents/"
+  typescript_sdk: "agents/sdk/"
+  local_manifests: "deployments/<network>.json"
+  abis: "abis/<network>/*.abi.json"
+  optional_snapshot_bundler: "src/lens/AgentLens.sol"
+
+language:
+  version: "1"
+  document_kind: "pack"
+  top_level_keys:
+    - "pack_version"
+    - "pack_id"
+    - "title"
+    - "repo"
+    - "language"
+    - "glossary"
+    - "manifests"
+  conventions:
+    units:
+      - "use integers only (wei, bps, token base units)"
+      - "no float math for anything financial"
+    execution:
+      - "dry-run by default"
+      - "writes require explicit execute flag"
+      - "writes should include deadlines"
+    logging:
+      - "record snapshots, decisions, tx hashes, and reverts"
+
+glossary:
+  self_run_agent: "Agent plays from its own wallet address."
+  delegated_agent: "Agent acts for a user address via DelegationHub sessions."
+  snapshot: "Deterministic state read used as agent input."
+  jsonl_event_stream: "One event per line, machine friendly for tailing and indexing."
+
+manifests:
+
+  # -----------------------------
+  # 00. Scope statements
+  # -----------------------------
+  - id: "00.scope"
+    intent: "doc.statement"
+    params:
+      statements:
+        - "ClaimRush is permissionless: EOAs and smart contracts can play."
+        - "Anyone can build bots and agents."
+        - "This pack includes self-run and delegated agent workflows."
+
+  - id: "00.phase"
+    intent: "doc.statement"
+    params:
+      statements:
+        - "All five core contracts retain a one-way `freezeConfig()` for core game-rule wiring. Furnace.freezeConfig() also locks the live bonus surfaces (`furnaceQuoter` and `lpRewardsVault`). Remaining operational surfaces stay behind `onlyOwner` plus timelock / multisig governance."
+        - "Examples: EntryTokenRegistry cannot change router/factory in place after route surfaces exist, and Furnace cannot change or clear lpRewardsVault while already-earned LP liability remains attributable to the current vault."
+        - "Limited live onchain controls remain for guardian rotation, registry disables, and the documented operational allowlists."
+        - "Agents should monitor for wiring-change events and re-read the deployment manifest after any allowed wiring change or helper redeploy."
+        - "Contract addresses are expected to be stable once wired, but agents still need live reads for pause flags, guardian/owner changes, registry token disables, and the documented operational allowlists."
+
+  - id: "01.related_docs"
+    intent: "doc.links"
+    params:
+      links:
+        - label: "Bot sessions (DelegationHub)"
+          href: "delegationhub.md"
+        - label: "Maintenance and bots"
+          href: "maintenance-and-bots.md"
+        - label: "Agent SDK (TypeScript)"
+          href: "../../../agents/sdk/README.md"
+
+  # -----------------------------
+  # 02. Game introduction (for AI agents)
+  # -----------------------------
+  - id: "02.game.intro"
+    intent: "doc.game_intro"
+    params:
+      reader: "ai_agent"
+      goal: "Make the core game loops unambiguous so an agent can plan and act safely."
+      tldr:
+        - "Loop 1 (Crown): pay ETH to Takeover the Mine, become King, accrue CLAIM while King, and get paid when dethroned."
+        - "Loop 2 (Furnace): lock value into veCLAIM, earn 25% of every takeover in ETH, and optionally compound."
+      key_terms:
+        - term: "Mine"
+          meaning: "The single contested Crown slot in MineCore. Exactly one King at a time."
+        - term: "Crown / King"
+          meaning: "The current controller of the Mine. A takeover replaces the current King and starts a new reign."
+        - term: "Reign"
+          meaning: "The time interval a specific King holds the Crown."
+        - term: "Takeover"
+          meaning: "An onchain transaction that pays the current takeover price to become the new King."
+        - term: "CLAIM"
+          meaning: "The ERC20 game token mined by Kings and used to create veCLAIM."
+        - term: "veCLAIM"
+          meaning: "A locked position (NFT) that earns ETH royalties from takeovers."
+        - term: "Barons"
+          meaning: "veCLAIM holders (royalty earners)."
+        - term: "Furnace"
+          meaning: "The lock engine that converts entry value into veCLAIM with a reserve-backed bonus."
+        - term: "Takeover Price Formula"
+          meaning: "price(t) = max(FLOOR, refPrice × (1 − t / DECAY_PERIOD)); where refPrice = 2 × lastPricePaid, DECAY_PERIOD ≈ 1 hour, and FLOOR is a small ETH minimum."
+      where_to_read_state:
+        snapshot_paths:
+          - "snapshot.mineCore.currentTakeoverPrice"
+          - "snapshot.mineCore.currentKing"
+          - "snapshot.mineCore.currentReignStartTime"
+          - "snapshot.mineCore.takeoversPaused"
+          - "snapshot.furnace.state (reserve, bonus, virtual depth)"
+          - "snapshot.royalties (ethPerVe, pendingShareholderETH)"
+      value_flows_on_takeover:
+        - "New taker pays pricePaid (ETH, or token swapped to ETH on the token path)."
+        - "If prevKing exists: 75% of pricePaid goes to the dethroned reign's ETH recipient; 25% is allocated to veCLAIM holders via ShareholderRoyalties."
+        - "If prevKing is 0x0 (genesis): 100% of pricePaid is allocated to ShareholderRoyalties."
+        - "The dethroned reign's mined CLAIM is minted to the reign's CLAIM recipient when the takeover finalizes the reign."
+        - "MineCore also credits the Furnace reserve on each takeover (Furnace emission stream materializes on takeovers)."
+      common_agent_confusions:
+        - "Mining is shown as accruing over time, but the CLAIM is minted when a reign is finalized (on the next takeover), not continuously."
+        - "The King payout (75% of the next takeover) arrives when you are dethroned, not when you take over."
+        - "Between takeovers the takeover price only decays downward; the only upward jump is when a takeover happens (reference price doubles)."
+
+  - id: "03.loop.crown"
+    intent: "doc.game_loop.crown"
+    params:
+      loop_name: "Crown loop (King-of-the-Hill)"
+      mental_model:
+        - "You pay ETH to rent the Mine."
+        - "While you are King, CLAIM accrues for your reign."
+        - "When someone else takes over, your reign finalizes and you receive: (a) the CLAIM you mined and (b) the King ETH payout."
+      pricing_model:
+        summary:
+          - "After each takeover, the next price starts high and decays toward a floor (up to ~1 hour; low-cost takeovers reach floor sooner)."
+          - "On a successful takeover, MineCore sets referencePrice = 2 * pricePaid."
+        constants_hint:
+          - "TAKEOVER_DECAY_PERIOD is ~1 hour."
+          - "TAKEOVER_PRICE_FLOOR is a small ETH floor."
+      step_by_step:
+        - step: "Read"
+          detail:
+            - "Get a fresh quote just before acting: MineCore.getCurrentTakeoverPrice()."
+            - "Read currentKing, currentReignStartTime, and takeoversPaused."
+        - step: "Decide"
+          detail:
+            - "Check your spend cap and whether taking over now fits your strategy."
+            - "Remember: your payoff depends on how long you stay King and the next takeover price when you are dethroned."
+        - step: "Execute takeover (self-run)"
+          detail:
+            - "Call MineCore.takeover(maxPrice) with msg.value >= the quoted price (sending the exact quoted price as both value and maxPrice is recommended; any overpay is refunded)."
+            - "If someone else takes over first, your tx can revert; re-quote and retry."
+        - step: "Execute takeover (delegated)"
+          detail:
+            - "If acting for a user, call MineCore.takeoverFor(newKing, maxPrice) and require a valid session resolved through the live canonical MineCore/Furnace DelegationHub bundle."
+            - "Default routing makes the bot receive the dethroned ETH payout and the user receive mined CLAIM."
+        - step: "While King"
+          detail:
+            - "Accrue CLAIM for the reign (tracked in state/UI)."
+            - "Do not assume the CLAIM is minted yet; it materializes when the reign ends."
+        - step: "When dethroned"
+          detail:
+            - "On the next takeover, the reign finalizes: mined CLAIM is minted to the reign's CLAIM recipient."
+            - "75% of the new takeover price is paid to the dethroned reign's ETH recipient (or credited if transfer fails)."
+            - "25% is allocated to Barons via ShareholderRoyalties."
+        - step: "Recover balances"
+          detail:
+            - "If the ETH payout transfer fails, MineCore credits a balance; withdraw via withdrawKingBalance()."
+            - "If you overpay (common if price decays between quote and inclusion), MineCore credits refunds; withdraw via withdrawRefundBalance(to)."
+      events_to_watch:
+        minecore:
+          - "Takeover"
+          - "ReignFinalized"
+          - "TakeoversPausedChanged"
+          - "KingWithdrawal"
+      safe_execution_notes:
+        - "Under contention, reverts are normal. Always re-quote immediately before sending."
+        - "Prefer private sending only if you control the RPC and trust the provider."
+        - "For token takeovers, always compute minEthOut with explicit slippage (MineCoreQuoter) to avoid bad execution."
+
+  - id: "04.loop.furnace"
+    intent: "doc.game_loop.furnace"
+    params:
+      loop_name: "Furnace loop (Barons / veCLAIM)"
+      invariant:
+        - "The Furnace is the only counterparty for lock trading: no user-to-user veNFT transfers."
+        - "Entering the Furnace converts value into a veCLAIM lock position (NFT) and can add a reserve-backed bonus."
+      step_by_step:
+        - step: "Choose lock config"
+          detail:
+            - "Pick a duration (7d to 1y) and whether to create/enable AutoMax."
+            - "Pick a destination lock tokenId (0 = create new lock, otherwise add to an existing lock you own)."
+        - step: "Quote entry"
+          detail:
+            - "Use FurnaceQuoter.quoteEnterWithEth / quoteEnterWithClaim / quoteEnterWithToken (resolve address via Furnace.furnaceQuoter())."
+            - "Quote returns principalClaim, bonusClaim, and veOut (expected ve increase from the newly locked amount only)."
+        - step: "Set slippage guard"
+          detail:
+            - "Compute minVeOut from veOut and your slippage policy."
+            - "Transactions revert if the entry-attributable veOut is below minVeOut."
+        - step: "Enter"
+          detail:
+            - "Call Furnace.enterWithEth / enterWithClaim / enterWithToken (or delegated variants) using minVeOut."
+        - step: "Earn royalties"
+          detail:
+            - "Every takeover allocates ETH to ShareholderRoyalties (25% on normal takeovers)."
+            - "Your share is proportional to your ve relative to total ve."
+        - step: "Collect or compound"
+          detail:
+            - "Call ShareholderRoyalties.claimShareholder(mode, ...)."
+            - "mode=0 collects ETH to the user."
+            - "mode=1 routes ETH through Furnace.lockEthReward to lock into more veCLAIM (Collect & Lock)."
+        - step: "Manage or exit"
+          detail:
+            - "To maintain ve weight, extend duration or enable AutoMax."
+            - "Exit paths: wait for expiry/unlock, list via MarketRouter, or sell back to Furnace (Sell now)."
+      events_to_watch:
+        furnace:
+          - "FurnaceEnter"
+          - "BonusPaid"
+          - "ReserveCredited"
+          - "LockSoldToFurnace"
+        royalties:
+          - "ShareholderTakeoverAllocation"
+          - "ShareholderFlush"
+          - "ShareholderClaim"
+      common_agent_confusions:
+        - "veCLAIM is an NFT lock position; it is not liquid CLAIM."
+        - "Royalties accrue from takeovers; if takeovers slow down, royalty accrual slows down."
+        - "Many actions require the lock to not be listed (delist before modifying)."
+
+  - id: "05.loop.crown_furnace_connection"
+    intent: "doc.game_loops.connection"
+    params:
+      why_the_loops_feed_each_other:
+        - "Crown activity (takeovers) is the source of ETH royalties for veCLAIM holders."
+        - "Takeovers also credit the Furnace reserve, which powers Furnace bonus quotes."
+        - "The Furnace loop increases total ve, which spreads royalties across more ve and changes the bonus environment."
+      agent_design_hint:
+        - "Treat Crown decisions as short-horizon, contention-heavy actions."
+        - "Treat Furnace decisions as longer-horizon position management (quotes, slippage, and periodic collection)."
+
+
+
+  # -----------------------------
+  # 10. Install
+  # -----------------------------
+  - id: "10.install"
+    intent: "sdk.install"
+    params:
+      cwd: "agents/sdk"
+      package_manager: "npm"
+    run:
+      shell: "npm -C agents/sdk install"
+    receipt:
+      record_stdout: true
+      record_stderr: true
+
+  # -----------------------------
+  # 20. Snapshot API
+  # -----------------------------
+  - id: "20.snapshot.api"
+    intent: "snapshot.api"
+    params:
+      function: "getGameStateSnapshot(opts)"
+      required_inputs:
+        - "publicClient"
+        - "manifest"
+      returns:
+        meta:
+          - "chainId"
+          - "blockNumber"
+          - "timestamps"
+        addresses:
+          - "contract addresses from manifest"
+        global:
+          - "MineCore"
+          - "Furnace"
+          - "ShareholderRoyalties"
+          - "Locks/veCLAIM"
+          - "MarketRouter"
+          - "LP vault"
+          - "Dex"
+        user_optional:
+          - "balances"
+          - "claimables"
+          - "config"
+
+  - id: "21.snapshot.example"
+    intent: "snapshot.read"
+    params:
+      example: "example:snapshot"
+      env_required:
+        - "RPC_URL"
+      env_optional:
+        - "USER_ADDRESS"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 USER_ADDRESS=0xYourAgentAddress npm -C agents/sdk run example:snapshot"
+    guards:
+      require_rpc_url: true
+      user_address_optional: true
+    receipt:
+      record_snapshot: true
+      record_block_number: true
+
+  - id: "22.snapshot.performance.agentlens"
+    intent: "snapshot.optimization"
+    params:
+      contract: "AgentLens"
+      contract_type: "view-only"
+      preferred_reads:
+        - "AgentLens.readGlobalV1()"
+        - "AgentLens.readUserV1(user)"
+      fallback_reads:
+        - "publicClient.multicall()"
+        - "sequential reads"
+      local_deploy_note: "Local deploys include AgentLens in deployments/local.json."
+      use_cases:
+        - "reduce RPC calls for high-frequency agents"
+        - "reduce variance across RPC providers"
+
+
+  # -----------------------------
+  # 23. Quotes
+  # -----------------------------
+  - id: "23.quote.takeover_with_token"
+    intent: "quote.minecore.takeover_with_token"
+    params:
+      contract: "MineCoreQuoter"
+      functions:
+        - "quoteTakeoverWithToken(tokenIn, amountIn) -> (ethOut, takeoverPrice)"
+        - "resolveTakeoverRoute(tokenIn) -> RegistryRoute[] (empty for wrapped native)"
+      output:
+        - "ethOut"
+        - "takeoverPrice"
+        - "minEthOut (compute with slippage)"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:takeover-token-quote"
+    guards:
+      require_rpc_url: true
+      slippage_bps_is_integer: true
+    receipt:
+      record_stdout: true
+      record_stderr: true
+
+
+  # -----------------------------
+  # 24. Live prices
+  # -----------------------------
+  - id: "24.prices.live"
+    intent: "prices.live"
+    params:
+      function: "getLivePrices(params)"
+      required_inputs:
+        - "contracts"
+        - "publicClient"
+      token_discovery:
+        - "subgraphUrl (typical path)"
+        - "entryTokens[] (skip subgraph enumeration)"
+      sources:
+        - "DexAdapter.getAmountsOut (spot quotes)"
+        - "EntryTokenRegistry routes (allowlisted paths)"
+        - "Subgraph EntryTokenConfig (token enumeration)"
+        - "Subgraph TokenPricingSnapshot (optional: TWAP + ETH/USD)"
+      outputs:
+        - "CLAIM spot: claimOutPer1Eth, ethOutPer1Claim"
+        - "Entry tokens: tokenToEth, tokenToClaim"
+      env_required:
+        - "RPC_URL"
+        - "SUBGRAPH_URL"
+      env_optional:
+        - "MAX_TOKENS"
+        - "INCLUDE_SUBGRAPH_PRICING"
+        - "PRICES_CACHE"
+        - "PRICES_RPC_CONCURRENCY"
+        - "PRICES_QUOTE_TTL_MS"
+        - "PRICES_ENTRYTOKENS_TTL_MS"
+        - "PRICES_PRICING_TTL_MS"
+        - "PRICES_META_TTL_MS"
+        - "PRICES_DEX_TTL_MS"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 SUBGRAPH_URL=http://127.0.0.1:8000/subgraphs/name/claimrush/local npm -C agents/sdk run example:prices"
+    guards:
+      require_subgraph_url: true
+      no_float_math: true
+    receipt:
+      record_stdout: true
+      record_stderr: true
+
+  # -----------------------------
+  # 30. Events
+  # -----------------------------
+  - id: "30.events.stream"
+    intent: "events.stream"
+    params:
+      format: "jsonl"
+      example: "example:events"
+      env_required:
+        - "RPC_URL"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:events"
+    receipt:
+      record_jsonl: true
+
+  - id: "31.events.filters"
+    intent: "events.stream.filters"
+    params:
+      flags:
+        contracts: "--contracts MineCore,Furnace"
+        events: "--events Takeover,FurnaceEnter"
+        from_block: "--from-block 0"
+        poll_fallback: "--poll"
+
+  - id: "32.events.backfill.subgraph"
+    intent: "events.backfill"
+    params:
+      source: "subgraph"
+      backfill_limit_default: 100
+      env_required:
+        - "RPC_URL"
+        - "SUBGRAPH_URL"
+      source_tagging:
+        backfill: "source: subgraph"
+        live: "source: rpc"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 SUBGRAPH_URL=http://127.0.0.1:8000/subgraphs/name/claimrush/local npm -C agents/sdk run example:events -- --backfill --backfill-limit 100"
+    guards:
+      require_subgraph_url: true
+    receipt:
+      record_jsonl: true
+      record_backfill: true
+
+  # -----------------------------
+  # 40. Local simulation harness
+  # -----------------------------
+  - id: "40.harness.run"
+    intent: "harness.run"
+    params:
+      example: "example:harness"
+      determinism: "golden_path"
+      artifacts_dir: "agents/sdk/out/harness-<timestamp>/"
+      env_required:
+        - "RPC_URL"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:harness"
+    receipt:
+      record_artifacts_path: true
+      record_stdout: true
+      record_stderr: true
+
+  # -----------------------------
+  # 50. Live agent loop (self-run)
+  # -----------------------------
+  - id: "50.agent.loop.overview"
+    intent: "agent.loop.overview"
+    params:
+      steps:
+        - "take snapshots"
+        - "optionally listen to events"
+        - "propose actions"
+        - "execute transactions only when enabled"
+
+  - id: "51.agent.loop.dry_run_once"
+    intent: "agent.loop"
+    params:
+      example: "example:agent"
+      mode: "once"
+      execute_transactions: false
+      env_required:
+        - "RPC_URL"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:agent -- --once"
+    guards:
+      dry_run_only: true
+    receipt:
+      record_decisions: true
+      record_snapshot: true
+
+  - id: "52.agent.loop.execute"
+    intent: "agent.loop"
+    params:
+      example: "example:agent"
+      mode: "execute"
+      execute_transactions: true
+      env_required:
+        - "RPC_URL"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:agent -- --execute"
+    guards:
+      require_explicit_execute_flag: true
+      deadlines_required: true
+      caps_required: true
+    receipt:
+      record_tx_hashes: true
+      record_reverts: true
+      record_decisions: true
+
+  - id: "53.agent.spending.opt_in"
+    intent: "agent.flags.spending"
+    params:
+      spending_is_opt_in: true
+      flags:
+        furnace_entry: "--enable-furnace-entry --furnace-eth-in <amount>"
+        takeovers: "--enable-takeovers --max-takeover-eth <cap>"
+
+
+
+
+  - id: "54.agent.auto_approve"
+    intent: "agent.approvals.auto"
+    params:
+      description: "Optional: auto-insert required ERC20/veNFT approvals ahead of swap/takeover/market actions."
+      env_optional:
+        - "AUTO_APPROVE_ENABLED=1"
+        - "AUTO_APPROVE_MODE=exact|max"
+        - "AUTO_APPROVE_NFT=0|1"
+      notes:
+        - "Default mode is exact approvals (no infinite allowance)."
+        - "Not compatible with PRIVATE_RPC_MODE=only (approval txs are blocked)."
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 AUTO_APPROVE_ENABLED=1 npm -C agents/sdk run example:agent -- --execute --enable-furnace-entry --furnace-eth-in 0.01"
+    guards:
+      require_explicit_execute_flag: true
+      deadlines_required: true
+      caps_required: true
+    receipt:
+      record_tx_hashes: true
+      record_reverts: true
+      record_decisions: true
+
+  - id: "55.private_rpc.route"
+    intent: "agent.tx_routing.private_rpc"
+    params:
+      mode: "route"
+      description: "Send allowlisted MEV-sensitive txs via PRIVATE_RPC_URL; everything else uses RPC_URL."
+      env_required:
+        - "RPC_URL"
+        - "PRIVATE_RPC_URL"
+      env_optional:
+        - "PRIVATE_RPC_MODE=route"
+      allowlisted_actions_v3:
+        - "mineCore.takeover"
+        - "mineCore.takeoverFor"
+        - "mineCore.takeoverWithToken"
+        - "furnace.enterWithEth"
+        - "furnace.enterWithEthFor"
+        - "furnace.enterWithToken"
+        - "furnace.enterWithTokenFromCallerFor"
+        - "furnace.enterWithClaim"
+        - "furnace.enterWithClaimFromCallerFor"
+        - "marketRouter.sellLockToFurnace"
+        - "marketRouter.sellListedLockToFurnace"
+        - "marketRouter.executeAutoFurnace"
+        - "royalties.claimShareholder (mode=LOCK_FURNACE)"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 PRIVATE_RPC_URL=http://127.0.0.1:8545 PRIVATE_RPC_MODE=route npm -C agents/sdk run example:agent -- --execute --enable-takeovers --max-takeover-eth 0.01"
+    guards:
+      require_explicit_execute_flag: true
+      notes:
+        - "Private RPC providers are trusted infrastructure for order flow. Use endpoints you trust."
+    receipt:
+      record_tx_hashes: true
+      record_reverts: true
+      record_decisions: true
+
+  - id: "56.private_rpc.only"
+    intent: "agent.tx_routing.private_rpc"
+    params:
+      mode: "only"
+      description: "Block execution of non-allowlisted actions; allowlisted MEV-sensitive txs are sent via PRIVATE_RPC_URL."
+      env_required:
+        - "RPC_URL"
+        - "PRIVATE_RPC_URL"
+      env_optional:
+        - "PRIVATE_RPC_MODE=only"
+      allowlisted_actions_v3:
+        - "mineCore.takeover"
+        - "mineCore.takeoverFor"
+        - "mineCore.takeoverWithToken"
+        - "furnace.enterWithEth"
+        - "furnace.enterWithEthFor"
+        - "furnace.enterWithToken"
+        - "furnace.enterWithTokenFromCallerFor"
+        - "furnace.enterWithClaim"
+        - "furnace.enterWithClaimFromCallerFor"
+        - "marketRouter.sellLockToFurnace"
+        - "marketRouter.sellListedLockToFurnace"
+        - "marketRouter.executeAutoFurnace"
+        - "royalties.claimShareholder (mode=LOCK_FURNACE)"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 PRIVATE_RPC_URL=http://127.0.0.1:8545 PRIVATE_RPC_MODE=only npm -C agents/sdk run example:agent -- --execute --enable-takeovers --max-takeover-eth 0.01"
+    guards:
+      require_explicit_execute_flag: true
+      blocks_non_allowlisted_actions: true
+      notes:
+        - "Use ONLY mode for highly constrained bots that must not send any other writes."
+    receipt:
+      record_tx_hashes: true
+      record_reverts: true
+      record_decisions: true
+
+  - id: "57.agent.monitor"
+    intent: "agent.monitor"
+    params:
+      description: "Expose a local HTTP endpoint for supervising the agent (health + recent telemetry)."
+      env_optional:
+        - "AGENT_MONITOR_ENABLED=1"
+        - "AGENT_MONITOR_HOST=127.0.0.1"
+        - "AGENT_MONITOR_PORT=8787"
+        - "AGENT_MONITOR_TOKEN=<secret>"
+        - "AGENT_MONITOR_MAX_RECENT=200"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 AGENT_MONITOR_ENABLED=1 npm -C agents/sdk run example:agent -- --once --monitor"
+    guards:
+      writes_disabled: true
+    receipt:
+      note:
+        - "Query: curl http://127.0.0.1:8787/health"
+        - "If token set: curl -H 'Authorization: Bearer <token>' http://127.0.0.1:8787/state"
+
+  - id: "58.agent.event_cursor"
+    intent: "agent.events.cursor"
+    params:
+      description: "Persist an event cursor (checkpoint + reorg-safe dedupe) under AGENT_STATE_DIR."
+      env_optional:
+        - "USE_EVENTS=1"
+        - "AGENT_STATE_DIR=<path>"
+        - "EVENT_CURSOR_REWIND_BLOCKS=20"
+        - "EVENT_CURSOR_MAX_KEYS=5000"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 USE_EVENTS=1 npm -C agents/sdk run example:agent -- --once"
+    guards:
+      writes_disabled: true
+    receipt:
+      note:
+        - "Creates: agents/sdk/out/agent-state/<chain>/<chainId>/<agent>/event-cursor.json"
+        - "On restart, the agent resumes from the saved cursor (rewinding a few blocks for safety)."
+
+  - id: "59.agent.tx_replacement"
+    intent: "agent.tx.replacement"
+    params:
+      description: "Optional: manage nonces and fee-bump / replace stuck txs when executing."
+      env_optional:
+        - "TX_MANAGE_NONCES=1"
+        - "TX_REPLACEMENT_ENABLED=1"
+        - "TX_REPLACEMENT_TIMEOUT_MS=45000"
+        - "TX_REPLACEMENT_MAX_ATTEMPTS=3"
+        - "TX_POLL_INTERVAL_MS=1500"
+        - "TX_FEE_BUMP_BPS=12500"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 TX_REPLACEMENT_ENABLED=1 npm -C agents/sdk run example:agent -- --execute --enable-furnace-entry --furnace-eth-in 0.01"
+    guards:
+      require_explicit_execute_flag: true
+      notes:
+        - "Replacement mode can increase fees. Use with care on public networks."
+    receipt:
+      record_tx_hashes: true
+      record_reverts: true
+
+  - id: "59.agent.backoff"
+    intent: "agent.backoff"
+    params:
+      description: "Backoff / circuit breaker for execute mode to avoid spamming failing txs."
+      env_optional:
+        - "BACKOFF_ENABLED=0|1"
+        - "BACKOFF_BASE_MS=1000"
+        - "BACKOFF_MAX_MS=600000"
+        - "BACKOFF_MULTIPLIER=2"
+        - "BACKOFF_MAX_TIMEOUTS=3"
+        - "BACKOFF_MAX_ERRORS=10"
+        - "BACKOFF_RESET_AFTER_MS=600000"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 BACKOFF_ENABLED=1 npm -C agents/sdk run example:agent -- --execute"
+    guards:
+      require_explicit_execute_flag: true
+    receipt:
+      note:
+        - "Emits achievements: BACKOFF_ENTERED / BACKOFF_CLEARED"
+
+  - id: "54.achievements.jsonl"
+    intent: "agent.telemetry.achievements"
+    params:
+      produced_by: "example:agent"
+      format: "jsonl"
+      schema_path: "agents/sdk/schemas/achievements.v1.schema.json"
+      artifacts_dir: "agents/sdk/out/agent-<timestamp>/"
+      file: "achievements.jsonl"
+      kinds:
+        value:
+          - "TAKEOVER_SUCCESS"
+          - "REIGN_REWARD_COLLECTED"
+          - "FURNACE_LOCK_CREATED"
+          - "ROYALTIES_CLAIMED"
+          - "AUTOCOMPOUND_EXECUTED"
+          - "BADGE_UNLOCKED"
+        safety_ops:
+          - "SLIPPAGE_GUARD_TRIGGERED"
+          - "SESSION_EXPIRED"
+          - "PAUSED_ACTION_SKIPPED"
+          - "REVERTED_TX"
+          - "RPC_LAG_DETECTED"
+          - "SUBGRAPH_LAG_DETECTED"
+        scoring_optional:
+          - "ACTION_UTILITY"
+      tuning_env:
+        - "EMIT_ACTION_UTILITY=1"
+        - "SUBGRAPH_LAG_THRESHOLD_BLOCKS=200"
+        - "SUBGRAPH_CHECK_INTERVAL_MS=60000"
+        - "RPC_LAG_THRESHOLD_SECONDS=0"
+        - "RPC_LAG_RECENT_WINDOW_SECONDS=60"
+        - "ACHIEVEMENTS_BASE_URL=<url>"
+        - "ACHIEVEMENTS_POLL_MS=20000"
+        - "ACHIEVEMENTS_REFRESH_COOLDOWN_MS=5000"
+        - "ACHIEVEMENTS_TIMEOUT_MS=10000"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:agent -- --once"
+    guards:
+      dry_run_only: true
+    receipt:
+      record_artifacts_path: true
+      record_jsonl: true
+  # -----------------------------
+  # 60. Delegated agents (DelegationHub sessions)
+  # -----------------------------
+  - id: "60.delegation.overview"
+    intent: "delegationhub.model"
+    params:
+      model:
+        - "User grants a session: (delegate, perms, expiry)."
+        - "Bot submits txs from its own address and pays gas and spend."
+        - "Protocol resolves canonical auth roots onchain and then verifies sessions via DelegationHub.isAuthorized."
+      note: "Delegated entry points are used when --acting-for is set."
+
+  - id: "61.delegation.create_session.local_demo"
+    intent: "delegationhub.session.create"
+    params:
+      example: "example:delegation"
+      local_demo_assumption: "actor0=user, actor1=delegate"
+      env_required:
+        - "RPC_URL"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:delegation"
+    receipt:
+      record_stdout: true
+      record_stderr: true
+
+  - id: "62.delegation.agent_run.once"
+    intent: "agent.loop"
+    params:
+      example: "example:agent"
+      delegated: true
+      actor_index: 1
+      acting_for: "0xUserAddress"
+      mode: "once"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:agent -- --actor-index 1 --acting-for 0xUserAddress --once"
+    guards:
+      dry_run_only: true
+      require_session_for_write: true
+    receipt:
+      record_decisions: true
+
+  - id: "63.delegation.agent_run.execute"
+    intent: "agent.loop"
+    params:
+      example: "example:agent"
+      delegated: true
+      actor_index: 1
+      acting_for: "0xUserAddress"
+      mode: "execute"
+      execute_transactions: true
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:agent -- --actor-index 1 --acting-for 0xUserAddress --execute"
+    guards:
+      require_explicit_execute_flag: true
+      require_session_for_write: true
+      permissions_required: true
+    receipt:
+      record_tx_hashes: true
+      record_reverts: true
+
+  - id: "64.delegation.harness.scenario"
+    intent: "harness.run"
+    params:
+      example: "example:harness"
+      scenario: "delegated"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:harness -- --scenario delegated"
+    receipt:
+      record_artifacts_path: true
+
+  # -----------------------------
+  # 70. Plan format for external AI (AgentPlan v1)
+  # -----------------------------
+  - id: "70.plan.format"
+    intent: "plan.format"
+    params:
+      name: "AgentPlan v1"
+      schema_path: "agents/sdk/schemas/agent-plan.v1.schema.json"
+      notes:
+        - "example:plan writes a plan JSON file"
+        - "example:execute-plan simulates or executes a plan"
+        - "In delegated mode, add --acting-for to plan generation so identity targets user"
+
+  - id: "71.plan.write"
+    intent: "plan.write"
+    params:
+      example: "example:plan"
+      output_path: "/tmp/agent-plan.json"
+      pretty: true
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:plan -- --out /tmp/agent-plan.json --pretty"
+    guards:
+      require_rpc_url: true
+      writes_disabled: true
+    receipt:
+      record_plan_path: true
+      record_plan_json: true
+
+  - id: "72.plan.execute"
+    intent: "plan.execute"
+    params:
+      example: "example:execute-plan"
+      plan_path: "/tmp/agent-plan.json"
+      mode: "simulate_or_execute"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:execute-plan -- --plan /tmp/agent-plan.json"
+    guards:
+      require_preview: true
+      require_execute_flag_for_send: true
+    receipt:
+      record_simulation: true
+      record_tx_hashes: true
+
+  - id: "72.plan.execute.achievements"
+    intent: "plan.execute"
+    params:
+      example: "example:execute-plan"
+      plan_path: "/tmp/agent-plan.json"
+      mode: "execute"
+      achievements_api:
+        enabled: true
+        base_url: "http://127.0.0.1:3000"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 ACHIEVEMENTS_BASE_URL=http://127.0.0.1:3000 npm -C agents/sdk run example:execute-plan -- --plan /tmp/agent-plan.json --execute"
+    guards:
+      require_explicit_execute_flag: true
+      require_achievements_base_url: true
+    receipt:
+      record_tx_hashes: true
+      record_achievements_jsonl: true
+
+  - id: "73.plan.write.delegated"
+    intent: "plan.write"
+    params:
+      example: "example:plan"
+      delegated: true
+      acting_for: "0xUserAddress"
+      output_path: "/tmp/agent-plan.delegated.json"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:plan -- --acting-for 0xUserAddress --out /tmp/agent-plan.delegated.json --pretty"
+    guards:
+      require_rpc_url: true
+      writes_disabled: true
+    receipt:
+      record_plan_path: true
+
+
+  # -----------------------------
+  # 74. Market actions demo (example:market)
+  # -----------------------------
+  - id: "74.market.demo.help"
+    intent: "example.market"
+    params:
+      example: "example:market"
+      mode: "help"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:market -- --help"
+    guards:
+      writes_disabled: true
+    receipt:
+      record_stdout: true
+
+  - id: "75.market.offer.create.simulate"
+    intent: "market.offer.create"
+    params:
+      example: "example:market"
+      cmd: "offer-create"
+      target_bonus_bps: 2500
+      budget_claim: "1000000000000000000"
+      duration_days: 30
+      mode: "simulate"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 TARGET_BONUS_BPS=2500 BUDGET_CLAIM=1000000000000000000 DURATION_DAYS=30 npm -C agents/sdk run example:market -- --cmd offer-create"
+    guards:
+      require_preview: true
+      require_execute_flag_for_send: true
+    receipt:
+      record_simulation: true
+
+
+  # -----------------------------
+  # 76. Action coverage (example:action-coverage)
+  # -----------------------------
+  - id: "76.action.coverage"
+    intent: "example.action_coverage"
+    params:
+      example: "example:action-coverage"
+      note: "Lists supported AgentPlan action kinds from the v1 JSON schema."
+    run:
+      shell: "npm -C agents/sdk run example:action-coverage -- --pretty"
+    guards:
+      writes_disabled: true
+    receipt:
+      record_stdout: true
+
+  # -----------------------------
+  # 77. Strategy modules (plugins)
+  # -----------------------------
+  - id: "77.strategy.modules"
+    intent: "agent.strategies.modules"
+    params:
+      description: "Load one or more strategy modules (ESM .mjs) into the live agent."
+      cli:
+        - "--strategy-module ./path/to/strategy.mjs"
+        - "npm -C agents/sdk run example:agent -- --strategy-module ./my-strategy.mjs"
+      env_optional:
+        - "STRATEGY_MODULES=./a.mjs,./b.mjs"
+      templates_dir: "agents/sdk/strategies/"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 npm -C agents/sdk run example:agent -- --once --strategy-module agents/sdk/strategies/noop.mjs"
+    guards:
+      writes_disabled: true
+    receipt:
+      record_decisions: true
+
+  # -----------------------------
+  # 78. Strategy dev runner (single tick)
+  # -----------------------------
+  - id: "78.strategy.dev_runner"
+    intent: "agent.strategies.dev_runner"
+    params:
+      description: "Run a strategy module against a single recorded tick for fast iteration."
+      requires_tick_records: true
+    run:
+      shell: "npm -C agents/sdk run example:strategy -- --run-dir agents/sdk/out/agent-<timestamp> --strategy-module agents/sdk/strategies/noop.mjs --pretty"
+    guards:
+      writes_disabled: true
+    receipt:
+      record_stdout: true
+
+  # -----------------------------
+  # 79. Replay runner (offline regression)
+  # -----------------------------
+  - id: "79.replay.runner"
+    intent: "agent.replay"
+    params:
+      description: "Replay a recorded run offline and compare planned actions / schemas."
+      requires_tick_records: true
+      optional_ci_fixture: "make agents-replay-fixture"
+    run:
+      shell: "npm -C agents/sdk run example:replay -- --run-dir agents/sdk/out/agent-<timestamp> --compare --pretty"
+    guards:
+      writes_disabled: true
+    receipt:
+      record_stdout: true
+
+  # -----------------------------
+  # 80. Subgraph health and core/event-discoverable address parity
+  # -----------------------------
+  - id: "80.subgraph.health"
+    intent: "subgraph.health_check"
+    params:
+      example: "example:subgraph-health"
+      validate:
+        - "indexing lag vs RPC head"
+        - "core/event-discoverable protocol contract address parity vs current manifest"
+    run:
+      shell: "RPC_URL=... SUBGRAPH_URL=... npm -C agents/sdk run example:subgraph-health -- --pretty"
+    guards:
+      require_subgraph_url: true
+    receipt:
+      record_health_report: true
+
+  # -----------------------------
+  # 90. Operational guidance
+  # -----------------------------
+  - id: "90.ops.guidance.self_run"
+    intent: "ops.guidance"
+    params:
+      applies_to: "self_run_agent"
+      rules:
+        - "Use a dedicated wallet separate from treasury and cold storage."
+        - "Always cap spend (maxTakeoverEth, max actions per cycle)."
+        - "Always include slippage floors and deadlines."
+        - "Treat MineCore contention reverts as normal; re-quote right before send."
+        - "Log everything (snapshots, decisions, tx hashes, reverts)."
+    guards:
+      require_integer_units: true
+      forbid_float_math: true
+    receipt:
+      record_logs: true
+
+  - id: "90.ops.guidance.delegated"
+    intent: "ops.guidance"
+    params:
+      applies_to: "delegated_agent"
+      rules:
+        - "Prefer short session expiries (hours, not days) to limit user exposure."
+        - "Re-check session validity before executing; user may revoke mid-cycle."
+        - "Track permission bits required per action type (see DelegationHub docs)."
+        - "Separate spend accounting: bot pays gas and ETH/CLAIM, user receives benefits."
+        - "Log the user address (acting-for) with every action for session history."
+        - "Handle EIP-1271 smart wallet signatures in production (not just EOA)."
+        - "Monitor for session expiry approaching; prompt user to refresh proactively."
+    guards:
+      require_valid_session: true
+      require_permission_bits: true
+      require_integer_units: true
+      forbid_float_math: true
+    receipt:
+      record_user_address: true
+      record_session_state: true
+      record_logs: true
+
+  # -----------------------------
+  # 91. OpenClaw / Cursor agent skill (chat-driven SDK wrapper)
+  # -----------------------------
+  - id: "91.skill.openclaw"
+    intent: "skill.openclaw_invocation"
+    params:
+      description: "Workspace-scoped skill that wraps the SDK with a chat-friendly CLI and enforces every CRAL rule above as a single chokepoint."
+      skill_path: "skills/claimrush/"
+      entrypoint: "bash skills/claimrush/scripts/cr.sh"
+      verbs:
+        - "status"
+        - "monitor"
+        - "takeover"
+        - "lock"
+        - "furnace"
+        - "collect"
+        - "withdraw"
+        - "market"
+        - "session"
+        - "plan"
+        - "agent"
+        - "cral"
+      defaults:
+        execute: false
+        agent_loop: false
+        agent_once: true
+      mainnet_required_flags:
+        - "--chain base"
+        - "--execute"
+        - "--i-understand"
+        - "RPC_URL listed in CR_SKILL_BASE_RPC_ALLOWLIST"
+      env:
+        - "RPC_URL"
+        - "CLAIMRUSH_CHAIN"
+        - "PRIVATE_RPC_URL"
+        - "PRIVATE_RPC_MODE"
+        - "CR_SKILL_BASE_RPC_ALLOWLIST"
+        - "CR_SKILL_MAX_TAKEOVER_ETH_HARDCAP"
+        - "CR_SKILL_MAX_FURNACE_ETH_HARDCAP"
+        - "CR_SKILL_MAX_SLIPPAGE_BPS"
+        - "MNEMONIC"
+        - "LOCAL_MNEMONIC"
+        - "PRIVATE_KEYS"
+        - "PRIVATE_KEY"
+    setup:
+      shell: "bash skills/claimrush/scripts/setup.sh"
+    run:
+      shell: "RPC_URL=http://127.0.0.1:8545 bash skills/claimrush/scripts/cr.sh status --pretty"
+    guards:
+      dry_run_default: true
+      require_explicit_execute: true
+      require_i_understand_for_mainnet: true
+      require_rpc_allowlist_for_mainnet: true
+      require_integer_units: true
+      forbid_float_math: true
+      require_slippage_bps_ceiling: true
+      require_deadlines: true
+      require_live_session_for_delegated_writes: true
+    receipt:
+      record_verb: true
+      record_inputs: true
+      record_network: true
+      record_simulation: true
+      record_tx_hash: true
+      record_error_kind: true
+    notes:
+      - "Loads the same agents-and-automation.cral.yaml manifest at startup; surfaces hard rules to any LLM via 'cr.sh cral --format prompt'."
+      - "Every write goes through skills/claimrush/src/safety/cral.ts so the manifest cannot be bypassed from chat."

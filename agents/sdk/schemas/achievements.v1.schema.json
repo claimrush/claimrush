@@ -1,0 +1,475 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClaimRush Achievement Event (v1)",
+  "description": "Public schema for the JSONL telemetry stream emitted by the ClaimRush Agent SDK to achievements.jsonl. Each line in the file is one Achievement object. Third-party dashboards and analytics pipelines can rely on this schema for stable parsing.",
+  "type": "object",
+  "required": ["ts", "kind", "level"],
+  "additionalProperties": false,
+  "properties": {
+    "ts": {
+      "type": "integer",
+      "description": "Milliseconds since Unix epoch when the achievement was emitted."
+    },
+    "kind": {
+      "$ref": "#/$defs/AchievementKind"
+    },
+    "level": {
+      "$ref": "#/$defs/AchievementLevel"
+    },
+    "chain": {
+      "type": "string",
+      "description": "Network identifier (e.g. 'local', 'base', 'base_sepolia')."
+    },
+    "chainId": {
+      "type": "integer",
+      "description": "EIP-155 chain ID."
+    },
+    "agent": {
+      "$ref": "#/$defs/Address",
+      "description": "The agent (signer) wallet address."
+    },
+    "user": {
+      "$ref": "#/$defs/Address",
+      "description": "Identity being managed. Same as agent when self-playing; differs in delegated mode."
+    },
+    "blockNumber": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Block number at the time of the event (stringified bigint)."
+    },
+    "blockTimestamp": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Block timestamp in seconds (stringified bigint)."
+    },
+    "txHash": {
+      "$ref": "#/$defs/TxHash",
+      "description": "Transaction hash, when the achievement was triggered by a specific tx."
+    },
+    "data": {
+      "type": "object",
+      "description": "Kind-specific payload. See $defs/AchievementData for per-kind shapes. Treat as versioned/best-effort — use 'kind' and 'level' as stable keys."
+    }
+  },
+
+  "$defs": {
+    "Address": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$"
+    },
+    "TxHash": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$"
+    },
+    "Wei": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Integer value in wei (stringified bigint)."
+    },
+    "Bps": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Basis points (stringified bigint). 10000 = 100%."
+    },
+
+    "AchievementKind": {
+      "type": "string",
+      "enum": [
+        "TAKEOVER_SUCCESS",
+        "REIGN_REWARD_COLLECTED",
+        "FURNACE_LOCK_CREATED",
+        "ROYALTIES_CLAIMED",
+        "AUTOCOMPOUND_EXECUTED",
+        "BADGE_UNLOCKED",
+        "SLIPPAGE_GUARD_TRIGGERED",
+        "SESSION_EXPIRED",
+        "PAUSED_ACTION_SKIPPED",
+        "REVERTED_TX",
+        "BACKOFF_ENTERED",
+        "BACKOFF_CLEARED",
+        "RPC_LAG_DETECTED",
+        "SUBGRAPH_LAG_DETECTED",
+        "ACTION_UTILITY"
+      ],
+      "description": "Discriminator for the achievement event type."
+    },
+
+    "AchievementLevel": {
+      "type": "string",
+      "enum": ["info", "warn", "error"],
+      "description": "Severity level. info = milestone, warn = degraded/skipped, error = failure."
+    },
+
+    "AchievementData": {
+      "description": "Discriminated union of per-kind data payloads. The 'data' field on an Achievement object matches the shape below for its 'kind'. Fields marked optional may be absent depending on the event source (RPC vs action result).",
+      "oneOf": [
+        { "$ref": "#/$defs/TakeoverSuccessData" },
+        { "$ref": "#/$defs/ReignRewardCollectedData" },
+        { "$ref": "#/$defs/FurnaceLockCreatedData" },
+        { "$ref": "#/$defs/RoyaltiesClaimedData" },
+        { "$ref": "#/$defs/AutocompoundExecutedData" },
+        { "$ref": "#/$defs/BadgeUnlockedData" },
+        { "$ref": "#/$defs/SlippageGuardTriggeredData" },
+        { "$ref": "#/$defs/SessionExpiredData" },
+        { "$ref": "#/$defs/PausedActionSkippedData" },
+        { "$ref": "#/$defs/RevertedTxData" },
+        { "$ref": "#/$defs/BackoffEnteredData" },
+        { "$ref": "#/$defs/BackoffClearedData" },
+        { "$ref": "#/$defs/RpcLagDetectedData" },
+        { "$ref": "#/$defs/SubgraphLagDetectedData" },
+        { "$ref": "#/$defs/ActionUtilityData" }
+      ]
+    },
+
+    "TakeoverSuccessData": {
+      "type": "object",
+      "description": "Emitted when the tracked user becomes King (via event or confirmed action).",
+      "properties": {
+        "reignId": {
+          "type": "string",
+          "description": "Reign ID (stringified bigint). Present when sourced from event."
+        },
+        "previousKing": { "$ref": "#/$defs/Address" },
+        "newKing": { "$ref": "#/$defs/Address" },
+        "ethSpentWei": { "$ref": "#/$defs/Wei", "description": "ETH value paid for the takeover." },
+        "takeoverPriceWei": {
+          "$ref": "#/$defs/Wei",
+          "description": "Takeover price at execution."
+        },
+        "referencePriceWei": {
+          "$ref": "#/$defs/Wei",
+          "description": "Reference price after this takeover. Present from event source."
+        },
+        "tokenIn": {
+          "$ref": "#/$defs/Address",
+          "description": "Entry token address (token-path takeovers only)."
+        },
+        "amountIn": {
+          "$ref": "#/$defs/Wei",
+          "description": "Entry token amount (token-path takeovers only)."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["rpc", "subgraph", "action"],
+          "description": "How this event was sourced."
+        }
+      }
+    },
+
+    "ReignRewardCollectedData": {
+      "type": "object",
+      "description": "Emitted when king or refund ETH is withdrawn.",
+      "properties": {
+        "bucket": {
+          "type": "string",
+          "enum": ["king", "refund"],
+          "description": "Which MineCore balance bucket was withdrawn."
+        },
+        "recipient": {
+          "$ref": "#/$defs/Address",
+          "description": "Recipient of the withdrawal. Present from event source."
+        },
+        "user": {
+          "$ref": "#/$defs/Address",
+          "description": "User identity (delegated withdrawals)."
+        },
+        "ethOutWei": { "$ref": "#/$defs/Wei", "description": "ETH amount withdrawn." },
+        "source": { "type": "string", "enum": ["rpc", "subgraph", "action"] }
+      }
+    },
+
+    "FurnaceLockCreatedData": {
+      "type": "object",
+      "description": "Emitted when a Furnace entry creates or adds to a veCLAIM lock.",
+      "properties": {
+        "user": { "$ref": "#/$defs/Address" },
+        "mode": {
+          "type": "string",
+          "description": "Entry mode (e.g. 'ETH', numeric mode from event)."
+        },
+        "ethInWei": { "$ref": "#/$defs/Wei", "description": "ETH value sent (ETH entries only)." },
+        "principalClaimWei": { "$ref": "#/$defs/Wei", "description": "CLAIM principal locked." },
+        "bonusClaimWei": {
+          "$ref": "#/$defs/Wei",
+          "description": "Bonus CLAIM from Furnace reserve."
+        },
+        "claimInWei": {
+          "$ref": "#/$defs/Wei",
+          "description": "Total CLAIM locked (principal + bonus)."
+        },
+        "bonusBps": {
+          "$ref": "#/$defs/Bps",
+          "description": "Effective bonus rate (bonusClaim / principalClaim × 10000)."
+        },
+        "tokenId": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "veNFT token ID. Present from event source."
+        },
+        "veOutWei": {
+          "$ref": "#/$defs/Wei",
+          "description": "ve increase from this entry (quoted, action source only)."
+        },
+        "routeTokenId": {
+          "type": "string",
+          "description": "Routed token ID (action source, quoted)."
+        },
+        "source": { "type": "string", "enum": ["rpc", "subgraph", "action"] }
+      }
+    },
+
+    "RoyaltiesClaimedData": {
+      "type": "object",
+      "description": "Emitted when shareholder royalties are claimed.",
+      "properties": {
+        "user": { "$ref": "#/$defs/Address" },
+        "mode": {
+          "type": "string",
+          "description": "Claim mode (0 = ETH, 1 = LOCK_FURNACE). Stringified."
+        },
+        "ethOutWei": { "$ref": "#/$defs/Wei", "description": "ETH amount claimed." },
+        "source": { "type": "string", "enum": ["rpc", "subgraph", "action"] }
+      }
+    },
+
+    "AutocompoundExecutedData": {
+      "type": "object",
+      "description": "Emitted when auto-compound fires for the tracked user.",
+      "properties": {
+        "user": { "$ref": "#/$defs/Address" },
+        "executor": {
+          "$ref": "#/$defs/Address",
+          "description": "Address that triggered the auto-compound."
+        },
+        "ethInWei": { "$ref": "#/$defs/Wei", "description": "ETH compounded." },
+        "tokenId": { "type": "string", "pattern": "^[0-9]+$" },
+        "effectiveDurationSeconds": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Lock duration used for compounding."
+        },
+        "source": { "type": "string", "enum": ["rpc", "subgraph", "action"] }
+      }
+    },
+
+    "BadgeUnlockedData": {
+      "type": "object",
+      "description": "Emitted when a frontend profile badge is unlocked or upgraded to a new tier.",
+      "properties": {
+        "badgeId": {
+          "type": "string",
+          "description": "Badge definition ID (e.g. 'CROWN_USURPER')."
+        },
+        "category": {
+          "type": "string",
+          "description": "Badge category (e.g. 'Crown', 'Furnace')."
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable badge label (may include tier roman numeral)."
+        },
+        "tier": {
+          "type": ["integer", "null"],
+          "description": "Badge tier (0-based). null for single-tier badges."
+        },
+        "rarity": { "type": "string", "enum": ["Common", "Uncommon", "Rare", "Epic", "Legendary"] },
+        "unlockedAt": {
+          "type": ["integer", "null"],
+          "description": "Unix timestamp (seconds) when the badge was unlocked, per the API."
+        },
+        "rulesVersion": {
+          "type": "integer",
+          "description": "Achievement rules version from the API."
+        },
+        "computed": { "type": "integer", "description": "API computation timestamp." },
+        "source": {
+          "type": "string",
+          "enum": ["achievements_api:poll", "achievements_api:refresh"],
+          "description": "Whether the badge was discovered via periodic polling or a forced refresh."
+        }
+      }
+    },
+
+    "SlippageGuardTriggeredData": {
+      "type": "object",
+      "description": "Emitted when a transaction reverts due to a slippage guard.",
+      "properties": {
+        "actionKind": {
+          "type": "string",
+          "description": "The AgentAction kind that triggered the slippage error."
+        },
+        "errorName": {
+          "type": "string",
+          "description": "Solidity error name (e.g. 'BelowMinVeOut')."
+        },
+        "message": { "type": "string", "description": "Human-readable error description." }
+      }
+    },
+
+    "SessionExpiredData": {
+      "type": "object",
+      "description": "Emitted when a delegation session is expired or inactive.",
+      "properties": {
+        "now": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Current block timestamp (stringified)."
+        },
+        "expiry": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Session expiry timestamp (stringified)."
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message (action-source preflight failures)."
+        },
+        "actionKind": {
+          "type": "string",
+          "description": "The action that was attempted when the session was found inactive."
+        }
+      }
+    },
+
+    "PausedActionSkippedData": {
+      "type": "object",
+      "description": "Emitted when a protocol feature is paused, preventing execution.",
+      "properties": {
+        "feature": {
+          "type": "string",
+          "enum": ["takeovers", "locking", "trading", "unknown"],
+          "description": "Which protocol feature is paused."
+        },
+        "paused": {
+          "type": "boolean",
+          "description": "True when emitted from tick-level pause detection."
+        },
+        "actionKind": {
+          "type": "string",
+          "description": "The action kind that encountered the pause (action-source only)."
+        },
+        "errorName": {
+          "type": "string",
+          "description": "Solidity error name (e.g. 'TakeoversPaused')."
+        },
+        "message": { "type": "string" }
+      }
+    },
+
+    "RevertedTxData": {
+      "type": "object",
+      "description": "Emitted when a transaction reverts for a reason other than slippage or pausing.",
+      "properties": {
+        "actionKind": { "type": "string", "description": "The AgentAction kind that reverted." },
+        "error": { "type": "string", "description": "Error summary." },
+        "errorName": {
+          "type": "string",
+          "description": "Decoded Solidity error name (best-effort)."
+        },
+        "kind": {
+          "type": "string",
+          "description": "ClaimRushErrorKind classification (e.g. 'permission', 'state', 'unknown')."
+        }
+      }
+    },
+
+    "BackoffEnteredData": {
+      "type": "object",
+      "description": "Emitted when the circuit breaker engages due to repeated failures.",
+      "properties": {
+        "cooldownMs": { "type": "integer", "description": "Current cooldown duration (ms)." },
+        "cooldownUntilMs": {
+          "type": "integer",
+          "description": "Cooldown end timestamp (ms since epoch)."
+        },
+        "consecutiveErrors": { "type": "integer" },
+        "consecutiveTimeouts": { "type": "integer" },
+        "lastErrorKind": { "type": "string" },
+        "lastErrorName": { "type": "string" },
+        "lastActionKind": { "type": "string" },
+        "reason": {
+          "type": "object",
+          "properties": {
+            "errorKind": { "type": "string" },
+            "errorName": { "type": "string" },
+            "message": { "type": "string" },
+            "actionKind": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "BackoffClearedData": {
+      "type": "object",
+      "description": "Emitted when the circuit breaker resets after stability.",
+      "properties": {
+        "previousCooldownMs": {
+          "type": "integer",
+          "description": "The cooldown that just expired (ms)."
+        }
+      }
+    },
+
+    "RpcLagDetectedData": {
+      "type": "object",
+      "description": "Emitted when the RPC head block timestamp is significantly behind wall-clock time.",
+      "properties": {
+        "headTimestamp": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Block timestamp of the RPC head (stringified)."
+        },
+        "ageSeconds": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "How many seconds behind the head is."
+        },
+        "thresholdSeconds": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Configured RPC_LAG_THRESHOLD_SECONDS."
+        }
+      }
+    },
+
+    "SubgraphLagDetectedData": {
+      "type": "object",
+      "description": "Emitted when the subgraph is significantly behind the RPC head.",
+      "properties": {
+        "headBlock": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "RPC head block number."
+        },
+        "subgraphBlock": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Subgraph indexed block."
+        },
+        "lagBlocks": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Number of blocks behind."
+        },
+        "thresholdBlocks": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Configured SUBGRAPH_LAG_THRESHOLD_BLOCKS."
+        }
+      }
+    },
+
+    "ActionUtilityData": {
+      "type": "object",
+      "description": "Optional per-action utility score emitted when EMIT_ACTION_UTILITY=1.",
+      "properties": {
+        "actionKind": { "type": "string", "description": "The AgentAction kind being scored." },
+        "utilityWei": {
+          "type": "string",
+          "pattern": "^-?[0-9]+$",
+          "description": "Signed utility estimate in wei. Positive = inflow, negative = outflow."
+        }
+      }
+    }
+  }
+}

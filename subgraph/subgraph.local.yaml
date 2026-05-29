@@ -1,0 +1,679 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+
+# Local dev manifest
+#
+# - This is intended for a local graph-node indexing a local chain (Anvil/Hardhat).
+# - Network name must match your graph-node config (suggested: "local").
+# - Addresses and start blocks mirror deployments/local.json.
+# - sync_subgraph_manifest_from_deployments.py supports --allow-start-block-zero
+#   when a local manifest is intentionally unset before deployment.
+
+dataSources:
+  # -----------------
+  # MineCore
+  # -----------------
+  - kind: ethereum
+    name: MineCore
+    network: local
+    source:
+      address: "0x610178da211fef7d417bc0e6fed39f05609ad788"
+      abi: MineCore
+      startBlock: 3
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - TokenPricingSnapshot
+        - AprSnapshot
+        - User
+        - DelegationSession
+        - DelegationSessionUse
+        - Reign
+        - Takeover
+        - ReignFinalizedEvent
+        - ActivityItem
+        - KingWithdrawalEvent
+        - KingWithdrawalToEvent
+        - RefundCreditedEvent
+        - RefundWithdrawnEvent
+        - ShareholderRoyaltiesTakeoverFailedEvent
+        - ShareholderRoyaltiesFlushFailedEvent
+        - EntryTokenRegistry
+        - ReignRecipientsState
+        - ReignRecipientsSetEvent
+
+      abis:
+        - name: MineCore
+          file: ../abis/base_sepolia/MineCore.abi.json
+        - name: EntryTokenRegistry
+          file: ../abis/base_sepolia/EntryTokenRegistry.abi.json
+      eventHandlers:
+        - event: EntryTokenRegistrySet(indexed address)
+          handler: handleEntryTokenRegistrySet
+        - event: FurnaceChanged(indexed address,indexed address)
+          handler: handleFurnaceChanged
+        - event: Takeover(indexed uint256,indexed address,indexed address,uint256,uint256,uint256)
+          handler: handleTakeover
+        - event: ReignFinalized(indexed uint256,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleReignFinalized
+        - event: TakeoversPausedChanged(bool)
+          handler: handleTakeoversPausedChanged
+        - event: KingWithdrawal(indexed address,uint256)
+          handler: handleKingWithdrawal
+        - event: KingWithdrawalTo(indexed address,indexed address,uint256)
+          handler: handleKingWithdrawalTo
+        - event: RefundCredited(indexed address,uint256)
+          handler: handleRefundCredited
+        - event: RefundWithdrawn(indexed address,indexed address,uint256)
+          handler: handleRefundWithdrawn
+        - event: ShareholderRoyaltiesTakeoverFailed(indexed uint256,uint256,bytes)
+          handler: handleShareholderRoyaltiesTakeoverFailed
+        - event: ShareholderRoyaltiesFlushFailed(bytes)
+          handler: handleShareholderRoyaltiesFlushFailed
+        - event: KingAutoLockConfigured(indexed address,bool,uint256,uint256,uint256,bool,uint256)
+          handler: handleKingAutoLockConfigured
+        - event: KingAutoLockExecuted(indexed uint256,indexed address,uint256,uint256)
+          handler: handleKingAutoLockExecuted
+        - event: KingAutoLockSkipped(indexed uint256,indexed address,uint256,uint8)
+          handler: handleKingAutoLockSkipped
+        - event: KingAutoLockFailed(indexed uint256,indexed address,uint256,bytes)
+          handler: handleKingAutoLockFailed
+        - event: ReignRecipientsSet(indexed uint256,indexed address,indexed address,address)
+          handler: handleReignRecipientsSet
+          receipt: true
+        - event: DelegationSessionUsed(indexed address,indexed address,indexed uint8,uint256,uint256,uint256)
+          handler: handleDelegationSessionUsed
+        - event: KingEthPaid(indexed address,uint256)
+          handler: handleKingEthPaid
+        - event: KingEthCredited(indexed address,uint256)
+          handler: handleKingEthCredited
+      file: ./src/mappings/minecore.ts
+
+  # -----------------
+  # DelegationHub (bot sessions)
+  # -----------------
+  - kind: ethereum
+    name: DelegationHub
+    network: local
+    source:
+      address: "0x0dcd1bf9a1b36ce34237eeafef220932846bcd82"
+      abi: DelegationHub
+      startBlock: 3
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - User
+        - DelegationSession
+        - DelegationSessionSetEvent
+      abis:
+        - name: DelegationHub
+          file: ../abis/base_sepolia/DelegationHub.abi.json
+      eventHandlers:
+        - event: SessionSet(indexed address,indexed address,uint256,uint256)
+          handler: handleSessionSet
+      file: ./src/mappings/delegationHub.ts
+
+  # -----------------
+  # ClaimAllHelper (bot convenience)
+  # -----------------
+  - kind: ethereum
+    name: ClaimAllHelper
+    network: local
+    source:
+      address: "0xa51c1fc2f0d1a1b8494ed1fe312d7c3a78ed91c0"
+      abi: ClaimAllHelper
+      startBlock: 3
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - User
+        - DelegationSession
+        - DelegationSessionUse
+      abis:
+        - name: ClaimAllHelper
+          file: ../abis/base_sepolia/ClaimAllHelper.abi.json
+      eventHandlers:
+        - event: DelegationSessionUsed(indexed address,indexed address,indexed uint8,uint256,uint256,uint256)
+          handler: handleDelegationSessionUsed
+      file: ./src/mappings/claimAllHelper.ts
+
+  # -----------------
+  # Furnace
+  # -----------------
+  - kind: ethereum
+    name: Furnace
+    network: local
+    source:
+      address: "0x0165878a594ca255338adfa4d48449f69242eb8f"
+      abi: Furnace
+      startBlock: 3
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - TokenPricingSnapshot
+        - AprSnapshot
+        - User
+        - BonusPaidEvent
+        - LpOverflowDripPaidEvent
+        - LockSoldToFurnaceEvent
+        - MarketTradeEvent
+        - FurnaceEnterEvent
+        - AutoMaxBonusClaimedEvent
+        - FurnaceMergeWithBonusEvent
+        - PendingBonusPaidQueue
+        - PendingBonusPaid
+        - TxFurnaceEnter
+        - VeLock
+        - ReserveCreditedEvent
+        - LpRewardsVaultSetEvent
+        - LpStreamFundedEvent
+        - FurnaceQuoterSetEvent
+        - LpRewardsNotifyFailedEvent
+        - ReserveClampedEvent
+        - FurnaceBonusSnapshot
+        - FurnaceBonusSample
+        - ActivityItem
+        - DailyFurnaceAgg
+        - FurnaceState
+        - LpRewardsSample
+        - EntryTokenRegistry
+        - DelegationSession
+        - DelegationSessionUse
+      abis:
+        - name: Furnace
+          file: ../abis/base_sepolia/Furnace.abi.json
+        - name: EntryTokenRegistry
+          file: ../abis/base_sepolia/EntryTokenRegistry.abi.json
+        - name: FurnaceQuoter
+          file: ../abis/base_sepolia/FurnaceQuoter.abi.json
+      eventHandlers:
+        - event: EntryTokenRegistrySet(indexed address)
+          handler: handleEntryTokenRegistrySet
+        - event: MineCoreChanged(indexed address,indexed address)
+          handler: handleMineCoreChanged
+        - event: MineMarketChanged(indexed address,indexed address)
+          handler: handleMineMarketChanged
+        - event: ShareholderRoyaltiesChanged(indexed address,indexed address)
+          handler: handleShareholderRoyaltiesChanged
+        - event: LpRewardsVaultSet(indexed address,indexed address)
+          handler: handleLpRewardsVaultSet
+        - event: LpStreamFunded(uint256,uint256,uint256)
+          handler: handleLpStreamFunded
+        - event: FurnaceQuoterSet(indexed address,indexed address)
+          handler: handleFurnaceQuoterSet
+        - event: LpRewardsNotifyFailed(indexed address,uint256,bytes)
+          handler: handleLpRewardsNotifyFailed
+        - event: ReserveClamped(indexed address,uint256,uint256,uint256,uint256)
+          handler: handleReserveClamped
+        - event: BonusPaid(indexed address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleBonusPaid
+        - event: LpOverflowDripPaid(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleLpOverflowDripPaid
+        - event: FurnaceEnter(indexed address,uint8,uint256,uint256,uint256,uint256)
+          handler: handleFurnaceEnter
+          receipt: true
+        - event: FurnaceMergeWithBonus(indexed address,indexed uint256,indexed uint256,uint256,uint256,uint256,uint256,bool,uint256,uint256)
+          handler: handleFurnaceMergeWithBonus
+        - event: LockSoldToFurnace(indexed address,indexed uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleLockSoldToFurnace
+        - event: ReserveCredited(uint256,uint256)
+          handler: handleReserveCredited
+        - event: LockingPausedChanged(bool)
+          handler: handleLockingPausedChanged
+        - event: DelegationSessionUsed(indexed address,indexed address,indexed uint8,uint256,uint256,uint256)
+          handler: handleDelegationSessionUsed
+        - event: AutoMaxBonusClaimed(indexed address,uint256,uint256)
+          handler: handleAutoMaxBonusClaimed
+      blockHandlers:
+        - handler: handleFurnaceBlock
+      file: ./src/mappings/furnace.ts
+
+  # -----------------
+  # ShareholderRoyalties
+  # -----------------
+  - kind: ethereum
+    name: ShareholderRoyalties
+    network: local
+    source:
+      address: "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9"
+      abi: ShareholderRoyalties
+      startBlock: 3
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - TokenPricingSnapshot
+        - AprSnapshot
+        - User
+        - DelegationSession
+        - DelegationSessionUse
+        - Reign
+        - ShareholderAllocation
+        - ShareholderClaimEvent
+        - ShareholderFlushEvent
+        - ShareholderAutoCompoundConfiguredEvent
+        - ShareholderAutoCompoundPausedEvent
+        - ShareholderAutoCompoundExecutedEvent
+        - ShareholderAutoCompoundConfig
+        - ShareholderAutoCompoundKeeper
+        - ShareholderAutoCompoundKeeperSetEvent
+        - ShareholderMinAutoCompoundEthSetEvent
+        - Takeover
+        - ActivityItem
+        - LpAprHourlyBucket
+      abis:
+        - name: ShareholderRoyalties
+          file: ../abis/base_sepolia/ShareholderRoyalties.abi.json
+        - name: ClaimToken
+          file: ../abis/base_sepolia/ClaimToken.abi.json
+        - name: ClaimWethPool
+          file: ../abis/base_sepolia/ClaimWethPool.abi.json
+        - name: ChainlinkAggregator
+          file: ../abis/base_sepolia/ChainlinkAggregator.abi.json
+      eventHandlers:
+        - event: ShareholderWiringSet(indexed address,indexed address,indexed address)
+          handler: handleShareholderWiringSet
+        - event: ShareholderTakeoverAllocation(indexed uint256,uint256)
+          handler: handleShareholderTakeoverAllocation
+        - event: ShareholderFlush(uint256,uint256)
+          handler: handleShareholderFlush
+        - event: ShareholderClaim(indexed address,uint8,uint256)
+          handler: handleShareholderClaim
+        - event: ShareholderAutoCompoundConfigured(indexed address,bool,uint256,uint256,uint32,uint256,uint32)
+          handler: handleShareholderAutoCompoundConfigured
+        - event: ShareholderAutoCompoundPaused(indexed address,uint256,uint8)
+          handler: handleShareholderAutoCompoundPaused
+        - event: ShareholderAutoCompoundExecuted(indexed address,indexed address,uint256,uint256,uint256)
+          handler: handleShareholderAutoCompoundExecuted
+        - event: ShareholderAutoCompoundKeeperSet(indexed address,bool)
+          handler: handleShareholderAutoCompoundKeeperSet
+        - event: MinAutoCompoundEthSet(uint256,uint256)
+          handler: handleMinAutoCompoundEthSet
+        - event: DelegationSessionUsed(indexed address,indexed address,indexed uint8,uint256,uint256,uint256)
+          handler: handleDelegationSessionUsed
+      file: ./src/mappings/shareholderRoyalties.ts
+
+  # -----------------
+  # VeClaimNFT
+  # -----------------
+  - kind: ethereum
+    name: VeClaimNFT
+    network: local
+    source:
+      address: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"
+      abi: VeClaimNFT
+      startBlock: 3
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - TokenPricingSnapshot
+        - AprSnapshot
+        - User
+        - DelegationSession
+        - DelegationSessionUse
+        - VeLock
+        - VeLockCreatedEvent
+        - VeLockExtendedEvent
+        - VeLockAmountIncreasedEvent
+        - VeLockMergedEvent
+        - VeLockUnlockedEvent
+        - VeLockAutoMaxSetEvent
+        - VeLockTransferEvent
+        - LpAprHourlyBucket
+
+      abis:
+        - name: VeClaimNFT
+          file: ../abis/base_sepolia/VeClaimNFT.abi.json
+        - name: ClaimToken
+          file: ../abis/base_sepolia/ClaimToken.abi.json
+        - name: ClaimWethPool
+          file: ../abis/base_sepolia/ClaimWethPool.abi.json
+        - name: ChainlinkAggregator
+          file: ../abis/base_sepolia/ChainlinkAggregator.abi.json
+      eventHandlers:
+        - event: LockCreated(indexed address,indexed uint256,uint256,uint256,bool)
+          handler: handleLockCreated
+        - event: LockExtended(indexed address,indexed uint256,uint256,uint256)
+          handler: handleLockExtended
+        - event: LockAmountIncreased(indexed address,indexed uint256,uint256)
+          handler: handleLockAmountIncreased
+        - event: LockMerged(indexed address,indexed uint256,indexed uint256,uint256)
+          handler: handleLockMerged
+        - event: LockUnlocked(indexed address,indexed uint256,uint256)
+          handler: handleLockUnlocked
+        - event: AutoMaxSet(indexed address,indexed uint256,bool)
+          handler: handleAutoMaxSet
+        - event: FurnaceChanged(indexed address,indexed address)
+          handler: handleFurnaceChanged
+        - event: MineMarketChanged(indexed address,indexed address)
+          handler: handleMineMarketChanged
+        - event: Transfer(indexed address,indexed address,indexed uint256)
+          handler: handleTransfer
+        - event: DelegationSessionUsed(indexed address,indexed address,indexed uint8,uint256,uint256,uint256)
+          handler: handleDelegationSessionUsed
+        - event: SlopeDriftClamped(indexed uint256,uint256,uint256)
+          handler: handleSlopeDriftClamped
+        - event: ShareholderCheckpointFailed(indexed address,indexed address)
+          handler: handleShareholderCheckpointFailed
+      file: ./src/mappings/veClaimNFT.ts
+
+  # -----------------
+  # MarketRouter
+  # -----------------
+  - kind: ethereum
+    name: MarketRouter
+    network: local
+    source:
+      address: "0x2279b7a0a67db372996a5fab50d91eaa73d2ebe6"
+      abi: MarketRouter
+      startBlock: 3
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - TokenPricingSnapshot
+        - AprSnapshot
+        - User
+        - DelegationSession
+        - DelegationSessionUse
+        - VeLock
+        - MarketListing
+        - MarketLockListedEvent
+        - MarketLockDelistedEvent
+        - ListingSettledEvent
+        - MarketTradeEvent
+        - MarketSellToFurnaceEvent
+        - BonusTargetEscrow
+        - BonusTargetEscrowEvent
+        - BonusTargetEscrowExecutedEvent
+        - BonusTargetEscrowAutoFurnaceExecutedEvent
+        - MarketSettlementKeeper
+        - MarketSettlementKeeperSetEvent
+        - MarketRouterParams
+        - BonusTargetEscrowParamsChangedEvent
+        - ActivityItem
+
+      abis:
+        - name: MarketRouter
+          file: ../abis/base_sepolia/MarketRouter.abi.json
+        - name: VeClaimNFT
+          file: ../abis/base_sepolia/VeClaimNFT.abi.json
+      eventHandlers:
+        - event: LockListed(indexed uint256,indexed address,uint256,uint256,uint256)
+          handler: handleLockListed
+        - event: LockDelisted(indexed uint256,indexed address,uint8)
+          handler: handleLockDelisted
+        - event: ListingSettled(indexed uint256,indexed address,uint256,uint256)
+          handler: handleListingSettled
+        - event: MarketSellToFurnace(indexed uint256,indexed address,uint256,uint256,uint256)
+          handler: handleMarketSellToFurnace
+        - event: BonusTargetEscrowCreated(indexed uint256,indexed address,uint256,uint256,bool,uint256,uint256,uint256,uint256)
+          handler: handleBonusTargetEscrowCreated
+        - event: BonusTargetEscrowExpired(indexed uint256,indexed address,uint256)
+          handler: handleBonusTargetEscrowExpired
+        - event: BonusTargetEscrowExpiryExtended(indexed uint256,indexed address,uint256,uint256)
+          handler: handleBonusTargetEscrowExpiryExtended
+        - event: BonusTargetEscrowCancelled(indexed uint256,indexed address,uint256)
+          handler: handleBonusTargetEscrowCancelled
+        - event: BonusTargetEscrowConfigured(indexed uint256,indexed address,uint256,uint256)
+          handler: handleBonusTargetEscrowConfigured
+        - event: BonusTargetEscrowExecuted(indexed uint256,indexed address,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleBonusTargetEscrowExecuted
+          receipt: true
+        - event: BonusTargetEscrowAutoFurnaceExecuted(indexed uint256,indexed address,uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleBonusTargetEscrowAutoFurnaceExecuted
+          receipt: true
+        - event: BonusTargetEscrowParamsChanged(uint256,uint256,uint256,uint256)
+          handler: handleBonusTargetEscrowParamsChanged
+        - event: SettlementKeeperSet(indexed address,bool)
+          handler: handleSettlementKeeperSet
+        - event: TradingPausedChanged(bool)
+          handler: handleTradingPausedChanged
+      file: ./src/mappings/marketRouter.ts
+
+  # -----------------
+  # LpStakingVault7D (optional; not deployed in some local modes)
+  # -----------------
+  - kind: ethereum
+    name: LpStakingVault7D
+    network: local
+    source:
+      address: "0xc5a5c42992decbae36851359345fe25997f5c42d"
+      abi: LpStakingVault7D
+      startBlock: 9
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - TokenPricingSnapshot
+        - AprSnapshot
+        - User
+        - DelegationSession
+        - DelegationSessionUse
+        - AutoCompoundConfiguredEvent
+        - AutoCompoundPausedEvent
+        - AutoCompoundUnpausedEvent
+        - HarvestKeeper
+        - HarvestKeeperSetEvent
+        - LpMinCompoundRewardSetEvent
+        - LpMinHarvestClaimFloorSetEvent
+        - LpNotifyAmountDivergenceEvent
+        - LpAccountedRewardBalanceClampedEvent
+        - LpHarvestMinClaimOutIgnoredEvent
+        - LpOwnershipTransferStartedEvent
+        - LpOwnershipTransferredEvent
+        - LpStakedEvent
+        - LpUnbondStartedEvent
+        - LpUnbondWithdrawnEvent
+        - LpRewardsNotifiedEvent
+        - LpRewardsClaimedEvent
+        - LpRewardsLockedEvent
+        - LpFeesHarvestedToRewardsEvent
+        - LpAprHourlyBucket
+      abis:
+        - name: LpStakingVault7D
+          file: ../abis/base_sepolia/LpStakingVault7D.abi.json
+        - name: ClaimToken
+          file: ../abis/base_sepolia/ClaimToken.abi.json
+        - name: ClaimWethPool
+          file: ../abis/base_sepolia/ClaimWethPool.abi.json
+        - name: ChainlinkAggregator
+          file: ../abis/base_sepolia/ChainlinkAggregator.abi.json
+      eventHandlers:
+        - event: AutoCompoundConfigured(indexed address,bool,uint256,uint256,uint32,uint256)
+          handler: handleAutoCompoundConfigured
+        - event: AutoCompoundPaused(indexed address,uint256,uint8)
+          handler: handleAutoCompoundPaused
+        - event: AutoCompoundUnpaused(indexed address)
+          handler: handleAutoCompoundUnpaused
+        - event: HarvestKeeperSet(indexed address,bool)
+          handler: handleHarvestKeeperSet
+        - event: MinCompoundRewardSet(uint256,uint256)
+          handler: handleMinCompoundRewardSet
+        - event: MinHarvestClaimFloorSet(uint256,uint256)
+          handler: handleMinHarvestClaimFloorSet
+        - event: NotifyAmountDivergence(uint256,uint256)
+          handler: handleNotifyAmountDivergence
+        - event: AccountedRewardBalanceClamped(uint256,uint256)
+          handler: handleAccountedRewardBalanceClamped
+        - event: HarvestMinClaimOutIgnored(uint256)
+          handler: handleHarvestMinClaimOutIgnored
+        - event: OwnershipTransferStarted(indexed address,indexed address)
+          handler: handleOwnershipTransferStarted
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: LpStaked(indexed address,uint256)
+          handler: handleLpStaked
+        - event: LpUnbondStarted(indexed address,indexed uint256,uint256,uint256)
+          handler: handleLpUnbondStarted
+        - event: LpUnbondWithdrawn(indexed address,indexed uint256,uint256)
+          handler: handleLpUnbondWithdrawn
+        - event: LpRewardsNotified(uint256)
+          handler: handleLpRewardsNotified
+        - event: LpRewardsClaimed(indexed address,uint256)
+          handler: handleLpRewardsClaimed
+        - event: LpRewardsLocked(indexed address,uint256,uint256,uint256,uint256)
+          handler: handleLpRewardsLocked
+        - event: LpFeesHarvestedToRewards(indexed address,uint256,uint256,uint256)
+          handler: handleLpFeesHarvestedToRewards
+        - event: DelegationSessionUsed(indexed address,indexed address,indexed uint8,uint256,uint256,uint256)
+          handler: handleDelegationSessionUsed
+      file: ./src/mappings/lpStakingVault7D.ts
+
+  # -----------------
+  # LaunchController (optional)
+  # -----------------
+  - kind: ethereum
+    name: LaunchController
+    network: local
+    source:
+      address: "0x67d269191c92caf3cd7723f116c85e6e9bf55933"
+      abi: LaunchController
+      startBlock: 9
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - TokenPricingSnapshot
+        - AprSnapshot
+        - GenesisState
+        - LaunchControllerDeploymentValidatedEvent
+        - LaunchControllerTokenSweptEvent
+        - LaunchControllerSkimFailedEvent
+      abis:
+        - name: LaunchController
+          file: ../abis/base_sepolia/LaunchController.abi.json
+      eventHandlers:
+        - event: DeploymentValidated(indexed address,indexed address,address,address,address)
+          handler: handleDeploymentValidated
+        - event: GenesisFinalized(uint256,uint256,uint256,uint256,address,address)
+          handler: handleGenesisFinalized
+        - event: TokenSwept(indexed address,indexed address,uint256)
+          handler: handleTokenSwept
+        - event: SkimFailed(indexed address,bytes)
+          handler: handleSkimFailed
+      file: ./src/mappings/launchController.ts
+
+  # -----------------
+  # GenesisLPVault24M (optional)
+  # -----------------
+  - kind: ethereum
+    name: GenesisLPVault24M
+    network: local
+    source:
+      address: "0x09635f643e140090a9a8dcd712ed6285858cebef"
+      abi: GenesisLPVault24M
+      startBlock: 8
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - TokenPricingSnapshot
+        - AprSnapshot
+        - GenesisState
+        - User
+        - GenesisWithdrawLpEvent
+        - GenesisResidualLpSweepEvent
+        - GenesisLpFeeClaimEvent
+        - ActivityItem
+      abis:
+        - name: GenesisLPVault24M
+          file: ../abis/base_sepolia/GenesisLPVault24M.abi.json
+      eventHandlers:
+        - event: Locked(uint256,uint256,uint256)
+          handler: handleLocked
+        - event: LockExtended(uint256,uint256)
+          handler: handleLockExtended
+        - event: WithdrawLp(indexed address,uint256)
+          handler: handleWithdrawLp
+        - event: ResidualLpSwept(indexed address,uint256)
+          handler: handleResidualLpSwept
+        - event: FeesClaimedAndForwarded(indexed address,indexed address,uint256,uint256)
+          handler: handleFeesClaimedAndForwarded
+        - event: TokenRescued(indexed address,indexed address,uint256)
+          handler: handleTokenRescued
+      file: ./src/mappings/genesisLPVault24M.ts
+
+  # -----------------
+  # MaintenanceHub (keeper ops)
+  # -----------------
+  - kind: ethereum
+    name: MaintenanceHub
+    network: local
+    source:
+      address: "0x5081a39b8a5f0e35a8d959395a630b68b74dd30f"
+      abi: MaintenanceHub
+      startBlock: 25
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - User
+        - MaintenancePokedEvent
+      abis:
+        - name: MaintenanceHub
+          file: ../abis/base_sepolia/MaintenanceHub.abi.json
+      eventHandlers:
+        - event: Poked(address,bool,bool,uint256,uint256,bool,uint256)
+          handler: handlePoked
+      file: ./src/mappings/maintenanceHub.ts
+
+templates:
+  - kind: ethereum
+    name: EntryTokenRegistry
+    network: local
+    source:
+      abi: EntryTokenRegistry
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - TokenPricingSnapshot
+        - AprSnapshot
+        - EntryTokenRegistry
+        - EntryTokenConfig
+      abis:
+        - name: EntryTokenRegistry
+          file: ../abis/base_sepolia/EntryTokenRegistry.abi.json
+      eventHandlers:
+        - event: GuardianChanged(indexed address,indexed address)
+          handler: handleGuardianChanged
+        - event: RouterConfigSet(indexed address,indexed address,indexed address,address)
+          handler: handleRouterConfigSet
+        - event: WethClaimPoolSet(indexed address,bool)
+          handler: handleWethClaimPoolSet
+        - event: TokenConfigSet(indexed address,bool,bool,bool,address,bool,address)
+          handler: handleTokenConfigSet
+        - event: FurnaceEntryTokenSafetySet(indexed address,bool)
+          handler: handleFurnaceEntryTokenSafetySet
+        - event: TokenEnabledChanged(indexed address,bool)
+          handler: handleTokenEnabledChanged
+      file: ./src/mappings/entryTokenRegistry.ts
