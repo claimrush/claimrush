@@ -1,4 +1,4 @@
-# ClaimRush Developer Docs
+# ClaimRush Developers
 
 Docs for smart-contract integrators, app and bot developers, and indexers.
 

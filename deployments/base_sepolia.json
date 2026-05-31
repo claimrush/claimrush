@@ -3,7 +3,7 @@
   "version": "v1.0.0",
   "chain": "base_sepolia",
   "chainId": 84532,
-  "generatedAtUtc": "2026-05-17T13:44:33.274Z",
+  "generatedAtUtc": "2026-05-30T16:15:06.361Z",
   "notes": [
     "Staging/testnet manifest template for ClaimRush v1.0.0 on Base Sepolia.",
     "Fill this manifest immediately after deployment on Base Sepolia.",
@@ -106,8 +106,8 @@
       "startBlock": 41628583
     },
     "AgentLens": {
-      "address": "0x19F34dbBe4E97EFDc7f795Bf8d57D6e681c8A083",
-      "startBlock": 41628592
+      "address": "0x9913322fc26067732ab798C4b4D135D54c815c7B",
+      "startBlock": 42194709
     },
     "FurnaceQuoter": {
       "address": "0x9bfF5EA31D5dFb0Ca9944fedB3577205b4252470",

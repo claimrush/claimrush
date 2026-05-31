@@ -67,6 +67,11 @@ Options:
   --wire                           Run Wire.s.sol, deploy/reuse MaintenanceHub, refresh helper state, and ensure AgentLens is deployed
   --verify                         Run scripts/verify_deployment.py after deploy/wire
   --deploy-agent-lens             Deploy or refresh AgentLens as a standalone helper-only step
+  --force-agent-lens              When combined with --deploy-agent-lens, force-redeploy AgentLens
+                                  even when the manifest-pinned address still has live code that
+                                  matches the current canonical bundle. Use this for AgentLens-only
+                                  source upgrades (e.g. new struct fields) where the immutable
+                                  wiring is unchanged but the runtime bytecode has shifted.
   --refresh-manifest-from-broadcast
                                    Rebuild deployments/<network>.json from an explicit timestamped Deploy.s.sol broadcast
   --refresh-live-state             Refresh live-derived manifest metadata (pool/timelock roots) from the current chain
@@ -1528,7 +1533,7 @@ function deployMaintenanceHubIfNeeded({ network, rpcUrl, manifestPath, chainId, 
   return true;
 }
 
-function deployAgentLensIfNeeded({ rpcUrl, manifestPath, chainId, noSync, forgeSigner }) {
+function deployAgentLensIfNeeded({ rpcUrl, manifestPath, chainId, noSync, forgeSigner, force }) {
   const manifest = readJson(manifestPath);
   const agentLensAddr = contractAddr(manifest, "AgentLens");
   const claim = requireNonZero(contractAddr(manifest, "ClaimToken"), "contracts.ClaimToken.address");
@@ -1562,10 +1567,18 @@ function deployAgentLensIfNeeded({ rpcUrl, manifestPath, chainId, noSync, forgeS
   if (!isZeroAddress(agentLensAddr)) {
     if (hasLiveCode({ rpcUrl, to: agentLensAddr })) {
       assertAgentLensMatches({ rpcUrl, agentLensAddr, manifestPath, manifest });
-      console.log(`[deploy_prod] AgentLens already deployed at ${agentLensAddr} and matches the current canonical bundle; skipping.`);
-      return false;
+      if (force) {
+        console.log(
+          `[deploy_prod] AgentLens already deployed at ${agentLensAddr} and matches the current canonical bundle, ` +
+            `but --force-agent-lens is set; redeploying against the local artifact bytecode.`
+        );
+      } else {
+        console.log(`[deploy_prod] AgentLens already deployed at ${agentLensAddr} and matches the current canonical bundle; skipping.`);
+        return false;
+      }
+    } else {
+      die(`manifest AgentLens address ${agentLensAddr} has no code; fix deployments manifest before continuing`);
     }
-    die(`manifest AgentLens address ${agentLensAddr} has no code; fix deployments manifest before continuing`);
   }
 
   const agentLensStartedAtMs = Date.now();
@@ -1639,6 +1652,10 @@ function main() {
   let doDeploy = hasFlag("--deploy");
   if (hasFlag("--no-deploy")) doDeploy = false;
   const doDeployAgentLens = hasFlag("--deploy-agent-lens");
+  const forceAgentLens = hasFlag("--force-agent-lens");
+  if (forceAgentLens && !doDeployAgentLens) {
+    die("--force-agent-lens requires --deploy-agent-lens (it modifies the AgentLens-only deploy path's skip-if-already-deployed branch).");
+  }
   const doRefreshManifestFromBroadcast = hasFlag("--refresh-manifest-from-broadcast");
   const deployBroadcastFileArg = getArg("--deploy-broadcast-file");
   const timelockBroadcastFileArg = getArg("--timelock-broadcast-file");
@@ -1971,6 +1988,7 @@ function main() {
       chainId,
       noSync: true,
       forgeSigner,
+      force: forceAgentLens,
     });
 
     if (!noSync) {

@@ -309,6 +309,15 @@ contract AgentLens {
         // Genesis
         bool genesisKingClaimCollected;
         uint256 genesisKingClaimMinted;
+
+        // King emission rate, derived as currentFurnaceEmissionRate * 10 from the
+        // Constants.sol 10:1 launch + floor split (KING/FURNACE both decay through
+        // the same _rateAt helper in MineCoreHelper). Drift bound: ~5-15 wei out of
+        // ~5e18. The 10:1 invariant is pinned by testKingFurnaceLaunchRateRatioPinned
+        // and testKingFurnaceFloorRatioPinnedWithin5Wei in
+        // test/SecurityCriticalConstantsPinned.t.sol. Appended at the end of the
+        // struct so existing positional decoders are not shifted.
+        uint256 currentKingEmissionRate;
     }
 
     struct FurnaceGlobalV1 {
@@ -846,6 +855,12 @@ contract AgentLens {
         } catch {}
         try c.getFurnaceEmissionRateAt(block.timestamp) returns (uint256 rate) {
             m.currentFurnaceEmissionRate = rate;
+            // KING_EMISSION_LAUNCH_RATE = 10 * FURNACE_EMISSION_LAUNCH_RATE in
+            // Constants.sol; both decay through the same _rateAt helper, so
+            // kingRate(t) = 10 * furnaceRate(t) within ~5-15 wei drift. The 10:1
+            // ratio is pinned by testKingFurnaceLaunchRateRatioPinned +
+            // testKingFurnaceFloorRatioPinnedWithin5Wei.
+            m.currentKingEmissionRate = rate * 10;
         } catch {}
 
         try c.takeoversPaused() returns (bool tp) {

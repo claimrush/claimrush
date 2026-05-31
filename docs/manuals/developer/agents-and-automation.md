@@ -79,6 +79,10 @@ The SDK exposes `getGameStateSnapshot(opts)` where `opts` must include `publicCl
 - `global` (MineCore/Furnace/Royalties/Ve/Market/LP vault/Dex state)
 - optional `user` slice (balances + claimables + config) when a wallet address is provided
 
+Notable `global.mineCore` fields for strategy code:
+- `currentFurnaceEmissionRate` — the Furnace stream rate (CLAIM wei/sec) at snapshot time. This is **1/10 of the King stream**; do NOT use it as the king-mining rate.
+- `currentKingEmissionRate` — the King stream rate (CLAIM wei/sec). Read directly from `AgentLens.currentKingEmissionRate` when available (AgentLens v2+); otherwise the SDK derives it from `currentFurnaceEmissionRate × 10n` using the 10:1 invariant pinned in `Constants.sol` (see [Constants reference](appendix-constants-v100.md#emissions-minecore--furnace)). **Agent strategies should size reign budgets against this value.** The Furnace rate is 10× lower; using it under-budgets the reign and triggers spurious `cap_delay` waits.
+
 Run the snapshot example:
 
 ```bash

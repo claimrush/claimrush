@@ -161,6 +161,20 @@ export type ClaimRushSnapshot = {
 
     emissionStartTime: bigint;
     currentFurnaceEmissionRate: bigint;
+    /**
+     * King emission rate (CLAIM wei/sec) at snapshot time. Read directly from
+     * `AgentLens.currentKingEmissionRate` when available; otherwise derived as
+     * `currentFurnaceEmissionRate * 10n` from the 10:1 launch+floor split pinned
+     * in `Constants.sol` (see `testKingFurnaceLaunchRateRatioPinned` and
+     * `testKingFurnaceFloorRatioPinnedWithin5Wei` in
+     * `test/SecurityCriticalConstantsPinned.t.sol`). Drift bound: ~5-15 wei.
+     *
+     * Agent strategies should size reign budgets against this value, not against
+     * `currentFurnaceEmissionRate` (the Furnace stream is 1/10 of the King
+     * stream, so naively using the Furnace rate underestimates the King emission
+     * rate by 10× and triggers spurious `cap_delay` waits).
+     */
+    currentKingEmissionRate: bigint;
 
     genesisAccrualDuration: bigint;
     genesisKingClaimMinted: bigint;
@@ -772,6 +786,19 @@ function seedFromAgentLensGlobal(
       resultMap,
       'mine.currentFurnaceEmissionRate',
       asBigInt(mineObj?.currentFurnaceEmissionRate ?? mineT[7]),
+    );
+    // King emission rate: prefer the `currentKingEmissionRate` field exposed by
+    // AgentLens v2+. Fall back to `currentFurnaceEmissionRate * 10n` for older
+    // AgentLens deployments that predate the field, mirroring the 10:1 invariant
+    // pinned by testKingFurnaceLaunchRateRatioPinned. The fallback also covers
+    // any transient manifest/AgentLens version skew during a rollout window —
+    // the lens reader always writes a correct value regardless.
+    setSuccess(
+      resultMap,
+      'mine.currentKingEmissionRate',
+      mineObj?.currentKingEmissionRate !== undefined
+        ? asBigInt(mineObj.currentKingEmissionRate)
+        : asBigInt(mineObj?.currentFurnaceEmissionRate ?? mineT[7]) * 10n,
     );
     setSuccess(resultMap, 'mine.takeoversPaused', asBool(mineObj?.takeoversPaused ?? mineT[8]));
     setSuccess(resultMap, 'mine.configFrozen', asBool(mineObj?.configFrozen ?? mineT[9]));
@@ -2311,6 +2338,16 @@ export async function getGameStateSnapshot(opts: SnapshotOptions): Promise<Claim
       currentFurnaceEmissionRate: asBigInt(
         unwrap(resultMap.get('mine.currentFurnaceEmissionRate')),
       ),
+      // King emission rate: the lens reader (AgentLens path) always writes
+      // 'mine.currentKingEmissionRate' to resultMap (using the lens field when
+      // available, else `furnaceRate * 10n`). The multicall path (no-lens, e.g.
+      // local devnet without AgentLens deployed) doesn't write the key because
+      // MineCore doesn't expose a king-rate accessor — synthesize it here from
+      // the Furnace rate that was fetched. The 10:1 invariant is pinned by
+      // testKingFurnaceLaunchRateRatioPinned + testKingFurnaceFloorRatioPinnedWithin5Wei.
+      currentKingEmissionRate: hasSuccess(resultMap, 'mine.currentKingEmissionRate')
+        ? asBigInt(unwrap(resultMap.get('mine.currentKingEmissionRate')))
+        : asBigInt(unwrap(resultMap.get('mine.currentFurnaceEmissionRate'))) * 10n,
 
       genesisAccrualDuration: asBigInt(unwrap(resultMap.get('mine.genesisAccrualDuration'))),
       genesisKingClaimMinted: asBigInt(unwrap(resultMap.get('mine.genesisKingClaimMinted'))),

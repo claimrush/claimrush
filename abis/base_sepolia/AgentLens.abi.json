@@ -669,6 +669,11 @@
             "name": "genesisKingClaimMinted",
             "type": "uint256",
             "internalType": "uint256"
+          },
+          {
+            "name": "currentKingEmissionRate",
+            "type": "uint256",
+            "internalType": "uint256"
           }
         ]
       }
@@ -1377,6 +1382,11 @@
               },
               {
                 "name": "genesisKingClaimMinted",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "currentKingEmissionRate",
                 "type": "uint256",
                 "internalType": "uint256"
               }

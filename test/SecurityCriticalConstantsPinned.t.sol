@@ -126,6 +126,34 @@ contract SecurityCriticalConstantsPinnedTest is Test {
         );
     }
 
+    /// @dev Load-bearing for `AgentLens.currentKingEmissionRate`, which derives the
+    ///      king rate as `getFurnaceEmissionRateAt(t) * 10`. If this invariant is
+    ///      ever broken in `Constants.sol`, every consumer of
+    ///      `mc.currentKingEmissionRate` (the `claimrush/agent-sdk` package, any
+    ///      bots / agents / dashboards built on it) reads a wrong value silently.
+    ///      Updating the ratio also requires updating `agents/sdk/src/snapshot.ts`
+    ///      (the `* 10n` fallback) and the `AgentLens` setter in lockstep.
+    function testKingFurnaceLaunchRateRatioPinned() public pure {
+        assertEq(
+            Constants.KING_EMISSION_LAUNCH_RATE,
+            10 * Constants.FURNACE_EMISSION_LAUNCH_RATE,
+            "KING_EMISSION_LAUNCH_RATE must equal 10 * FURNACE_EMISSION_LAUNCH_RATE (AgentLens.currentKingEmissionRate invariant)"
+        );
+    }
+
+    /// @dev The floor constants are not exact 10:1 because `FURNACE_EMISSION_FLOOR`
+    ///      truncates `5/9 ≈ 0.555…` at integer wei precision. The drift is
+    ///      bounded at 5 wei, which is parts-per-quintillion at ~5e18 — invisible
+    ///      at any practical accounting scale.
+    function testKingFurnaceFloorRatioPinnedWithin5Wei() public pure {
+        uint256 expected = 10 * Constants.FURNACE_EMISSION_FLOOR;
+        uint256 got = Constants.KING_EMISSION_FLOOR;
+        uint256 drift = got > expected ? got - expected : expected - got;
+        assertLe(
+            drift, 5, "KING/FURNACE floor ratio drift must be <= 5 wei (truncation of 5/9 in FURNACE_EMISSION_FLOOR)"
+        );
+    }
+
     // ---------------------------------------------------------------
     // Emission launch rates — absolute pins (relational tests alone
     // would pass if both rate and floor were scaled together)

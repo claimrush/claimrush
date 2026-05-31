@@ -25,6 +25,18 @@ royalty pool. Pinned in `Constants.sol`; not a governance-configurable rate.
 | FURNACE_EMISSION_LAUNCH_RATE | 5 CLAIM/sec |
 | FURNACE_EMISSION_FLOOR | ~0.555 CLAIM/sec |
 
+The launch and floor rates are a deliberate 10:1 split (King:Furnace). Both
+streams decay through the same `_rateAt` helper in `MineCoreHelper`, so
+`kingRate(t) = 10 × furnaceRate(t)` holds within ~5–15 wei (parts-per-quintillion
+drift from `mulDiv` floor-rounding plus the 5-wei truncation of `5/9` in the
+Furnace floor). `AgentLens.currentKingEmissionRate` exposes the King rate
+directly, and the SDK's `mineCore.currentKingEmissionRate` field surfaces it via
+`getGameStateSnapshot`. Agent strategies should size reign budgets against the
+King rate, not the Furnace rate. The 10:1 invariant is pinned by
+`testKingFurnaceLaunchRateRatioPinned` and
+`testKingFurnaceFloorRatioPinnedWithin5Wei` in
+`test/SecurityCriticalConstantsPinned.t.sol`.
+
 ## Baron royalties (ShareholderRoyalties)
 
 | Constant | Value |
