@@ -48,6 +48,38 @@ GET https://claimru.sh/api/supply/max
 { "result": null }
 ```
 
+### Bare response format (?format=bare)
+
+All three endpoints accept the `?format=bare` query parameter. When set, they return the decimal value as `text/plain` instead of the JSON wrapper — required by CoinMarketCap-style submissions that expect a bare numeric body. CoinGecko continues to use the default JSON shape.
+
+```
+GET https://claimru.sh/api/supply/total?format=bare
+```
+
+Returns:
+
+```
+14349000.00
+```
+
+```
+GET https://claimru.sh/api/supply/circulating?format=bare
+```
+
+Returns:
+
+```
+12000000.00
+```
+
+```
+GET https://claimru.sh/api/supply/max?format=bare
+```
+
+Returns the literal four-character string `null` (since CLAIM has no max supply). CoinMarketCap-style submissions should typically omit the max-supply URL entirely and use the "unlimited" form toggle instead; this endpoint exists for parity.
+
+On error, bare-format responses return HTTP 502 with an empty body and the original error code in the `x-supply-error` response header.
+
 ### Error responses
 
 On failure (RPC unreachable, contracts not deployed, or RPC returns a malformed `uint256`), all endpoints return HTTP 502 with `result: null` and an `error` code:
@@ -100,5 +132,6 @@ CLAIM follows the same ve-tokenomics model, so the same formula applies.
 | `/api/supply/total` | Server-side handler: total supply via `eth_call` to `ClaimToken.totalSupply()` (`0x18160ddd`); 5-min `cache-control`. |
 | `/api/supply/circulating` | Server-side handler: circulating supply via `eth_call` to both `ClaimToken.totalSupply()` and `VeClaimNFT.totalLockedClaim()` (`0x0ff566a7`); 5-min `cache-control`. |
 | `/api/supply/max` | Server-side handler: returns static `{ "result": null }` (no hard-coded max supply); 24-hour `cache-control`. |
-| Response contract | All endpoints return JSON shaped as `{ result: string \| null, error?: string }`. Wei is converted to a fixed-point decimal string (18 decimals truncated to 2). |
+| Default response contract | JSON shaped as `{ result: string \| null, error?: string }`. Wei is converted to a fixed-point decimal string (18 decimals truncated to 2). |
+| `?format=bare` response contract | `text/plain` body: the decimal string on success, the literal `null` for max, or an empty body on 502 (with the error code in the `x-supply-error` header). |
 | `deployments/<network>.json` | Source for `ClaimToken` and `VeClaimNFT` addresses used by the handlers. |
