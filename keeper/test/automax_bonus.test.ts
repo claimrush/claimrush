@@ -239,7 +239,7 @@ test('automax bonus: per-token read returns null after exhausting retries', asyn
   assert.equal(sleeps.length, 2);
 });
 
-test('automax bonus: bootstrap-only locks do not start the owner weekly cooldown', () => {
+test('automax bonus: bootstrap-only locks do not start the owner cooldown', () => {
   const owners = collectAutomaxCooldownOwners(
     ['1', '2', '3'],
     new Map([

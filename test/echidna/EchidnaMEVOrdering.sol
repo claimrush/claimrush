@@ -130,9 +130,28 @@ contract EchidnaMEVOrdering is EchidnaSetup {
         } catch {}
     }
 
-    /// @dev Back-run on shareholder claim: attacker tries to enter Furnace
-    ///      and claim immediately after a takeover finalizes.
-    function action_backRunClaim() public {
+    /// @dev Back-run / JIT on shareholder claim: attacker optionally creates a
+    ///      fresh max-duration AutoMax lock (the reporter's "JIT veCLAIM lock"
+    ///      sequence) and then checkpoints + claims immediately around a
+    ///      takeover finalization. The fuzzer interleaves this with
+    ///      `action_takeoverRace`, so a lock minted one call before a takeover
+    ///      participates in that takeover's shareholder distribution. The
+    ///      snapshot-distribution model intentionally credits the
+    ///      instantaneous ve holder set, so capturing a *snapshot-weighted*
+    ///      share is by design; what `echidna_backrun_claim_cannot_oversettle`
+    ///      pins is that no such sequence can withdraw beyond the accounting's
+    ///      reserved liabilities (i.e. cannot dip into the pool or another
+    ///      holder's crystallised balance).
+    function action_backRunClaim(uint256 jitAmount, bool createJitLock) public {
+        if (createJitLock && claim.balanceOf(msg.sender) >= Constants.MIN_LOCK_AMOUNT) {
+            if (jitAmount < Constants.MIN_LOCK_AMOUNT) jitAmount = Constants.MIN_LOCK_AMOUNT;
+            if (jitAmount > 1_000_000e18) jitAmount = 1_000_000e18;
+            if (claim.balanceOf(msg.sender) >= jitAmount) {
+                // AutoMax max-duration lock: the worst case for JIT capture, since
+                // AutoMax locks carry full weight with no creation-time eligibility gate.
+                try furnace.enterWithClaim(jitAmount, 0, Constants.MAX_LOCK_DURATION, true, 0) {} catch {}
+            }
+        }
         try royalties.checkpointUser(msg.sender) {} catch {}
         try royalties.claimShareholder(Constants.SHAREHOLDER_MODE_ETH, 0, 0, false, 0) {} catch {}
     }
@@ -185,5 +204,31 @@ contract EchidnaMEVOrdering is EchidnaSetup {
     ///         for the brief listing window itself. Only completed sales pay.
     function echidna_jit_list_pull_no_phantom_credit() public view returns (bool) {
         return !sawJitLiquidityViolation;
+    }
+
+    /// @notice JIT veCLAIM lock / back-run shareholder-claim safety bound.
+    /// @dev Takeover shareholder ETH is distributed to the *instantaneous* veCLAIM
+    ///      holder set at takeover time (snapshot model), so a lock created shortly
+    ///      before a takeover legitimately shares in that distribution — that
+    ///      dilution is by design and is NOT what this property guards. What MUST
+    ///      hold regardless of *when* a lock was created is that no checkpoint /
+    ///      claim sequence (including the JIT front-run lock + back-run claim path
+    ///      modeled in `action_backRunClaim`) can settle a user more ETH than the
+    ///      contract's accounting reserves: the three ETH buckets — crystallised
+    ///      stored claims, indexed-but-uncrystallised, and un-flushed pending carry
+    ///      — must always fit inside actual custody. A JIT-capture regression that
+    ///      let a fresh lock withdraw beyond its indexed entitlement (dipping into
+    ///      the pool or another holder's crystallised balance) would drop the
+    ///      contract balance below reserved liabilities and trip this invariant.
+    ///      This complements `EchidnaShareholder`'s disjoint-buckets checks by
+    ///      exercising the bound under the multi-actor MEV-ordering state space.
+    function echidna_backrun_claim_cannot_oversettle() public view returns (bool) {
+        uint256 totalStored = 0;
+        for (uint256 i = 0; i < 3; i++) {
+            totalStored += royalties.claimableEthStored(actors[i]);
+        }
+        totalStored += royalties.claimableEthStored(address(this));
+        uint256 reserved = totalStored + royalties.indexedEthOwed() + royalties.pendingShareholderETH();
+        return reserved <= address(royalties).balance;
     }
 }

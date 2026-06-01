@@ -143,13 +143,13 @@ Integrator guidance:
 
 ### Settlement window execution
 
-When the keeper's weekly settlement window is enabled, baron auto-compound runs in the **spread phase** (phase 2): compound-shareholders batches are distributed across the 24-hour window with randomized timing and market-impact-budgeted execution.
+When the keeper's settlement window is enabled, baron auto-compound runs in the **spread phase** (phase 2): compound-shareholders batches are distributed across the 24-hour window with randomized timing and market-impact-budgeted execution.
 
 Each batch checks quote drift before executing. If the next batch would worsen fills beyond the configured tolerance (`KEEPER_SETTLEMENT_MAX_DRIFT_BPS`), the keeper pauses and retries later in the window. Users missed in one cycle get first position in the next cycle's spread queue (starvation protection).
 
 On-chain behavior is unchanged. The settlement window is a keeper scheduling policy. `compoundForMany` remains permissionless and can be called at any time by third-party keepers.
 
-See [Weekly Settlement Window](maintenance-and-bots.md#weekly-settlement-window) for full configuration and design.
+See [Settlement Window](maintenance-and-bots.md#settlement-window-configurable-cadence) for full configuration and design.
 
 ## Batch checkpoint
 

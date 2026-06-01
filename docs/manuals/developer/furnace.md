@@ -568,9 +568,9 @@ Reserve outflow:
 - gross bonus payouts (user bonus + LP top-up)
 - optional LP overflow drip (protocol -> LP rewards stream)
 
-### Weekly reserve cycle (settlement window)
+### Per-cycle reserve draw (settlement window)
 
-When the keeper's weekly settlement window is enabled (see [maintenance-and-bots.md — Weekly Settlement Window](maintenance-and-bots.md#weekly-settlement-window)), reserve draws from auto-compound and AutoMax tasks are concentrated into a periodic cycle rather than spread across the week.
+When the keeper's settlement window is enabled (see [maintenance-and-bots.md — Settlement Window](maintenance-and-bots.md#settlement-window-configurable-cadence)), reserve draws from auto-compound and AutoMax tasks are concentrated into a periodic cycle rather than spread across the period.
 
 Reserve draw pattern:
 - **Window open (immediate phase):** `compound-lp` and `automax-bonus` draw from `furnaceReserve` via `_applyBonusAmm` at window open. This creates a discrete trough in R.
@@ -580,7 +580,7 @@ Reserve draw pattern:
 
 Effect on bonus rates: during the settlement window, bonus rates may be lower than at other times because `furnaceReserve` is being drawn down. Between windows, the reserve refills and bonus rates recover. The existing tooltip ("Bonus is variable. It depends on overall lock level, Furnace reserve, and recent activity.") covers this behavior.
 
-Cross-reference: [Weekly Settlement Window](maintenance-and-bots.md#weekly-settlement-window) for configuration and two-phase design.
+Cross-reference: [Settlement Window](maintenance-and-bots.md#settlement-window-configurable-cadence) for configuration and two-phase design.
 
 ## LP rewards stream (smoothing)
 

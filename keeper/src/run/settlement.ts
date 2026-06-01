@@ -1,12 +1,14 @@
 /**
- * Weekly settlement window scheduler.
+ * Settlement window scheduler (configurable cadence).
  *
  * Orchestrates a two-phase execution cycle for reward settlement tasks:
  *   Phase 1 (immediate): non-price-sensitive tasks at window open.
- *   Phase 2 (spread): price-sensitive tasks distributed across a 24h window.
+ *   Phase 2 (spread): price-sensitive tasks distributed across the window.
  *
- * This module owns timing, batching, and cycle state management.
- * It does NOT own the actual task execution (that stays in the task modules).
+ * Cadence is driven by config.settlementPeriodSecs (86400 daily by default,
+ * 604800 weekly). This module owns timing, batching, and cycle state
+ * management. It does NOT own the actual task execution (that stays in the
+ * task modules).
  */
 
 import type { KeeperConfig } from '../shared/config.js';
@@ -18,7 +20,8 @@ import type { BatchEntry, LogFn, SettlementCycleState, SettlementState } from '.
 // Constants
 // ---------------------------------------------------------------------------
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_SECS = 7 * 24 * 60 * 60;
 
 export const IMMEDIATE_TASKS = ['compound-lp', 'automax-bonus'] as const;
 export const SPREAD_TASKS = ['harvest-staking', 'compound-shareholders'] as const;
@@ -31,22 +34,40 @@ export const SETTLEMENT_TASK_NAMES = [...IMMEDIATE_TASKS, ...SPREAD_TASKS] as co
 /**
  * Compute the next window-open timestamp (ms) on or after `nowMs`.
  *
- * @param dayOfWeek 0=Sun..6=Sat (default 4=Thu)
- * @param hourUtc   0-23
- * @param nowMs     reference timestamp
+ * Cadence is set by `periodSecs`. When the period is a whole number of weeks
+ * (e.g. weekly = 604800), the window is anchored to `dayOfWeek` + `hourUtc`,
+ * preserving the original day-of-week behavior. For sub-week periods (e.g.
+ * daily = 86400), `dayOfWeek` is ignored and the window anchors to `hourUtc`.
+ *
+ * @param periodSecs cadence length in seconds (86400 daily, 604800 weekly)
+ * @param dayOfWeek  0=Sun..6=Sat (default 4=Thu); weekly-multiple periods only
+ * @param hourUtc    0-23
+ * @param nowMs      reference timestamp
  */
-export function computeNextWindowMs(dayOfWeek: number, hourUtc: number, nowMs: number): number {
+export function computeNextWindowMs(
+  periodSecs: number,
+  dayOfWeek: number,
+  hourUtc: number,
+  nowMs: number,
+): number {
+  const periodMs = periodSecs * 1000;
   const d = new Date(nowMs);
   d.setUTCHours(hourUtc, 0, 0, 0);
 
-  const currentDay = d.getUTCDay();
-  let daysAhead = dayOfWeek - currentDay;
-  if (daysAhead < 0) daysAhead += 7;
-
-  const candidate = d.getTime() + daysAhead * 24 * 60 * 60 * 1000;
+  let candidate: number;
+  if (periodSecs % WEEK_SECS === 0) {
+    // Weekly-multiple: align to the day-of-week anchor.
+    const currentDay = d.getUTCDay();
+    let daysAhead = dayOfWeek - currentDay;
+    if (daysAhead < 0) daysAhead += 7;
+    candidate = d.getTime() + daysAhead * DAY_MS;
+  } else {
+    // Sub-week (e.g. daily): align to the hour-of-day anchor only.
+    candidate = d.getTime();
+  }
 
   if (candidate <= nowMs) {
-    return candidate + WEEK_MS;
+    return candidate + periodMs;
   }
   return candidate;
 }
@@ -65,7 +86,8 @@ export function isWindowDue(nextWindowMs: number, nowMs: number): boolean {
 
 /**
  * Deterministic cycle ID derived from the window-open timestamp.
- * Uses the Thursday UTC ISO date string (e.g., "2026-04-23").
+ * Uses the cycle-anchor UTC ISO date string (e.g., "2026-06-04"). Unique per
+ * cycle for both daily and weekly cadences.
  */
 export function cycleIdFromWindowMs(windowOpenMs: number): string {
   return new Date(windowOpenMs).toISOString().slice(0, 10);
@@ -95,11 +117,39 @@ export function loadSettlementState(
   if (result.kind === 'ok' && result.value != null) {
     const raw = result.value as Record<string, unknown>;
     if (raw.version === STATE_VERSION) {
-      return raw as unknown as SettlementState;
+      const persisted = raw as unknown as SettlementState;
+      // Re-anchor on a cadence change. When the keeper is idle (no open cycle)
+      // and the persisted next window is more than one full period away, the
+      // configured cadence was almost certainly shortened (e.g. weekly→daily)
+      // since the schedule was last written; the stale boundary would otherwise
+      // delay the first window of the new cadence (a persisted Thursday would
+      // hold even after flipping to daily). Recompute from the current period.
+      // This only ever moves the window EARLIER and never fires for stable
+      // config (where nextWindowMs - now <= period) or for a missed window
+      // pending immediate catch-up (where nextWindowMs <= now), so daemon
+      // catch-up semantics are preserved.
+      if (persisted.current == null) {
+        const periodMs = config.settlementPeriodSecs * 1000;
+        if (persisted.nextWindowMs - nowMs > periodMs) {
+          const reanchored = computeNextWindowMs(
+            config.settlementPeriodSecs,
+            config.settlementDayUtc,
+            config.settlementHourUtc,
+            nowMs,
+          );
+          return { ...persisted, nextWindowMs: reanchored };
+        }
+      }
+      return persisted;
     }
   }
 
-  const nextMs = computeNextWindowMs(config.settlementDayUtc, config.settlementHourUtc, nowMs);
+  const nextMs = computeNextWindowMs(
+    config.settlementPeriodSecs,
+    config.settlementDayUtc,
+    config.settlementHourUtc,
+    nowMs,
+  );
   return initState(nextMs);
 }
 
@@ -153,11 +203,37 @@ export function closeCycle(
   const cycle = state.current;
   const missedUsers = cycle?.spreadBatchesPending ?? [];
 
-  const nextWindowMs = computeNextWindowMs(
-    config.settlementDayUtc,
-    config.settlementHourUtc,
-    nowMs,
-  );
+  // Advance the schedule deterministically from the cycle that just closed
+  // rather than re-deriving from `nowMs`. This matters when the window duration
+  // equals the period (e.g. the default daily 24h window in a 24h period): the
+  // close fires an instant *after* the next anchor, so a `computeNextWindowMs`
+  // call keyed on `nowMs` would jump a full period ahead and silently skip a
+  // cycle. Adding whole periods from `windowOpenMs` keeps daily windows
+  // back-to-back, preserves the UTC hour/day-of-week anchor (since 86400 and
+  // 604800 are exact day/week multiples), and still catches up after long
+  // downtime without replaying every missed cycle.
+  const periodMs = config.settlementPeriodSecs * 1000;
+  const windowDurationMs = config.settlementWindowDurationSecs * 1000;
+  let nextWindowMs: number;
+  if (cycle) {
+    nextWindowMs = cycle.windowOpenMs + periodMs;
+    // Advance past any window whose active span has FULLY elapsed (we are in
+    // the quiet gap after it), but stop at one we are still inside so it opens
+    // this tick. Gating on the window's active span (not the full period) keeps
+    // daily windows back-to-back (duration == period ⇒ no quiet gap) while, for
+    // weekly (duration < period) after long downtime, it schedules the next
+    // boundary instead of re-opening a window whose 24h has already elapsed.
+    while (nextWindowMs + windowDurationMs <= nowMs) {
+      nextWindowMs += periodMs;
+    }
+  } else {
+    nextWindowMs = computeNextWindowMs(
+      config.settlementPeriodSecs,
+      config.settlementDayUtc,
+      config.settlementHourUtc,
+      nowMs,
+    );
+  }
 
   return {
     ...state,

@@ -181,26 +181,30 @@ Notes:
 - `checkpoint-before-expiry` is optional. The reward-checkpoint mechanism handles decaying-lock expiry correctly without pre-materialization.
 - It can still be useful to pre-materialize balances for UX or to reduce first-interaction gas after long inactivity.
 
-## Weekly Settlement Window
+## Settlement Window (configurable cadence)
 
-An opt-in scheduling mode that consolidates reward-settlement tasks into a shared weekly cycle instead of running them on independent intervals.
+An opt-in scheduling mode that consolidates reward-settlement tasks into a shared recurring cycle instead of running them on independent intervals. The cadence is set by `KEEPER_SETTLEMENT_PERIOD_SECS` — daily by default (`86400`); set `604800` for weekly.
 
-When enabled (`KEEPER_SETTLEMENT_ENABLED=1`), the four settlement tasks (`compound-shareholders`, `compound-lp`, `automax-bonus`, `harvest-staking`) are excluded from the normal interval-based loop and instead run within a 24-hour weekly window:
+When enabled (`KEEPER_SETTLEMENT_ENABLED=1`), the four settlement tasks (`compound-shareholders`, `compound-lp`, `automax-bonus`, `harvest-staking`) are excluded from the normal interval-based loop and instead run within a 24-hour window each cycle:
 
 - **Phase 1 (immediate):** `compound-lp` and `automax-bonus` run at window open (no DEX swap, no front-running risk).
 - **Phase 2 (spread):** `harvest-staking` runs once opportunistically; `compound-shareholders` runs in market-impact-budgeted batches across the remaining window.
 
 Configuration env vars:
 
-| Env var                                  | Default        | Description                              |
-| ---------------------------------------- | -------------- | ---------------------------------------- |
-| `KEEPER_SETTLEMENT_ENABLED`              | `false`        | Opt-in.                                  |
-| `KEEPER_SETTLEMENT_DAY_UTC`              | `4` (Thursday) | 0=Sun..6=Sat.                            |
-| `KEEPER_SETTLEMENT_HOUR_UTC`             | `0`            | Hour (UTC) for window open.              |
-| `KEEPER_SETTLEMENT_WINDOW_DURATION_SECS` | `86400`        | Window duration.                         |
-| `KEEPER_SETTLEMENT_TASK_GAP_SECS`        | `60`           | Pause between immediate tasks.           |
-| `KEEPER_SETTLEMENT_RETRY_WINDOW_SECS`    | `3600`         | Retry window for failed immediate tasks. |
-| `KEEPER_SETTLEMENT_MAX_DRIFT_BPS`        | `100` (1%)     | Max quote drift before pausing batches.  |
+| Env var                                        | Default         | Description                                                    |
+| ---------------------------------------------- | --------------- | -------------------------------------------------------------- |
+| `KEEPER_SETTLEMENT_ENABLED`                    | `false`         | Opt-in.                                                        |
+| `KEEPER_SETTLEMENT_PERIOD_SECS`                | `86400` (daily) | Master cadence. `86400` daily, `604800` weekly.                |
+| `KEEPER_SETTLEMENT_DAY_UTC`                    | `4` (Thursday)  | 0=Sun..6=Sat. Weekly-multiple periods only; ignored for daily. |
+| `KEEPER_SETTLEMENT_HOUR_UTC`                   | `0`             | Hour (UTC) for window open.                                    |
+| `KEEPER_SETTLEMENT_WINDOW_DURATION_SECS`       | `86400`         | Window duration (clamped to <= one period).                    |
+| `KEEPER_SETTLEMENT_TASK_GAP_SECS`              | `60`            | Pause between immediate tasks.                                 |
+| `KEEPER_SETTLEMENT_RETRY_WINDOW_SECS`          | `3600`          | Retry window for failed immediate tasks.                       |
+| `KEEPER_SETTLEMENT_MAX_DRIFT_BPS`              | `100` (1%)      | Max quote drift before pausing batches.                        |
+| `KEEPER_COMPOUND_SHAREHOLDER_MIN_CADENCE_SECS` | = period        | Per-user shareholder compound floor.                           |
+| `KEEPER_COMPOUND_LP_MIN_CADENCE_SECS`          | = period        | Per-user LP compound floor.                                    |
+| `KEEPER_AUTOMAX_OWNER_COOLDOWN_SECS`           | = period        | Per-owner AutoMax bonus floor.                                 |
 
 State file: `<stateDir>/<deployment>/settlement.json`
 
@@ -208,7 +212,9 @@ Verify it ran: check `settlement.json` for the current cycle ID, phase, and batc
 
 All existing skip rules (thresholds, cooldowns, simulations) are preserved inside the window. Non-settlement tasks (`poke`, `sweep-market`, etc.) continue on their normal intervals.
 
-See [developer docs — Weekly Settlement Window](../docs/manuals/developer/maintenance-and-bots.md#weekly-settlement-window) for the full design.
+To switch cadence: set `KEEPER_SETTLEMENT_PERIOD_SECS` (and the matching `SETTLEMENT_PERIOD_MS` constant in the frontend cadence module `settlementCadence.ts`) and restart. No state migration is needed: the per-user cooldown is computed live from the current period, so existing `lastCompounded` timestamps are reinterpreted automatically and on-chain floors (e.g. `LpStakingVault7D.MIN_COMPOUND_INTERVAL = 1 day`) remain authoritative.
+
+See [developer docs — Settlement Window](../docs/manuals/developer/maintenance-and-bots.md#settlement-window-configurable-cadence) for the full design.
 
 ## Safety notes
 

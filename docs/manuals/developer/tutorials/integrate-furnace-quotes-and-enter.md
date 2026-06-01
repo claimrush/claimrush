@@ -180,7 +180,7 @@ No approval needed — the lock already exists and no new CLAIM is transferred f
 
 AutoMax locks receive extension bonuses automatically — a key advantage of choosing AutoMax. A separate permissionless function handles this:
 
-- `claimAutoMaxBonus(tokenId)` — any caller can trigger, 24h onchain cooldown per lock; official keeper triggers weekly per owner
+- `claimAutoMaxBonus(tokenId)` — any caller can trigger, 24h onchain cooldown per lock; official keeper triggers per settlement period per owner (daily by default)
 
 This is a keeper/bot task, not a user-facing flow. See [Maintenance and Bots](../maintenance-and-bots.md) for integration.
 

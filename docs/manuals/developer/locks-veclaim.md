@@ -15,7 +15,7 @@ Read sources behind each card on `/veclaim`:
 | Locked CLAIM (principal across every live lock) | `ProtocolStats.lockedSupplyClaim` (mirrors `VeClaimNFT.totalLockedClaim()` denominated in whole CLAIM) |
 | TVL (USD value of locked CLAIM) | `ProtocolStats.tvlUsd` / `tvlEth` |
 | Royalties to Barons (7d) | `ProtocolStats.royalties7dEth` / `royalties7dUsd` |
-| Royalty APY | `ProtocolStats.royalties7dApyBps` (`(1 + 7d return)^(365/7) − 1`) |
+| Royalty APY | `ProtocolStats.royalties7dApyBps` (`(1 + 7d return / 7)^365 − 1`, daily-compounded) |
 
 Integrators that want the same numbers off the indexer should query the equivalents under `TokenPricingSnapshot` and the takeover scan (see `subgraph/schema.graphql`); the public app exposes the canonical aggregation via `/api/stats/protocol`.
 
@@ -91,7 +91,7 @@ Rules:
   - Explicit path: `setAutoMax(tokenId, false)` → wait until `lockEnd` → `unlock(tokenId)`. No shortcut — the full MAX_LOCK_DURATION cooldown applies.
 
 AutoMax automatic bonus growth:
-- A key advantage of AutoMax: the protocol accrues extension bonuses automatically via `Furnace.claimAutoMaxBonus(tokenId)` or `Furnace.claimAutoMaxBonusBatch(tokenIds[], maxLocks)` (permissionless, 24h onchain cooldown per lock, ineligible locks return 0). The official keeper triggers these weekly per owner, grouping all of a user's locks together. AutoMax lockers receive hands-free compounding — no manual extensions, no gas costs — making AutoMax the most rewarding lock mode. See [Furnace — AutoMax automatic bonus growth](furnace.md#automax-automatic-bonus-growth) for details.
+- A key advantage of AutoMax: the protocol accrues extension bonuses automatically via `Furnace.claimAutoMaxBonus(tokenId)` or `Furnace.claimAutoMaxBonusBatch(tokenIds[], maxLocks)` (permissionless, 24h onchain cooldown per lock, ineligible locks return 0). The official keeper triggers these per settlement period per owner (daily by default), grouping all of a user's locks together. AutoMax lockers receive hands-free compounding — no manual extensions, no gas costs — making AutoMax the most rewarding lock mode. See [Furnace — AutoMax automatic bonus growth](furnace.md#automax-automatic-bonus-growth) for details.
 
 Integrator notes:
 - Treat `getLockInfo(tokenId).lockEnd` as an *effective* lockEnd. For AutoMax it is time-dependent.

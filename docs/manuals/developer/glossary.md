@@ -8,7 +8,7 @@ Terms specific to onchain mechanics, indexer expectations, and operator runbooks
 
 **Auto-furnace fallback** — Subgraph-side resolution rule that links a `BonusTargetEscrowExecuted` row back to its underlying `FurnaceEnter` log when `furnaceTokenId == 0` on the execution event. The handler walks the receipt for the sibling `FurnaceEnter` with the largest `logIndex < execution.logIndex`. See [Events and Indexing](events-and-indexing.md).
 
-**AutoMax** — Lock flag that keeps the lock pinned at the maximum remaining duration. AutoMax locks accrue an extension bonus permissionlessly via `Furnace.claimAutoMaxBonus(tokenId)`. The protocol enforces a 24-hour onchain cooldown per lock; the official keeper triggers weekly per owner.
+**AutoMax** — Lock flag that keeps the lock pinned at the maximum remaining duration. AutoMax locks accrue an extension bonus permissionlessly via `Furnace.claimAutoMaxBonus(tokenId)`. The protocol enforces a 24-hour onchain cooldown per lock; the official keeper triggers per settlement period per owner (daily by default).
 
 ## B
 

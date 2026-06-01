@@ -527,7 +527,7 @@ export async function runDaemon(args: DaemonRunArgs): Promise<void> {
 
       // Window open trigger
       if (!sState.current && isWindowDue(sState.nextWindowMs, now)) {
-        log('settlement: opening weekly window');
+        log('settlement: opening settlement window');
         sState = openCycle(sState, now, config);
         persistSettlement();
         logSettlementSummary(sState, log);

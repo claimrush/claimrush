@@ -32,8 +32,22 @@ import { parseNonNegativeSafeInteger } from '../shared/utils.js';
 // onchain minAutoCompoundEth (0.0001 ETH default) to avoid wasting gas on dust.
 // Can be lowered in the future once gas economics justify smaller compounds.
 const MIN_AUTO_COMPOUND_REWARD_WEI = 1_000_000_000_000_000n; // 0.001 ETH
-const MIN_CADENCE_SECONDS = 7 * 24 * 60 * 60;
+// Keeper-side per-user cadence floor is configurable via
+// config.compoundShareholderMinCadenceSecs (defaults to the master settlement
+// period). A user's own on-chain minCadenceSeconds still wins when larger.
 // MAX_LOCK_DURATION removed: effectiveDuration is now computed on-chain.
+
+/**
+ * Effective per-user compound cadence in seconds: the larger of the keeper
+ * floor and the user's own on-chain `minCadenceSeconds`. The user's choice
+ * always wins when it is longer than the keeper floor.
+ */
+export function effectiveShareholderCadenceSeconds(
+  keeperFloorSecs: number,
+  userMinCadenceSeconds: number,
+): number {
+  return Math.max(keeperFloorSecs, userMinCadenceSeconds);
+}
 const CHAIN_REWIND_TOLERANCE = 64n;
 // Always rescan a small overlap window to tolerate small L2 reorgs and RPC log edge cases.
 const SCAN_OVERLAP_BLOCKS = CHAIN_REWIND_TOLERANCE;
@@ -554,7 +568,10 @@ async function selectBatch({
         nextState = clearFailure(nextState, user);
         continue;
       }
-      const effectiveCadenceSeconds = Math.max(MIN_CADENCE_SECONDS, minCadenceSeconds);
+      const effectiveCadenceSeconds = effectiveShareholderCadenceSeconds(
+        config.compoundShareholderMinCadenceSecs,
+        minCadenceSeconds,
+      );
       if (effectiveCadenceSeconds > 0 && lastCompoundTs > 0n) {
         if (nowTs < lastCompoundTs + BigInt(effectiveCadenceSeconds)) continue;
       }

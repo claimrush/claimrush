@@ -35,7 +35,7 @@ export type DaemonRunArgs = {
 };
 
 // ---------------------------------------------------------------------------
-// Weekly settlement window types
+// Settlement window types (configurable cadence)
 // ---------------------------------------------------------------------------
 
 export type SettlementPhase = 'idle' | 'immediate' | 'spread';
@@ -48,7 +48,7 @@ export interface BatchEntry {
 }
 
 /**
- * Persisted per-cycle state for the weekly settlement window.
+ * Persisted per-cycle state for the settlement window.
  *
  * Keyed by a deterministic `cycleId` so restarts mid-window resume
  * idempotently without re-running completed work.

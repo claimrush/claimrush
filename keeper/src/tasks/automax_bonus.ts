@@ -1,16 +1,18 @@
 /**
  * AutoMax bonus keeper.
  *
- * Finds autoMax locks eligible for a weekly bonus claim and calls
+ * Finds autoMax locks eligible for a bonus claim and calls
  * Furnace.claimAutoMaxBonusBatch for each batch.
  *
  * Eligibility: autoMax === true, not expired, not listed, lockAmount > 0,
  * and either lastAutoMaxBonusClaim == 0 (needs init) or
  * now - lastAutoMaxBonusClaim >= 86400 (24h on-chain cooldown elapsed).
  *
- * The keeper enforces a 7-day per-owner cooldown off-chain: when any lock
- * for an owner is processed, all of that owner's eligible locks are included
- * and the owner is skipped for 7 days. The protocol caps each user at 32 locks.
+ * The keeper enforces a configurable per-owner cooldown off-chain
+ * (`config.automaxOwnerCooldownSecs`, defaults to the settlement period — 24h
+ * by default): when any lock for an owner is processed, all of that owner's
+ * eligible locks are included and the owner is skipped for that cooldown. The
+ * protocol caps each user at 32 locks.
  */
 
 import type { KeeperConfig } from '../shared/config.js';
@@ -61,7 +63,8 @@ const SCAN_OVERLAP_BLOCKS = CHAIN_REWIND_TOLERANCE;
 const DEFAULT_MAX_LOCKS_PER_RUN = 5000;
 const ONCHAIN_BATCH_CAP = 200;
 const ONCHAIN_BONUS_COOLDOWN_SECS = 86_400n;
-const OWNER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days per owner off-chain
+// Off-chain per-owner cooldown is configurable via config.automaxOwnerCooldownSecs
+// (defaults to the master settlement period).
 
 // Per-eth_call slice size for the batched `lastAutoMaxBonusClaimBatch` view.
 // Sized conservatively so a single oversized request doesn't blow through
@@ -133,12 +136,16 @@ function saveState(statePath: string, state: AutomaxBonusState): void {
   saveJsonAtomic(statePath, state);
 }
 
-function isOwnerInCooldown(state: AutomaxBonusState, owner: string): boolean {
+function isOwnerInCooldown(
+  state: AutomaxBonusState,
+  owner: string,
+  ownerCooldownMs: number,
+): boolean {
   const ts = state.lastClaimedByOwner?.[owner];
   if (!ts) return false;
   const t = Date.parse(String(ts));
   if (!Number.isFinite(t)) return false;
-  return Date.now() - t < OWNER_COOLDOWN_MS;
+  return Date.now() - t < ownerCooldownMs;
 }
 
 function markOwnersClaimed(state: AutomaxBonusState, owners: Set<string>): AutomaxBonusState {
@@ -404,6 +411,7 @@ async function selectAutomaxCandidates({
   maxLocks,
   morningCache,
   morningWindowHours,
+  ownerCooldownMs,
   log,
 }: {
   publicClient: PublicClient;
@@ -414,6 +422,7 @@ async function selectAutomaxCandidates({
   maxLocks: number;
   morningCache: MorningCache | null;
   morningWindowHours: number;
+  ownerCooldownMs: number;
   log: (msg: string) => void;
 }): Promise<string[]> {
   const locks = state.locks ?? {};
@@ -448,7 +457,7 @@ async function selectAutomaxCandidates({
     }
 
     if (!ownerInCooldown.has(owner)) {
-      ownerInCooldown.set(owner, isOwnerInCooldown(state, owner));
+      ownerInCooldown.set(owner, isOwnerInCooldown(state, owner, ownerCooldownMs));
     }
 
     const ownerLocks = byOwner.get(owner);
@@ -491,9 +500,7 @@ async function selectAutomaxCandidates({
       out.push(id);
     }
     if (droppedByCooldown > 0 && log) {
-      log(
-        `automax-bonus: skipped ${droppedByCooldown} locks (owner in weekly cooldown, not first-touch)`,
-      );
+      log(`automax-bonus: skipped ${droppedByCooldown} locks (owner in cooldown, not first-touch)`);
     }
     return out;
   };
@@ -1089,6 +1096,7 @@ export async function runAutomaxBonusOnce({
     maxLocks,
     morningCache,
     morningWindowHours: config.morningWindowHours,
+    ownerCooldownMs: config.automaxOwnerCooldownSecs * 1000,
     log,
   });
 
@@ -1234,12 +1242,12 @@ export async function runAutomaxBonusOnce({
   // L4-1 (2026-04-17): `claimedOwners` is only populated inside the `tx.ok === true`
   // branch above, which — after the C-1 fix in `shared/tx.ts` — requires the receipt
   // status to be strictly `success`. Revert / pending_guard / null-status paths never
-  // populate `claimedOwners`, so the weekly cooldown is never advanced on an
+  // populate `claimedOwners`, so the owner cooldown is never advanced on an
   // unconfirmed claim.
   if (claimedOwners.size > 0) {
     const updatedState = markOwnersClaimed(scan.state, claimedOwners);
     saveState(statePath, updatedState);
-    if (log) log(`automax-bonus: marked ${claimedOwners.size} owners with weekly cooldown`);
+    if (log) log(`automax-bonus: marked ${claimedOwners.size} owners with owner cooldown`);
   }
 
   const successAt = nowUtcIso();

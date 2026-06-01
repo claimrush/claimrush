@@ -206,15 +206,15 @@ Cancels expired Buy intents (bonus target escrows) and refunds remaining budget 
 - Swap deadline (onchain DEX paths): `now + SWAP_DEADLINE_SECONDS` (**300s**)
 - Market sell deadline (`sellLockToFurnace`): caller-supplied. Bots should choose a short deadline that matches their execution path and slippage policy.
 
-## Weekly Settlement Window
+## Settlement Window (configurable cadence)
 
-An opt-in keeper scheduling policy that consolidates reward-settlement tasks (shareholder compound, LP compound, AutoMax bonus, LP harvest) into a single weekly cycle.
+An opt-in keeper scheduling policy that consolidates reward-settlement tasks (shareholder compound, LP compound, AutoMax bonus, LP harvest) into a single recurring cycle. The cadence is configurable via `KEEPER_SETTLEMENT_PERIOD_SECS` — **daily by default** (`86400`); set `604800` for weekly.
 
-**Design:** keeper policy and product cadence, not a protocol-level rule. On-chain accrual remains continuous. The weekly window determines *when the keeper settles* — not when value accrues.
+**Design:** keeper policy and product cadence, not a protocol-level rule. On-chain accrual remains continuous. The settlement window determines *when the keeper settles* — not when value accrues.
 
 ### Two-phase execution
 
-All four settlement tasks fire within a 24-hour window (default: Thursday 00:00 UTC to Friday 00:00 UTC), split into two phases based on price sensitivity.
+All four settlement tasks fire within a window (default: a 24-hour window opening daily at 00:00 UTC; under a weekly period it opens on `KEEPER_SETTLEMENT_DAY_UTC`, default Thursday), split into two phases based on price sensitivity.
 
 **Phase 1 — Immediate (window open):**
 
@@ -234,7 +234,7 @@ Price-sensitive tasks are distributed across the remaining window with randomize
 | `harvest-staking` | Once, opportunistically, when quote is favorable | Concentrated WETH→CLAIM swap |
 | `compound-shareholders` | Market-impact-budgeted batches, randomized timing | Predictable synchronized buy pressure on CLAIM |
 
-Why spread: a hard global weekly minute with all price-sensitive tasks firing at once creates predictable synchronized buy pressure that invites front-running, sandwiching, pre-positioning, and worse fills. Spreading execution across 24 hours makes it much harder to sandwich profitably.
+Why spread: a hard global settlement minute with all price-sensitive tasks firing at once creates predictable synchronized buy pressure that invites front-running, sandwiching, pre-positioning, and worse fills. Spreading execution across the window makes it much harder to sandwich profitably. (A shorter period such as daily also splits the per-cycle buy pressure into smaller chunks, further reducing per-event slippage.)
 
 ### Market-impact budget
 
@@ -242,7 +242,7 @@ Before each `compound-shareholders` batch, the keeper estimates the input size a
 
 ### Cycle-keyed state
 
-Settlement state is keyed by a deterministic cycle ID derived from the window-open timestamp (e.g., `"2026-04-23"` for the Thursday 2026-04-23 window). Per-cycle state tracks:
+Settlement state is keyed by a deterministic cycle ID derived from the window-open timestamp (e.g., `"2026-06-04"` for the cycle opening on 2026-06-04). Per-cycle state tracks:
 
 - Phase and which immediate tasks completed (prevents duplicate phase-1 execution on restart)
 - Harvest completion (single global action)
@@ -252,13 +252,13 @@ Settlement state is keyed by a deterministic cycle ID derived from the window-op
 
 Persisted state is structural only: cycle ID, addresses, phase, completion flags. Quotes, reward amounts, and impact estimates are **never persisted** — they must be fetched fresh at execution time.
 
-On daemon restart mid-window: read the cycle state, skip completed tasks, resume from the next pending batch. On restart mid-week (outside window): state is read-only until the next window opens.
+On daemon restart mid-window: read the cycle state, skip completed tasks, resume from the next pending batch. On restart between cycles (outside window): state is read-only until the next window opens.
 
 ### Cooldown model: cycle eligibility
 
-When settlement mode is enabled, the keeper replaces the 7-day wall-clock cooldown with per-cycle eligibility: "was this user processed in the current cycle?" is the gate. The on-chain checks (24h / 1 day / user-configured `minCadenceSeconds`) still run at execution time.
+When settlement mode is enabled, the keeper gates on per-cycle eligibility: "was this user processed in the current cycle?" The per-user keeper floor defaults to the settlement period (so it moves in lockstep with the cadence), and the on-chain checks (24h / 1 day / user-configured `minCadenceSeconds`) still run at execution time.
 
-Exception: if a user sets `ShareholderRoyalties.minCadenceSeconds` to longer than one week, the on-chain check remains authoritative. That user intentionally skips some cycles.
+Exception: if a user sets `ShareholderRoyalties.minCadenceSeconds` to longer than the settlement period, the on-chain check remains authoritative. That user intentionally skips some cycles.
 
 ### Starvation protection
 
@@ -278,7 +278,7 @@ The window is best-effort and conditional. It opens the gate for settlement; the
 
 Settlement creates a periodic draw on `furnaceReserve`. Non-price-sensitive tasks (LP compound, AutoMax) draw reserve immediately at window open via `_applyBonusAmm`. Price-sensitive draws (shareholder compound batches) are spread across the 24-hour window.
 
-`bonusVirtualDepth` recovers on the `BONUS_DECAY_WINDOW` (3h) timescale after each draw. Between windows, the reserve refills continuously via emission stream, sellback credits, and overflow drip.
+`bonusVirtualDepth` recovers on the `BONUS_DECAY_WINDOW` (3h) timescale after each draw. Between cycles, the reserve refills continuously via emission stream, sellback credits, and overflow drip.
 
 ### Morning cache reuse
 
@@ -289,12 +289,30 @@ The per-user morning-hour cache from `user_morning.ts` is repurposed within the 
 | Env var | Default | Description |
 |---------|---------|-------------|
 | `KEEPER_SETTLEMENT_ENABLED` | `false` | Opt-in flag. Existing deployments unaffected until enabled. |
-| `KEEPER_SETTLEMENT_DAY_UTC` | `4` (Thursday) | Day of week for window open (0=Sun..6=Sat). |
+| `KEEPER_SETTLEMENT_PERIOD_SECS` | `86400` (daily) | Master cadence. `86400` = daily, `604800` = weekly. Drives the window spacing and the per-user floors. |
+| `KEEPER_SETTLEMENT_DAY_UTC` | `4` (Thursday) | Day of week for window open (0=Sun..6=Sat). Only applies to weekly-multiple periods; ignored for daily. |
 | `KEEPER_SETTLEMENT_HOUR_UTC` | `0` | Hour (UTC) for window open. |
-| `KEEPER_SETTLEMENT_WINDOW_DURATION_SECS` | `86400` (24h) | Duration of the settlement window. |
+| `KEEPER_SETTLEMENT_WINDOW_DURATION_SECS` | `86400` (24h) | Duration of the settlement window. Clamped to at most one period so windows never overlap. |
 | `KEEPER_SETTLEMENT_TASK_GAP_SECS` | `60` | Pause between immediate-phase tasks. |
 | `KEEPER_SETTLEMENT_RETRY_WINDOW_SECS` | `3600` | Retry window for failed immediate tasks. |
 | `KEEPER_SETTLEMENT_MAX_DRIFT_BPS` | `100` (1%) | Max acceptable quote drift per batch before pausing price-sensitive execution. |
+
+Per-user floors default to the master period; override individually to decouple a task from the cadence:
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `KEEPER_COMPOUND_SHAREHOLDER_MIN_CADENCE_SECS` | = period | Min seconds between shareholder compounds per user. A user's own on-chain `minCadenceSeconds` still wins when larger. |
+| `KEEPER_COMPOUND_LP_MIN_CADENCE_SECS` | = period | Min seconds between LP compounds per user (off-chain cooldown). |
+| `KEEPER_AUTOMAX_OWNER_COOLDOWN_SECS` | = period | Min seconds between AutoMax bonus runs per owner (off-chain cooldown). |
+
+### Switching cadence (daily ↔ weekly)
+
+Cadence is configuration, not code. To switch:
+
+1. Keeper: set `KEEPER_SETTLEMENT_PERIOD_SECS` (`86400` daily / `604800` weekly); for weekly confirm `KEEPER_SETTLEMENT_DAY_UTC`. Restart the keeper.
+2. Frontend: set `SETTLEMENT_PERIOD_MS` in the frontend cadence module `settlementCadence.ts` to match (`86400000` / `604800000`) and redeploy.
+
+No state migration is needed in either direction. The per-user floors are recomputed live from the current period, so existing `lastCompounded`/on-chain `lastCompoundTs` anchors are reinterpreted against the new cooldown automatically, and the on-chain floors (`LpStakingVault7D.MIN_COMPOUND_INTERVAL = 1 day`, `ShareholderRoyalties.minCadenceSeconds`) remain authoritative — so the keeper never compounds earlier than the chain allows.
 
 ### Third-party keepers
 

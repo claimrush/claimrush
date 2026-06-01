@@ -38,7 +38,9 @@ const FAILURE_INITIAL_MS = 5 * 60 * 1000;
 const FAILURE_MAX_MS = 24 * 60 * 60 * 1000;
 const FAILURE_MULTIPLIER = 2;
 
-const COMPOUND_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days between compounds per user
+// Per-user compound cooldown is configurable via config.compoundLpMinCadenceSecs
+// (defaults to the master settlement period). Receipt-gated: only advanced on a
+// confirmed LpRewardsLocked event.
 
 const EVT_CONFIGURED = parseAbiItem(
   'event AutoCompoundConfigured(address indexed user, bool enabled, uint256 tokenId, uint256 durationSeconds, uint32 maxSlippageBps, uint256 minRewardToCompound)',
@@ -48,7 +50,7 @@ const EVT_PAUSED = parseAbiItem(
 );
 // Pinned to the canonical `Events.sol` shape so `LP_REWARDS_LOCKED_TOPIC`
 // matches the selector the vault actually emits. The receipt-gating set
-// derived from this topic drives the per-user 7-day cooldown — a stale
+// derived from this topic drives the per-user compound cooldown — a stale
 // signature here makes successful compounds invisible to the keeper and the
 // cooldown never advances.
 const EVT_REWARDS_LOCKED = parseAbiItem(
@@ -192,13 +194,17 @@ function clearFailure(state: CompoundState, user: string): CompoundState {
   return { ...state, failures };
 }
 
-function inCompoundCooldown(state: CompoundState, user: string): boolean {
+export function inCompoundCooldown(
+  state: CompoundState,
+  user: string,
+  cooldownMs: number,
+): boolean {
   const key = addrNorm(user);
   const ts = state.lastCompounded?.[key];
   if (!ts) return false;
   const t = Date.parse(String(ts));
   if (!Number.isFinite(t)) return false;
-  return Date.now() - t < COMPOUND_COOLDOWN_MS;
+  return Date.now() - t < cooldownMs;
 }
 
 function markCompounded(state: CompoundState, users: string[]): CompoundState {
@@ -218,7 +224,7 @@ const LP_REWARDS_LOCKED_TOPIC = getEventSelector(
 // whom the vault actually emitted `LpRewardsLocked`. A silent no-op (Furnace
 // quote unusable, no `LpRewardsLocked`, no pause) leaves the user out — the
 // caller must skip the cooldown advance for that user so the next tick can
-// retry instead of waiting out the 7-day per-user cooldown.
+// retry instead of waiting out the full per-user cooldown.
 function parseLpRewardsLockedUsers(
   logs: Array<{ address?: string; topics?: string[]; data?: string }>,
   vaultAddr: Address,
@@ -457,7 +463,7 @@ async function selectBatch({
     nextState = { ...nextState, cursor };
     if (!user) continue;
     if (inFailureCooldown(nextState, user)) continue;
-    if (inCompoundCooldown(nextState, user)) continue;
+    if (inCompoundCooldown(nextState, user, config.compoundLpMinCadenceSecs * 1000)) continue;
     if (morningCache && !isInMorningWindow(morningCache, user, config.morningWindowHours)) continue;
     candidates.push(user);
   }
@@ -824,7 +830,7 @@ export async function runCompoundLp({
     // Receipt-gated cooldown: `compoundForMany` can silently no-op a user when
     // the Furnace quote is unusable (no `LpRewardsLocked` emitted, no pause
     // signal). Marking every submitted user as compounded would record a
-    // 7-day cooldown for users whose reward never landed. Parse the receipt
+    // full cooldown for users whose reward never landed. Parse the receipt
     // and mark only users who actually emitted `LpRewardsLocked`. The rest
     // stay eligible for the next tick — pause signals are tracked separately
     // by the watcher.

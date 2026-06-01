@@ -340,8 +340,12 @@ export interface KeeperConfig {
   automaxBonusMaxLocks?: number | null;
   automaxBonusMinReward: string;
 
-  // Weekly settlement window (opt-in keeper policy)
+  // Settlement window (opt-in keeper policy). Cadence is configurable via
+  // settlementPeriodSecs: 86400 = daily (default), 604800 = weekly. The
+  // day-of-week anchor (settlementDayUtc) only applies to weekly-multiple
+  // periods; sub-week periods anchor to settlementHourUtc only.
   settlementEnabled: boolean;
+  settlementPeriodSecs: number;
   settlementDayUtc: number;
   settlementHourUtc: number;
   settlementWindowDurationSecs: number;
@@ -349,6 +353,13 @@ export interface KeeperConfig {
   settlementRetryWindowSecs: number;
   settlementMaxDriftBps: number;
   settlementStatePath: string;
+
+  // Per-user compound/bonus floors. Each defaults to settlementPeriodSecs so a
+  // single cadence knob moves them in lockstep; override individually to
+  // decouple a task from the master period.
+  compoundShareholderMinCadenceSecs: number;
+  compoundLpMinCadenceSecs: number;
+  automaxOwnerCooldownSecs: number;
 
   subgraphUrl: string | null;
   morningWindowHours: number;
@@ -553,13 +564,18 @@ const KeeperConfigSchema = z.object({
   automaxBonusMinReward: z.string().min(1),
 
   settlementEnabled: z.boolean(),
+  settlementPeriodSecs: z.number().int().min(3_600).max(604_800),
   settlementDayUtc: z.number().int().min(0).max(6),
   settlementHourUtc: z.number().int().min(0).max(23),
-  settlementWindowDurationSecs: z.number().int().min(3_600).max(172_800),
+  settlementWindowDurationSecs: z.number().int().min(3_600).max(604_800),
   settlementTaskGapSecs: z.number().int().min(0).max(600),
   settlementRetryWindowSecs: z.number().int().min(60).max(86_400),
   settlementMaxDriftBps: z.number().int().min(1).max(5_000),
   settlementStatePath: z.string().min(1),
+
+  compoundShareholderMinCadenceSecs: z.number().int().min(3_600).max(604_800),
+  compoundLpMinCadenceSecs: z.number().int().min(3_600).max(604_800),
+  automaxOwnerCooldownSecs: z.number().int().min(3_600).max(604_800),
 
   subgraphUrl: z.string().url().nullable(),
   morningWindowHours: z.number().int().min(1).max(6),
@@ -1212,12 +1228,20 @@ export function loadConfigFromEnv(): KeeperConfig {
   const automaxBonusMinReward =
     process.env.KEEPER_AUTOMAX_BONUS_MIN_REWARD || '100000000000000000000';
 
-  // -- Weekly settlement window (opt-in) --
+  // -- Settlement window (opt-in; configurable cadence) --
 
   const settlementEnabled = parseBool(process.env.KEEPER_SETTLEMENT_ENABLED, {
     defaultValue: false,
   });
 
+  // Master cadence knob. 86400 = daily (default), 604800 = weekly.
+  const settlementPeriodSecs = clamp(
+    parseIntStrict(process.env.KEEPER_SETTLEMENT_PERIOD_SECS, { defaultValue: 86_400 }) ?? 86_400,
+    { min: 3_600, max: 604_800 },
+  );
+
+  // Day-of-week anchor. Only consulted when the period is a whole number of
+  // weeks (e.g. weekly); ignored for sub-week periods like daily.
   const settlementDayUtc = clamp(
     parseIntStrict(process.env.KEEPER_SETTLEMENT_DAY_UTC, { defaultValue: 4 }) ?? 4,
     { min: 0, max: 6 },
@@ -1228,10 +1252,11 @@ export function loadConfigFromEnv(): KeeperConfig {
     { min: 0, max: 23 },
   );
 
+  // A window may not outlast its own cycle, else consecutive windows overlap.
   const settlementWindowDurationSecs = clamp(
     parseIntStrict(process.env.KEEPER_SETTLEMENT_WINDOW_DURATION_SECS, { defaultValue: 86_400 }) ??
       86_400,
-    { min: 3_600, max: 172_800 },
+    { min: 3_600, max: settlementPeriodSecs },
   );
 
   const settlementTaskGapSecs = clamp(
@@ -1248,6 +1273,30 @@ export function loadConfigFromEnv(): KeeperConfig {
   const settlementMaxDriftBps = clamp(
     parseIntStrict(process.env.KEEPER_SETTLEMENT_MAX_DRIFT_BPS, { defaultValue: 100 }) ?? 100,
     { min: 1, max: 5_000 },
+  );
+
+  // Per-user floors. Each defaults to the master settlement period so flipping
+  // KEEPER_SETTLEMENT_PERIOD_SECS moves the whole system together; set an
+  // override to decouple a single task.
+  const compoundShareholderMinCadenceSecs = clamp(
+    parseIntStrict(process.env.KEEPER_COMPOUND_SHAREHOLDER_MIN_CADENCE_SECS, {
+      defaultValue: settlementPeriodSecs,
+    }) ?? settlementPeriodSecs,
+    { min: 3_600, max: 604_800 },
+  );
+
+  const compoundLpMinCadenceSecs = clamp(
+    parseIntStrict(process.env.KEEPER_COMPOUND_LP_MIN_CADENCE_SECS, {
+      defaultValue: settlementPeriodSecs,
+    }) ?? settlementPeriodSecs,
+    { min: 3_600, max: 604_800 },
+  );
+
+  const automaxOwnerCooldownSecs = clamp(
+    parseIntStrict(process.env.KEEPER_AUTOMAX_OWNER_COOLDOWN_SECS, {
+      defaultValue: settlementPeriodSecs,
+    }) ?? settlementPeriodSecs,
+    { min: 3_600, max: 604_800 },
   );
 
   const subgraphUrl = process.env.KEEPER_SUBGRAPH_URL?.trim() || null;
@@ -1741,6 +1790,7 @@ export function loadConfigFromEnv(): KeeperConfig {
     automaxBonusMinReward,
 
     settlementEnabled,
+    settlementPeriodSecs,
     settlementDayUtc,
     settlementHourUtc,
     settlementWindowDurationSecs,
@@ -1748,6 +1798,10 @@ export function loadConfigFromEnv(): KeeperConfig {
     settlementRetryWindowSecs,
     settlementMaxDriftBps,
     settlementStatePath: path.join(deploymentStateDir, 'settlement.json'),
+
+    compoundShareholderMinCadenceSecs,
+    compoundLpMinCadenceSecs,
+    automaxOwnerCooldownSecs,
 
     subgraphUrl,
     morningWindowHours,
