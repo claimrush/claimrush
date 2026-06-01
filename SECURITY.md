@@ -101,6 +101,12 @@ during coordinated disclosure when needed.
 
 ## Security documentation
 
+For the public security index — pointers to the live verification
+surface (`https://docs.claimru.sh/security`), the protocol status
+page (`https://claimru.sh/status`), the source code, the deployment
+manifests, and the channel for requesting working security documents
+under coordinated disclosure — see [`docs/security/README.md`](docs/security/README.md).
+
 The v1.0.0 security architecture (trust boundaries, roles and permissions
 matrix, global invariants, onchain threat map, CI security gates, verification
 and audit plan, game-integrity and anti-abuse controls, offchain fraud

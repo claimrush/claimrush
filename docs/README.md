@@ -87,6 +87,13 @@ The short public-facing disclosure policy lives at the repo root in
 [`SECURITY.md`](../SECURITY.md). It covers supported versions, severity tiers,
 response targets, reporting channels, and safe-harbour expectations.
 
+For the public security index — including pointers to the live
+verification surfaces (`https://docs.claimru.sh/security`,
+`https://claimru.sh/status`), the policy on which security documents
+are intentionally private, and the channel for requesting access to
+working security documents under coordinated-disclosure terms — see
+[`docs/security/README.md`](security/README.md).
+
 The long-form v1.0.0 security architecture (trust boundaries, roles,
 invariants, threat map, verification plan, test matrix, third-party trust
 inventory, etc.) is shared directly during coordinated disclosure on request.

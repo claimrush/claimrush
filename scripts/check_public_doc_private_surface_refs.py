@@ -87,6 +87,17 @@ ALLOWLIST: dict[str, set[str]] = {
         "audit phrase",
         "history phrase",
     },
+    # Public security index. The whole purpose of this file is to explain
+    # the public-vs-private split of the security documentation tree and
+    # to forward-reference the eventual external-audit report that will
+    # land here at Phase 8 (Freeze-and-Burn). Phrasing like "audit report"
+    # is therefore intentional and required for the document to do its
+    # job; the gate's purpose (preventing leaks of internal audit-pass /
+    # remediation-cycle framing into the public surface) is not in scope
+    # for this file.
+    "docs/security/README.md": {
+        "audit phrase",
+    },
     # Cross-cutting specs/architecture docs that describe systems spanning
     # public (contracts/analytics/manuals) and private (frontend/workers/
     # services) surfaces. The path references here are intentional pointers
