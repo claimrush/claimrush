@@ -32,6 +32,11 @@ library DelegationActionTypes {
     /// @dev Medium risk: combines the delegated harvest surfaces represented by IDs 10 and 11.
     uint8 internal constant CLAIM_ALL_FOR = 12;
 
+    /// @notice Delegated shareholder reward claim routed to the caller (looping bot).
+    /// @dev High risk: redirects the user's Baron ETH to the delegate (`msg.sender`). Gated by
+    ///      `P_CLAIM_SHAREHOLDER_FOR | P_ROUTE_SHAREHOLDER_ETH_TO_CALLER`.
+    uint8 internal constant CLAIM_SHAREHOLDER_TO_CALLER_FOR = 13;
+
     // Furnace
 
     /// @notice Delegated Furnace entry where the delegate supplies ETH.

@@ -87,17 +87,22 @@ contract DelegationPermissionsGuardrailTest is Test {
         assertEq(DelegationPermissions.P_SET_LP_AUTOCOMPOUND_CONFIG_FOR, 1 << 17);
     }
 
+    // ClaimAllHelper (value routing)
+    function testPRouteShareholderEthToCaller() public {
+        assertEq(DelegationPermissions.P_ROUTE_SHAREHOLDER_ETH_TO_CALLER, 1 << 18);
+    }
+
     // ALL convenience mask
-    function testAllMaskCoversExactlyBits0Through17() public {
+    function testAllMaskCoversExactlyBits0Through18() public {
         uint256 expected = 0;
-        for (uint256 i = 0; i < 18; i++) {
+        for (uint256 i = 0; i < 19; i++) {
             expected |= (1 << i);
         }
-        assertEq(DelegationPermissions.ALL, expected, "ALL mask must be bits 0..17");
+        assertEq(DelegationPermissions.ALL, expected, "ALL mask must be bits 0..18");
     }
 
     function testPermissionBitsArePairwiseUnique() public {
-        uint256[18] memory bits = [
+        uint256[19] memory bits = [
             DelegationPermissions.P_TAKEOVER_FOR,
             DelegationPermissions.P_ROUTE_REIGN_CLAIM_TO_CALLER,
             DelegationPermissions.P_SET_REIGN_ETH_RECIPIENT,
@@ -115,7 +120,8 @@ contract DelegationPermissionsGuardrailTest is Test {
             DelegationPermissions.P_VE_UNLOCK_EXPIRED_FOR,
             DelegationPermissions.P_SET_KING_AUTO_LOCK_CONFIG_FOR,
             DelegationPermissions.P_SET_SHAREHOLDER_AUTOCOMPOUND_CONFIG_FOR,
-            DelegationPermissions.P_SET_LP_AUTOCOMPOUND_CONFIG_FOR
+            DelegationPermissions.P_SET_LP_AUTOCOMPOUND_CONFIG_FOR,
+            DelegationPermissions.P_ROUTE_SHAREHOLDER_ETH_TO_CALLER
         ];
 
         for (uint256 i = 0; i < bits.length; i++) {

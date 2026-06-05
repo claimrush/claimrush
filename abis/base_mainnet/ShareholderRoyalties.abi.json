@@ -170,6 +170,24 @@
   },
   {
     "type": "function",
+    "name": "claimShareholderForTo",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address payable"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "claimShareholderTo",
     "inputs": [
       {

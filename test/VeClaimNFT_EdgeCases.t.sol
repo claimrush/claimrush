@@ -512,12 +512,12 @@ contract VeClaimNFT_EdgeCases_Test is Test {
     // ══════════════════════════════════════════════════════════════
 
     function test_delegationPermissions_allMaskCoverage() public pure {
-        uint256 expected = (1 << 18) - 1;
-        assertEq(DelegationPermissions.ALL, expected, "ALL mask must equal (1<<18)-1");
+        uint256 expected = (1 << 19) - 1;
+        assertEq(DelegationPermissions.ALL, expected, "ALL mask must equal (1<<19)-1");
     }
 
     function test_isAuthorized_undefinedBitsReturnsFalse() public {
-        uint256 undefinedBit = 1 << 18;
+        uint256 undefinedBit = 1 << 19;
 
         vm.prank(alice);
         hub.setSession(delegate, DelegationPermissions.ALL, uint64(block.timestamp + 1 hours));

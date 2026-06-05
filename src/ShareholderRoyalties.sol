@@ -1269,6 +1269,31 @@ contract ShareholderRoyalties is UpgradeableProtocolBase, IShareholderRoyalties 
         _claimShareholder(user, mode, targetTokenId, durationSeconds, createAutoMax, minVeOut);
     }
 
+    /// @notice Collect `user`'s Baron ETH rewards and route them to `to` (helper-only entrypoint).
+    /// @dev ETH-only by construction (no lock/mode params): the looping-bot routing path where a
+    ///      delegate Collects on behalf of `user` and the ETH is forwarded to the delegate. The
+    ///      delegation gate (`P_CLAIM_SHAREHOLDER_FOR | P_ROUTE_SHAREHOLDER_ETH_TO_CALLER`) and the
+    ///      caller-only constraint (`to == msg.sender` of the helper) are enforced in ClaimAllHelper;
+    ///      this function trusts only the canonical helper via `onlyClaimAllHelper`. Adds no storage —
+    ///      same crystallise/consume accounting as the user-direct ETH claim path.
+    function claimShareholderForTo(address user, address payable to) external nonReentrant onlyClaimAllHelper {
+        if (to == address(0)) revert Errors.ZeroAddress();
+
+        checkpointUser(user);
+
+        uint256 amount = _claimableEthStored[user];
+        if (amount == 0) return;
+
+        _claimableEthStored[user] = 0;
+        _consumeReservedEth(amount);
+
+        bool ok = _callWithValueNoReturndata(to, amount);
+        if (!ok) revert Errors.EthTransferFailed();
+
+        emit Events.ShareholderClaim(user, Constants.SHAREHOLDER_MODE_ETH, amount);
+        emit Events.ShareholderClaimed(user, to, amount, Constants.SHAREHOLDER_MODE_ETH);
+    }
+
     /// @notice Claim baron ETH rewards to a specified receiver address.
     /// @dev Allows smart-contract wallets whose primary address cannot receive ETH
     ///      to redirect their baron claims to an EOA or compatible receiver.

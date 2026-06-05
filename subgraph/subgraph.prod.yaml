@@ -91,15 +91,15 @@ dataSources:
       file: ./src/mappings/minecore.ts
 
   # -----------------
-  # DelegationHub (bot sessions)
+  # DelegationHub — canonical hub (bot sessions); addresses pinned to deployments/base_mainnet.json
   # -----------------
   - kind: ethereum
     name: DelegationHub
     network: base
     source:
-      address: "0xfeaadc7e5eeaabbc96732bd988419dc5f1459258"
+      address: "0xe4b4e7097bacdf1542ae630c842f35903932bae9"
       abi: DelegationHub
-      startBlock: 46183959
+      startBlock: 46828032
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -117,15 +117,15 @@ dataSources:
       file: ./src/mappings/delegationHub.ts
 
   # -----------------
-  # ClaimAllHelper (bot convenience)
+  # ClaimAllHelper — canonical helper (bot convenience); addresses pinned to deployments/base_mainnet.json
   # -----------------
   - kind: ethereum
     name: ClaimAllHelper
     network: base
     source:
-      address: "0x7c93b7e4e10f296219cee63120d5fc7080128ec8"
+      address: "0xb0af1dd2a8a5c1f8d5b04a396eeee47e7e6a1568"
       abi: ClaimAllHelper
-      startBlock: 46183959
+      startBlock: 46828032
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

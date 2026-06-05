@@ -29,11 +29,15 @@ export const P_SET_KING_AUTO_LOCK_CONFIG_FOR = 1n << 15n;
 export const P_SET_SHAREHOLDER_AUTOCOMPOUND_CONFIG_FOR = 1n << 16n;
 export const P_SET_LP_AUTOCOMPOUND_CONFIG_FOR = 1n << 17n;
 
-// `ALL` is the bitmask of every defined permission, including the three
+// High risk: routes the user's collected Baron ETH to the caller (looping bot).
+export const P_ROUTE_SHAREHOLDER_ETH_TO_CALLER = 1n << 18n;
+
+// `ALL` is the bitmask of every defined permission, including the
 // fund-redirection bits (P_ROUTE_REIGN_CLAIM_TO_CALLER,
-// P_SET_REIGN_ETH_RECIPIENT, P_SET_REIGN_CLAIM_RECIPIENT). Do NOT use `ALL`
-// when delegating to a third-party agent; use `SAFE_AGENT_PERMS` (below)
-// instead, which excludes those three bits.
+// P_SET_REIGN_ETH_RECIPIENT, P_SET_REIGN_CLAIM_RECIPIENT,
+// P_ROUTE_SHAREHOLDER_ETH_TO_CALLER). Do NOT use `ALL` when delegating to a
+// third-party agent; use `SAFE_AGENT_PERMS` (below) instead, which excludes
+// those value-redirecting bits.
 
 export const ALL =
   P_TAKEOVER_FOR |
@@ -53,10 +57,15 @@ export const ALL =
   P_VE_UNLOCK_EXPIRED_FOR |
   P_SET_KING_AUTO_LOCK_CONFIG_FOR |
   P_SET_SHAREHOLDER_AUTOCOMPOUND_CONFIG_FOR |
-  P_SET_LP_AUTOCOMPOUND_CONFIG_FOR;
+  P_SET_LP_AUTOCOMPOUND_CONFIG_FOR |
+  P_ROUTE_SHAREHOLDER_ETH_TO_CALLER;
 
 export const SAFE_AGENT_PERMS =
-  ALL & ~P_ROUTE_REIGN_CLAIM_TO_CALLER & ~P_SET_REIGN_ETH_RECIPIENT & ~P_SET_REIGN_CLAIM_RECIPIENT;
+  ALL &
+  ~P_ROUTE_REIGN_CLAIM_TO_CALLER &
+  ~P_SET_REIGN_ETH_RECIPIENT &
+  ~P_SET_REIGN_CLAIM_RECIPIENT &
+  ~P_ROUTE_SHAREHOLDER_ETH_TO_CALLER;
 
 /** Convenience OR helper. */
 export function permsMask(perms: bigint[]): bigint {
@@ -169,6 +178,12 @@ export const PERM_DEFINITIONS: readonly DelegationPermInfo[] = [
     bit: P_SET_LP_AUTOCOMPOUND_CONFIG_FOR,
     description: 'Allow setting LP auto-compound config for user.',
   },
+
+  {
+    constant: 'P_ROUTE_SHAREHOLDER_ETH_TO_CALLER',
+    bit: P_ROUTE_SHAREHOLDER_ETH_TO_CALLER,
+    description: 'Allow routing claimed shareholder ETH to the delegate (high risk).',
+  },
 ] as const;
 
 export const PERM_NAME_TO_BIT: Readonly<Record<string, bigint>> = Object.freeze(
@@ -213,7 +228,7 @@ export function parsePermsSpec(spec: string): bigint {
   const s = spec.trim();
   if (!s) return 0n;
 
-  const MAX_KNOWN_BIT = 17n;
+  const MAX_KNOWN_BIT = 18n;
   const MAX_VALID_PERMS = (1n << (MAX_KNOWN_BIT + 1n)) - 1n;
 
   const numeric = /^0x[0-9a-fA-F]+$/.test(s) || /^[0-9]+$/.test(s);

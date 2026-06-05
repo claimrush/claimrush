@@ -14,7 +14,7 @@ function actionTypeEnum(actionTypeId: i32): string {
   // See contracts: src/lib/DelegationActionTypes.sol
   if (actionTypeId == 1) return 'TAKEOVER';
   if (actionTypeId == 2) return 'REIGN_RECIPIENTS';
-  if (actionTypeId >= 10 && actionTypeId <= 12) return 'CLAIM';
+  if (actionTypeId >= 10 && actionTypeId <= 13) return 'CLAIM';
   if (actionTypeId >= 20 && actionTypeId <= 22) return 'FURNACE_ENTER';
   if (actionTypeId >= 30 && actionTypeId <= 32) return 'VE_LOCK';
   if (actionTypeId >= 40 && actionTypeId <= 42) return 'CONFIG';

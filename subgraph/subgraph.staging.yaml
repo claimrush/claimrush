@@ -97,9 +97,9 @@ dataSources:
     name: DelegationHub
     network: base-sepolia
     source:
-      address: "0x6c6428e3bc035c8e8d057baf9df55b90261a70aa"
+      address: "0xbbca4b1ee5a241bd563c0e8cf1b86668999dd378"
       abi: DelegationHub
-      startBlock: 41628571
+      startBlock: 42299703
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -123,9 +123,9 @@ dataSources:
     name: ClaimAllHelper
     network: base-sepolia
     source:
-      address: "0xec921e0c0992cf998f82e9910634009d52841252"
+      address: "0xb607ec52948dbc64ad2dc7fd094e88085ebbf3dd"
       abi: ClaimAllHelper
-      startBlock: 41628571
+      startBlock: 42299703
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

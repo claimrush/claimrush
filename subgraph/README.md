@@ -323,6 +323,67 @@ GOLDSKY_VERSION_LABEL=1.0.1    \
 
 Same env-gate semantics (`DEPLOY_STUDIO=0` / `DEPLOY_GOLDSKY=0`) apply.
 
+### Grafted update (fast path for additive changes)
+
+A clean deploy re-indexes from the manifest start blocks — genesis for the core
+sources. On a mature subgraph that historical replay takes hours to days. For an
+**additive** change (a new data source, entity, or field), graft the new version
+onto the already-synced base: it copies the base entity store at a chosen block
+and indexes only forward from there, so the sync cost is the tail, not the whole
+history.
+
+Grafting is opt-in via two env vars. When `GRAFT_BASE` is set, the deploy script
+injects `features: [grafting]` + a `graft:` block into the **ephemeral active
+manifest only** (`scripts/inject_subgraph_graft.py`). The committed
+`subgraph.prod.yaml` stays graft-free, so the parity checks pass unchanged and a
+clean full sync remains the default.
+
+| Var | Notes |
+|-----|-------|
+| `GRAFT_BASE` | IPFS deployment id (`Qm…` / `bafy…`) of the fully-synced base version to graft from. |
+| `GRAFT_BLOCK` | A block the base has already indexed (`≤` base head). The new version inherits all base entities up to this block, then indexes forward. |
+
+```bash
+CONFIRM_PROD=YES               \
+DEPLOY_STUDIO=0                \
+GOLDSKY_DEPLOY_KEY=...         \
+GOLDSKY_VERSION_LABEL=1.0.2    \
+GRAFT_BASE=Qm...               \
+GRAFT_BLOCK=47000000           \
+  bash scripts/subgraph_deploy_prod.sh
+```
+
+How to obtain the values:
+
+- `GRAFT_BASE` — the base version's deployment id, the `Qm…` hash shown for the
+  fully-synced version in the Goldsky dashboard / `goldsky subgraph list` (Studio
+  shows the same hash under the version).
+- `GRAFT_BLOCK` — query the base's indexed head and subtract a small safety
+  margin so you graft from a settled block:
+
+  ```bash
+  curl -s <base-query-url> \
+    -H 'content-type: application/json' \
+    --data '{"query":"{ _meta { block { number } } }"}'
+  # use head - ~100
+  ```
+
+Caveats:
+
+- **Additive only.** Grafting inherits the base's indexed entities as-is; it does
+  **not** re-run changed handler logic over pre-graft blocks. For a change that
+  must reprocess history (altering how existing events are interpreted), omit
+  `GRAFT_BASE` and run a clean full sync — blue/green: let the new version catch
+  up in the background while the old one serves, then flip the consumer URLs.
+- **The base must be fully synced past `GRAFT_BLOCK`** on whichever provider you
+  deploy to. Grafting pulls the base store from that indexer, so graft the
+  Goldsky primary (`DEPLOY_STUDIO=0`) and let Studio refresh on its own cadence
+  rather than grafting both at once.
+- **Do not chain grafts indefinitely.** Each graft depends on its base's
+  deployment id; long chains get fragile and slow to rewind. Periodically deploy
+  one clean non-grafted baseline in the background to collapse the chain, then
+  graft off that going forward.
+
 ### After deploying
 
 After a successful Goldsky or Studio publish you also need to point the

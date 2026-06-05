@@ -11,7 +11,8 @@
 | `claimAll(mode, targetTokenId, durationSeconds, createAutoMax, minVeOut)` | user | Bundle Baron Collect (`mode=0/1`) + best-effort King-bucket withdraw. |
 | `claimAllForUser(user, mode, targetTokenId, durationSeconds, createAutoMax, minVeOut)` | delegate | Same, gated by the relevant DelegationHub permission bits. |
 | `withdrawKingBalanceForUser(user)` | delegate | Pull King bucket only; needs `P_WITHDRAW_KING_BUCKET_FOR`. |
-| `claimShareholderForUser(user, mode, ...)` | delegate | Pull Baron ETH only; needs the corresponding Collect / Compound permission bits. |
+| `claimShareholderForUser(user, mode, ...)` | delegate | Pull Baron ETH only (ETH lands on `user`); needs the corresponding Collect / Compound permission bits. |
+| `claimShareholderToCallerForUser(user)` | delegate | Pull Baron ETH for `user` and forward it to the caller (looping bot); needs `P_CLAIM_SHAREHOLDER_FOR \| P_ROUTE_SHAREHOLDER_ETH_TO_CALLER`. |
 
 ## Why a helper exists
 - bundle common **Collect** actions into a single transaction
@@ -67,11 +68,14 @@ These methods are for bots acting on behalf of `user`.
 
 | Method | What it does | Required permission | Notes |
 |---|---|---|---|
-| `claimShareholderForUser(user, ...)` | Barons Collect for `user` | `P_CLAIM_SHAREHOLDER_FOR` | ETH-only (`mode == 0`); any non-zero `mode` reverts `NotAuthorized`. |
+| `claimShareholderForUser(user, ...)` | Barons Collect for `user` (ETH lands on `user`) | `P_CLAIM_SHAREHOLDER_FOR` | ETH-only (`mode == 0`); any non-zero `mode` reverts `NotAuthorized`. |
+| `claimShareholderToCallerForUser(user)` | Barons Collect for `user`, ETH forwarded to the caller | `P_CLAIM_SHAREHOLDER_FOR \| P_ROUTE_SHAREHOLDER_ETH_TO_CALLER` | ETH-only by construction (no `mode`); routes to `msg.sender` (caller-only). |
 | `withdrawKingBalanceForUser(user)` | Withdraw King ETH bucket for `user` | `P_WITHDRAW_KING_BUCKET_FOR` | — |
 | `claimAllFor(user, ...)` | Bundle: Barons Collect + King bucket withdraw | `P_CLAIM_ALL_FOR` | ETH-only (`mode == 0`); any non-zero `mode` reverts `NotAuthorized`. |
 
-All three delegated wrappers reject self-calls: `if (user == msg.sender) revert NotAuthorized()`. A delegate cannot use these wrappers to act on themselves — call the non-delegated `claimShareholder` / `withdrawKingBalance` / `claimAll` (caller-bundle) paths instead.
+All delegated wrappers reject self-calls: `if (user == msg.sender) revert NotAuthorized()`. A delegate cannot use these wrappers to act on themselves — call the non-delegated `claimShareholder` / `withdrawKingBalance` / `claimAll` (caller-bundle) paths instead.
+
+`claimShareholderToCallerForUser` is the looping-bot rail: it Collects `user`'s Baron ETH and forwards it to the caller (`msg.sender`) in one call. The recipient is the caller only — there is no arbitrary-recipient variant, so a delegate can loop the payout to its own address but cannot redirect it to a third party. It requires the value-redirect bit `P_ROUTE_SHAREHOLDER_ETH_TO_CALLER` on top of `P_CLAIM_SHAREHOLDER_FOR`; a session holding only the Collect bit cannot move the ETH off the user.
 
 Why ETH-only on delegated paths:
 - A `DelegationHub` permission bit grants a bot the right to settle the user's earned shareholder ETH; it does not grant the right to lock that ETH into a fresh veCLAIM position on the user's behalf. Routing the payout into Furnace would convert a Collect into a position-creating operation the delegate was never authorized to perform.
@@ -89,7 +93,7 @@ Authorization model:
   - `Furnace.shareholderRoyalties() == royalties`
   - `Furnace.delegationHub() == MineCore.delegationHub()`
 - `withdrawKingBalanceForUser(...)` fails closed on any MineCore/Furnace hub drift; it does not trust a raw `MineCore.delegationHub()` read in isolation.
-- `claimShareholderForUser(...)` and `claimAllFor(...)` use that same canonical-hub preflight, so split-brain `MineCore.furnace()` vs `ShareholderRoyalties.furnace()` wiring is rejected before authorization.
+- `claimShareholderForUser(...)`, `claimShareholderToCallerForUser(...)`, and `claimAllFor(...)` use that same canonical-hub preflight, so split-brain `MineCore.furnace()` vs `ShareholderRoyalties.furnace()` wiring is rejected before authorization.
 
 On success, delegated wrappers emit:
 - `Events.DelegationSessionUsed(user, delegate, actionTypeId, permsUsed, refId=0, timestamp)`

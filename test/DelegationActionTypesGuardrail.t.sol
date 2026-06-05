@@ -33,6 +33,10 @@ contract DelegationActionTypesGuardrailTest is Test {
         assertEq(DelegationActionTypes.CLAIM_ALL_FOR, 12);
     }
 
+    function testClaimShareholderToCallerForIsPinned() public {
+        assertEq(DelegationActionTypes.CLAIM_SHAREHOLDER_TO_CALLER_FOR, 13);
+    }
+
     // Furnace
     function testFurnaceEnterWithEthForIsPinned() public {
         assertEq(DelegationActionTypes.FURNACE_ENTER_WITH_ETH_FOR, 20);
@@ -95,12 +99,13 @@ contract DelegationActionTypesGuardrailTest is Test {
     ///      to DelegationActionTypes.sol MUST also be added to this list so
     ///      future collisions stay detectable.
     function testActionTypeIdsArePairwiseDistinct() public {
-        uint8[14] memory ids = [
+        uint8[15] memory ids = [
             DelegationActionTypes.TAKEOVER_FOR,
             DelegationActionTypes.MINECORE_SET_REIGN_RECIPIENTS,
             DelegationActionTypes.CLAIM_SHAREHOLDER_FOR,
             DelegationActionTypes.WITHDRAW_KING_BUCKET_FOR,
             DelegationActionTypes.CLAIM_ALL_FOR,
+            DelegationActionTypes.CLAIM_SHAREHOLDER_TO_CALLER_FOR,
             DelegationActionTypes.FURNACE_ENTER_WITH_ETH_FOR,
             DelegationActionTypes.FURNACE_ENTER_WITH_CLAIM_FOR,
             DelegationActionTypes.FURNACE_ENTER_WITH_TOKEN_FOR,

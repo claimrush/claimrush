@@ -7,6 +7,7 @@ import {ClaimAllHelper} from "src/ClaimAllHelper.sol";
 import {Errors} from "src/lib/Errors.sol";
 import {Events} from "src/lib/Events.sol";
 import {DelegationPermissions} from "src/lib/DelegationPermissions.sol";
+import {DelegationActionTypes} from "src/lib/DelegationActionTypes.sol";
 
 contract MockRoyaltiesForClaimAll {
     error ForcedRevert();
@@ -23,6 +24,9 @@ contract MockRoyaltiesForClaimAll {
     uint256 public lastMinVeOut;
     address public lastUser;
     address public lastCaller;
+    address public lastRecipient;
+
+    uint256 public routeToCalls;
 
     bool public shouldRevert;
 
@@ -77,6 +81,14 @@ contract MockRoyaltiesForClaimAll {
         lastDurationSeconds = durationSeconds;
         lastCreateAutoMax = createAutoMax;
         lastMinVeOut = minVeOut;
+        lastCaller = msg.sender;
+    }
+
+    function claimShareholderForTo(address user, address payable to) external {
+        if (shouldRevert) revert ForcedRevert();
+        routeToCalls += 1;
+        lastUser = user;
+        lastRecipient = to;
         lastCaller = msg.sender;
     }
 }
@@ -832,5 +844,103 @@ contract ClaimAllHelperTest is Test {
 
         assertEq(royalties.calls(), 0);
         assertEq(mineCore.withdrawCalls(), 0);
+    }
+
+    // --- claimShareholderToCallerForUser (route Baron ETH to the looping bot) ---
+
+    function _grantRouteToCaller(address user, address delegate) internal returns (PermissionAwareDelegationHubMock) {
+        PermissionAwareDelegationHubMock permHub = new PermissionAwareDelegationHubMock();
+        permHub.grantPerms(
+            user,
+            delegate,
+            DelegationPermissions.P_CLAIM_SHAREHOLDER_FOR | DelegationPermissions.P_ROUTE_SHAREHOLDER_ETH_TO_CALLER
+        );
+        _wireCanonical(address(royalties), address(mineCore), address(furnace), address(helper), address(permHub));
+        return permHub;
+    }
+
+    function testClaimShareholderToCallerForUser_RoutesEthToCallerAndAttributesToUser() public {
+        _grantRouteToCaller(alice, bob);
+
+        vm.prank(bob);
+        helper.claimShareholderToCallerForUser(alice);
+
+        assertEq(royalties.routeToCalls(), 1, "route-to-caller leg lands exactly once");
+        assertEq(royalties.lastUser(), alice, "claim is attributed to the user");
+        assertEq(royalties.lastRecipient(), bob, "ETH is routed to the caller (looping bot)");
+        assertEq(royalties.lastCaller(), address(helper), "only the canonical helper calls the royalties contract");
+        assertEq(mineCore.withdrawCalls(), 0, "King leg is untouched");
+    }
+
+    function testClaimShareholderToCallerForUser_EmitsDelegationSessionUsed() public {
+        _grantRouteToCaller(alice, bob);
+
+        vm.expectEmit(true, true, true, true, address(helper));
+        emit Events.DelegationSessionUsed(
+            alice,
+            bob,
+            DelegationActionTypes.CLAIM_SHAREHOLDER_TO_CALLER_FOR,
+            DelegationPermissions.P_CLAIM_SHAREHOLDER_FOR | DelegationPermissions.P_ROUTE_SHAREHOLDER_ETH_TO_CALLER,
+            0,
+            block.timestamp
+        );
+
+        vm.prank(bob);
+        helper.claimShareholderToCallerForUser(alice);
+    }
+
+    function testClaimShareholderToCallerForUser_RevertsOnSelfCall() public {
+        vm.prank(alice);
+        vm.expectRevert(Errors.NotAuthorized.selector);
+        helper.claimShareholderToCallerForUser(alice);
+
+        assertEq(royalties.routeToCalls(), 0);
+    }
+
+    function testClaimShareholderToCallerForUser_RevertsOnZeroAddressUser() public {
+        vm.prank(bob);
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        helper.claimShareholderToCallerForUser(address(0));
+
+        assertEq(royalties.routeToCalls(), 0);
+    }
+
+    function testClaimShareholderToCallerForUser_RevertsWhenMissingRouteBit() public {
+        PermissionAwareDelegationHubMock permHub = new PermissionAwareDelegationHubMock();
+        // Claim-for is granted, but the value-redirect bit is not.
+        permHub.grantPerms(alice, bob, DelegationPermissions.P_CLAIM_SHAREHOLDER_FOR);
+        _wireCanonical(address(royalties), address(mineCore), address(furnace), address(helper), address(permHub));
+
+        vm.prank(bob);
+        vm.expectRevert(Errors.NotAuthorized.selector);
+        helper.claimShareholderToCallerForUser(alice);
+
+        assertEq(royalties.routeToCalls(), 0);
+    }
+
+    function testClaimShareholderToCallerForUser_RevertsWhenMissingClaimBit() public {
+        PermissionAwareDelegationHubMock permHub = new PermissionAwareDelegationHubMock();
+        // Value-redirect bit alone is insufficient without the claim-for authority.
+        permHub.grantPerms(alice, bob, DelegationPermissions.P_ROUTE_SHAREHOLDER_ETH_TO_CALLER);
+        _wireCanonical(address(royalties), address(mineCore), address(furnace), address(helper), address(permHub));
+
+        vm.prank(bob);
+        vm.expectRevert(Errors.NotAuthorized.selector);
+        helper.claimShareholderToCallerForUser(alice);
+
+        assertEq(royalties.routeToCalls(), 0);
+    }
+
+    function testClaimShareholderToCallerForUser_RevertsWhenFurnaceDelegationHubDiffers() public {
+        _grantRouteToCaller(alice, bob);
+        MockDelegationHubForClaimAll otherHub = new MockDelegationHubForClaimAll();
+        otherHub.setAuthorized(true);
+        furnace.setDelegationHub(address(otherHub));
+
+        vm.prank(bob);
+        vm.expectRevert(Errors.WiringMismatch.selector);
+        helper.claimShareholderToCallerForUser(alice);
+
+        assertEq(royalties.routeToCalls(), 0);
     }
 }

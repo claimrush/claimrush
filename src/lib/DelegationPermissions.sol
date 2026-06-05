@@ -90,6 +90,15 @@ library DelegationPermissions {
     /// @dev Safe/non-custodial: config-only and enforces user-owned veNFTs.
     uint256 internal constant P_SET_LP_AUTOCOMPOUND_CONFIG_FOR = 1 << 17;
 
+    // ClaimAllHelper (value routing)
+
+    /// @notice Constrained variant: when a delegate collects shareholder ETH for a user, allow
+    ///         routing that ETH to the delegate (caller) instead of the user.
+    /// @dev High risk: redirects the user's Baron ETH to the caller. Caller-only by construction
+    ///      (the helper routes to `msg.sender`), mirroring the constrained `*_TO_CALLER_ONLY`
+    ///      reign precedent — there is no arbitrary-recipient variant.
+    uint256 internal constant P_ROUTE_SHAREHOLDER_ETH_TO_CALLER = 1 << 18;
+
     // Helpers
 
     /// @notice Canonical mask of all defined permission bits.
@@ -98,11 +107,12 @@ library DelegationPermissions {
     ///
     ///      IMPORTANT: When adding a new permission bit, you MUST update this mask.
     ///      Failure to do so will cause DelegationHub to reject sessions requesting
-    ///      the new permission. Add a test that asserts ALL == (1 << 18) - 1.
+    ///      the new permission. Add a test that asserts ALL == (1 << 19) - 1.
     uint256 internal constant ALL = P_TAKEOVER_FOR | P_ROUTE_REIGN_CLAIM_TO_CALLER | P_SET_REIGN_ETH_RECIPIENT
         | P_SET_REIGN_ETH_RECIPIENT_TO_CALLER_ONLY | P_SET_REIGN_CLAIM_RECIPIENT
         | P_SET_REIGN_CLAIM_RECIPIENT_TO_USER_ONLY | P_WITHDRAW_KING_BUCKET_FOR | P_CLAIM_SHAREHOLDER_FOR
         | P_CLAIM_ALL_FOR | P_FURNACE_ENTER_ETH_FOR | P_FURNACE_ENTER_CLAIM_FOR | P_FURNACE_ENTER_TOKEN_FOR
         | P_VE_EXTEND_LOCK_FOR | P_VE_MERGE_LOCKS_FOR | P_VE_UNLOCK_EXPIRED_FOR | P_SET_KING_AUTO_LOCK_CONFIG_FOR
-        | P_SET_SHAREHOLDER_AUTOCOMPOUND_CONFIG_FOR | P_SET_LP_AUTOCOMPOUND_CONFIG_FOR;
+        | P_SET_SHAREHOLDER_AUTOCOMPOUND_CONFIG_FOR | P_SET_LP_AUTOCOMPOUND_CONFIG_FOR
+        | P_ROUTE_SHAREHOLDER_ETH_TO_CALLER;
 }

@@ -158,6 +158,7 @@ Canonical numeric action ids (same values surfaced as subgraph `actionTypeId`; s
 - `10` = `CLAIM_SHAREHOLDER_FOR`
 - `11` = `WITHDRAW_KING_BUCKET_FOR`
 - `12` = `CLAIM_ALL_FOR`
+- `13` = `CLAIM_SHAREHOLDER_TO_CALLER_FOR`
 - `20` = `FURNACE_ENTER_WITH_ETH_FOR`
 - `21` = `FURNACE_ENTER_WITH_CLAIM_FOR`
 - `22` = `FURNACE_ENTER_WITH_TOKEN_FOR`
@@ -171,7 +172,7 @@ Canonical numeric action ids (same values surfaced as subgraph `actionTypeId`; s
 Convenience grouping (recommended; used by the shipped coarse subgraph/UI enum):
 - `1` → `TAKEOVER`
 - `2` → `REIGN_RECIPIENTS`
-- `10–12` → `CLAIM`
+- `10–13` → `CLAIM`
 - `20–22` → `FURNACE_ENTER`
 - `30–32` → `VE_LOCK`
 - `40–42` → `CONFIG`

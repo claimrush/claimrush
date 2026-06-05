@@ -44,6 +44,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Editor swap files
+*.swp
+*.swo
+
 # Env files
 .env
 .env.*.local
@@ -149,3 +153,7 @@ skills/*/*.tsbuildinfo
 
 # Local D1 SQL snapshots (regenerable via wrangler d1 export)
 baselines/d1-snapshots/
+
+# Local-only security working files (coordinated-disclosure material — never commit)
+docs/security/audit-findings-2026-06.md
+test/security/Audit_BonusThrottle_PoC.t.sol

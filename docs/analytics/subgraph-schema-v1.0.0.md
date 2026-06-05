@@ -347,7 +347,7 @@ type DelegationSessionSetEvent {
 Indexing rules (required):
 - Session state MUST be sourced from `DelegationHub.SessionSet(user, delegate, perms, expiry)` events.
 - Session uses MUST be sourced from `Events.DelegationSessionUsed(...)` events emitted by all current protocol emitters: MineCore, Furnace, ClaimAllHelper, VeClaimNFT, ShareholderRoyalties, and LpStakingVault7D.
-- `DelegationSessionUse.actionTypeId` is canonical. The shipped coarse mapper in `subgraph/src/utils/delegation.ts` maps ids `1`, `2`, `10-12`, `20-22`, `30-32`, and `40-42`; raw id `2` (`MINECORE_SET_REIGN_RECIPIENTS`) maps to `actionType = REIGN_RECIPIENTS`.
+- `DelegationSessionUse.actionTypeId` is canonical. The shipped coarse mapper in `subgraph/src/utils/delegation.ts` maps ids `1`, `2`, `10-13`, `20-22`, `30-32`, and `40-42`; raw id `2` (`MINECORE_SET_REIGN_RECIPIENTS`) maps to `actionType = REIGN_RECIPIENTS`.
 - Persist the raw `actionTypeId` exactly as emitted by contracts (`src/lib/DelegationActionTypes.sol`).
 - Current shipped nuance: the coarse `DelegationActionType` enum is range-based in `subgraph/src/utils/delegation.ts`. Raw `actionTypeId = 2` (`MINECORE_SET_REIGN_RECIPIENTS`) maps to `REIGN_RECIPIENTS`; consumers that need exact semantics MUST key off `actionTypeId`.
 - `DelegationSession.lastUsedAt/lastActionType/lastTxHash` MUST be updated whenever a use is observed.

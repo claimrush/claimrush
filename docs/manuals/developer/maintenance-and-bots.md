@@ -47,7 +47,8 @@ Common delegated tasks:
 |------|------------------|--------------------|
 | Take over Crown for a user | `MineCore.takeoverFor(user, maxPrice)` | `P_TAKEOVER_FOR` |
 | Update reign payout routing | `MineCore.setCurrentReignRecipients(...)` | `P_SET_REIGN_ETH_RECIPIENT` / `P_SET_REIGN_ETH_RECIPIENT_TO_CALLER_ONLY` and/or `P_SET_REIGN_CLAIM_RECIPIENT` / `P_SET_REIGN_CLAIM_RECIPIENT_TO_USER_ONLY` |
-| Collect Barons rewards | `ClaimAllHelper.claimShareholderForUser(user, ...)` | `P_CLAIM_SHAREHOLDER_FOR` |
+| Collect Baron rewards (ETH to user) | `ClaimAllHelper.claimShareholderForUser(user, ...)` | `P_CLAIM_SHAREHOLDER_FOR` |
+| Collect Baron rewards to the bot (looping) | `ClaimAllHelper.claimShareholderToCallerForUser(user)` | `P_CLAIM_SHAREHOLDER_FOR` + `P_ROUTE_SHAREHOLDER_ETH_TO_CALLER` |
 | Withdraw King fallback bucket | `ClaimAllHelper.withdrawKingBalanceForUser(user)` | `P_WITHDRAW_KING_BUCKET_FOR` |
 | Collect all (bundle) | `ClaimAllHelper.claimAllFor(user, ...)` | `P_CLAIM_ALL_FOR` |
 | Enter Furnace for a user (bot pays) | `Furnace.enterWithEthFor(user, ...)` | `P_FURNACE_ENTER_ETH_FOR` |
@@ -61,6 +62,7 @@ Common delegated tasks:
 Notes:
 - Delegated takeover defaults to routing the dethroned-King 75% ETH payout to the bot executor (to support looping).
 - King-stream mined CLAIM stays with the user unless the session grants `P_ROUTE_REIGN_CLAIM_TO_CALLER`.
+- Collected Baron ETH stays with the user unless the session grants `P_ROUTE_SHAREHOLDER_ETH_TO_CALLER`, in which case `claimShareholderToCallerForUser` forwards it to the bot (`msg.sender`). The recipient is the caller only — never an arbitrary address.
 - Under contention, reverts are normal. Read price right before sending and avoid leaving txs pending for long.
 
 ## MaintenanceHub.poke(args)

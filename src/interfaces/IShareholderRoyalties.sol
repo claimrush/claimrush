@@ -52,6 +52,10 @@ interface IShareholderRoyalties {
         uint256 minVeOut
     ) external;
 
+    /// @notice Helper-only entrypoint to collect `user`'s Baron ETH and route it to `to`.
+    /// @dev ETH-only looping-bot routing path; delegation + caller-only gate enforced in ClaimAllHelper.
+    function claimShareholderForTo(address user, address payable to) external;
+
     /// @notice Live shareholder claim preview.
     /// @dev `claimable` is authoritative and already includes any uncheckpointed rewards implied by
     ///      historical reward checkpoints. Offchain clients MUST NOT derive a separate

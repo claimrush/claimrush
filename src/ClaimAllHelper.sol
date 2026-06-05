@@ -81,6 +81,32 @@ contract ClaimAllHelper is ReentrancyGuard {
         );
     }
 
+    /// @notice Collects `user`'s Baron ETH rewards (ShareholderRoyalties) and routes the ETH to the caller.
+    /// @dev Delegation-gated looping-bot path. Requires BOTH `P_CLAIM_SHAREHOLDER_FOR` (claim on
+    ///      behalf of `user`) AND `P_ROUTE_SHAREHOLDER_ETH_TO_CALLER` (redirect that ETH to the
+    ///      caller) in a single `isAuthorized` check. ETH-only and caller-only by construction: the
+    ///      ETH is forwarded to `msg.sender` (the delegate), never an arbitrary address. The user's
+    ///      self-direct claim paths (`claimShareholder` / `claimShareholderTo`) are unaffected.
+    function claimShareholderToCallerForUser(address user) external nonReentrant {
+        if (user == address(0)) revert Errors.ZeroAddress();
+        if (user == msg.sender) revert Errors.NotAuthorized();
+        _requireDelegated(
+            user,
+            DelegationPermissions.P_CLAIM_SHAREHOLDER_FOR | DelegationPermissions.P_ROUTE_SHAREHOLDER_ETH_TO_CALLER,
+            _resolveShareholderDelegationHub()
+        );
+        royalties.claimShareholderForTo(user, payable(msg.sender));
+
+        emit Events.DelegationSessionUsed(
+            user,
+            msg.sender,
+            DelegationActionTypes.CLAIM_SHAREHOLDER_TO_CALLER_FOR,
+            DelegationPermissions.P_CLAIM_SHAREHOLDER_FOR | DelegationPermissions.P_ROUTE_SHAREHOLDER_ETH_TO_CALLER,
+            0,
+            block.timestamp
+        );
+    }
+
     /// @notice Withdraws King rewards (MineCore) for `user`.
     /// @dev Delegation-gated. ETH always withdraws to `user` (matching `MineCore.withdrawKingBalanceFor` semantics).
     function withdrawKingBalanceForUser(address user) external nonReentrant {

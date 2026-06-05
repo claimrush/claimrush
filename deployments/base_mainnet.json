@@ -46,7 +46,7 @@
     },
     "ShareholderRoyalties": {
       "address": "0x74eDd39E3B220691364Df5024C3dA4FDC64d2a91",
-      "implementation": "0xBDaaB7cF48ACcF01AB2449FFA2137402219545E5",
+      "implementation": "0x95A955088CB03eE880DbF8889C7b4BA8aF7d681c",
       "proxyAdmin": "0x1bd8A2C991788aa7D1F9e133cE8D57B53F1eC559",
       "proxyAdminOwner": "0x4fD26eb89D3468866d1a486DBCc02C3483b2Bf89",
       "startBlock": 46183959
@@ -72,12 +72,12 @@
       "startBlock": 46183959
     },
     "ClaimAllHelper": {
-      "address": "0x7c93B7E4e10F296219cEE63120d5fc7080128Ec8",
-      "startBlock": 46183959
+      "address": "0xB0af1dD2A8A5C1F8D5B04A396EEEe47e7E6A1568",
+      "startBlock": 46828032
     },
     "DelegationHub": {
-      "address": "0xfeaadC7E5eeAABBc96732Bd988419DC5F1459258",
-      "startBlock": 46183959
+      "address": "0xE4b4e7097BaCDf1542AE630c842f35903932BAe9",
+      "startBlock": 46828032
     },
     "MarketRouter": {
       "address": "0x41EaA24Edd43Aabc3de132D7aE04F490EaD8f27F",
@@ -113,8 +113,8 @@
       "startBlock": 46184100
     },
     "AgentLens": {
-      "address": "0x070574468Dfc78eF7c79Bf47DFEe4E1A9A8f5b4b",
-      "startBlock": 46698976
+      "address": "0x0253323cE52B40f6dB9BE18eF2c607B4e97F5Bea",
+      "startBlock": 46918753
     },
     "FurnaceQuoter": {
       "address": "0x92fD21FB9e031DA25d48E557Ad40e66773020C00",

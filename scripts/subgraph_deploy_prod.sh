@@ -71,6 +71,23 @@ python3 "$SYNC_SCRIPT" \
 
 python3 "$ROOT_DIR/scripts/check_subgraph_manifest_runtime_readiness.py" "$MANIFEST_ACTIVE"
 
+# Optional grafting (off by default). When GRAFT_BASE is set, the new version
+# copies the base deployment's entity store at GRAFT_BLOCK and indexes only
+# forward — the fast path for additive updates to a mature subgraph. Injected
+# into the ephemeral active manifest only; the committed manifests stay
+# graft-free so a clean full sync is the default. See
+# scripts/inject_subgraph_graft.py for caveats (additive-only).
+if [[ -n "${GRAFT_BASE:-}" ]]; then
+  : "${GRAFT_BLOCK:?GRAFT_BASE is set but GRAFT_BLOCK is missing}"
+  echo "==> Grafting onto base $GRAFT_BASE at block $GRAFT_BLOCK"
+  python3 "$ROOT_DIR/scripts/inject_subgraph_graft.py" \
+    --manifest "$MANIFEST_ACTIVE" \
+    --base "$GRAFT_BASE" \
+    --block "$GRAFT_BLOCK"
+else
+  echo "==> No graft (GRAFT_BASE unset): full sync from manifest start blocks"
+fi
+
 echo "==> Building subgraph"
 build_subgraph
 

@@ -220,4 +220,50 @@ contract ClaimAllHelperRealFurnaceIT is Test {
         );
         assertEq(ve.nextTokenId(), 3, "failed delegated lock must not mint a new ve position");
     }
+
+    function testClaimShareholderToCallerForUser_routesRealEthToBotEndToEnd() public {
+        // The route-to-caller bit (1 << 18) only validates against a hub whose valid-perms
+        // mask already covers it — this real DelegationHub is compiled from the updated
+        // DelegationPermissions.ALL, so the combined grant is accepted.
+        vm.prank(alice);
+        hub.setSession(
+            bob,
+            DelegationPermissions.P_CLAIM_SHAREHOLDER_FOR | DelegationPermissions.P_ROUTE_SHAREHOLDER_ETH_TO_CALLER,
+            uint64(block.timestamp + 1 days)
+        );
+
+        uint256 owed = royalties.claimableEthStored(alice);
+        assertGt(owed, 0, "setup should crystallise a real Baron claim for alice");
+
+        uint256 bobBefore = bob.balance;
+        uint256 aliceBefore = alice.balance;
+
+        vm.prank(bob);
+        helper.claimShareholderToCallerForUser(alice);
+
+        assertEq(bob.balance, bobBefore + owed, "bot (caller) receives the routed Baron ETH");
+        assertEq(alice.balance, aliceBefore, "delegating user receives nothing on the route-to-caller path");
+        assertEq(royalties.claimableEthStored(alice), 0, "alice's crystallised claim is cleared");
+
+        // Second call routes nothing (claim already consumed) — no revert, no payout.
+        uint256 bobAfterFirst = bob.balance;
+        vm.prank(bob);
+        helper.claimShareholderToCallerForUser(alice);
+        assertEq(bob.balance, bobAfterFirst, "second call is a no-op once the claim is drained");
+    }
+
+    function testClaimShareholderToCallerForUser_revertsWithoutRouteBitOnRealHub() public {
+        // Base claim bit only — the real hub's isAuthorized must reject the combined-mask check.
+        vm.prank(alice);
+        hub.setSession(bob, DelegationPermissions.P_CLAIM_SHAREHOLDER_FOR, uint64(block.timestamp + 1 days));
+
+        uint256 owed = royalties.claimableEthStored(alice);
+        assertGt(owed, 0, "setup should crystallise a real Baron claim for alice");
+
+        vm.prank(bob);
+        vm.expectRevert(Errors.NotAuthorized.selector);
+        helper.claimShareholderToCallerForUser(alice);
+
+        assertEq(royalties.claimableEthStored(alice), owed, "rejected route call must not consume alice's claim");
+    }
 }

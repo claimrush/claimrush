@@ -2,7 +2,7 @@
 
 `DelegationHub` is the onchain session registry for opt-in bot delegation. It lets users grant time-limited, permission-scoped sessions to bot addresses, which protocol contracts verify on every delegated call. In the [CLAIM stream](protocol-overview.md), this is how bots automate takeovers, harvesting, Furnace entries, and lock maintenance on behalf of users.
 
-> **TL;DR:** Users call `setSession(delegate, perms, expiry)` or sign gasless via EIP-712. Bots are checked with `isAuthorized(user, delegate, requiredPerms)`. 18 permission bits covering Crown, Harvest, Furnace, VeLock, and Config actions. Sessions should be short-lived with minimal perms.
+> **TL;DR:** Users call `setSession(delegate, perms, expiry)` or sign gasless via EIP-712. Bots are checked with `isAuthorized(user, delegate, requiredPerms)`. 19 permission bits covering Crown, Harvest, Furnace, VeLock, and Config actions. Sessions should be short-lived with minimal perms.
 
 A session is:
 - `user` (the identity being represented)
@@ -83,7 +83,8 @@ Mid-reign routing update:
 ### ClaimAllHelper: delegated harvest + withdraw
 
 `ClaimAllHelper` provides delegation-gated wrappers:
-- `claimShareholderForUser(user, ...)` requires `P_CLAIM_SHAREHOLDER_FOR`
+- `claimShareholderForUser(user, ...)` requires `P_CLAIM_SHAREHOLDER_FOR` (ETH lands on `user`)
+- `claimShareholderToCallerForUser(user)` requires `P_CLAIM_SHAREHOLDER_FOR | P_ROUTE_SHAREHOLDER_ETH_TO_CALLER` (ETH is forwarded to the caller — the looping bot)
 - `withdrawKingBalanceForUser(user)` requires `P_WITHDRAW_KING_BUCKET_FOR`
 - `claimAllFor(user, ...)` requires `P_CLAIM_ALL_FOR`
 
@@ -142,6 +143,7 @@ Canonical bits are defined in `src/lib/DelegationPermissions.sol`.
 | Config | 15 | `P_SET_KING_AUTO_LOCK_CONFIG_FOR` | `MineCore.setKingAutoLockConfigForUser(user, ...)` |
 | Config | 16 | `P_SET_SHAREHOLDER_AUTOCOMPOUND_CONFIG_FOR` | `ShareholderRoyalties.setAutoCompoundConfigForUser(user, ...)` |
 | Config | 17 | `P_SET_LP_AUTOCOMPOUND_CONFIG_FOR` | `LpStakingVault7D.setAutoCompoundConfigForUser(user, ...)` |
+| Harvest | 18 | `P_ROUTE_SHAREHOLDER_ETH_TO_CALLER` | `ClaimAllHelper.claimShareholderToCallerForUser(user)` — forward collected Baron ETH to the caller |
 
 ## Integration guidance
 
@@ -151,7 +153,8 @@ Canonical bits are defined in `src/lib/DelegationPermissions.sol`.
 - Treat recipient routing perms as high risk:
   - `P_SET_REIGN_ETH_RECIPIENT` can redirect the dethroned-King ETH payout for the active reign.
   - `P_SET_REIGN_CLAIM_RECIPIENT` can redirect mined CLAIM mid-reign.
-  - Prefer constrained variants (`...TO_CALLER_ONLY`, `...TO_USER_ONLY`) where possible.
+  - `P_ROUTE_SHAREHOLDER_ETH_TO_CALLER` forwards the user's collected Baron ETH to the caller. It is caller-only by construction (the helper routes to `msg.sender`), so a delegate can loop it to themselves but cannot redirect to an arbitrary third party.
+  - Prefer constrained variants (`...TO_CALLER_ONLY`, `...TO_USER_ONLY`, `...TO_CALLER`) where possible.
 - Treat delegation as security-sensitive UX (like approvals):
   - show the delegate address
   - show expiry
@@ -231,6 +234,7 @@ when a delegated entrypoint succeeds.
 | 10 | `CLAIM_SHAREHOLDER_FOR` | `CLAIM` | `0` |
 | 11 | `WITHDRAW_KING_BUCKET_FOR` | `CLAIM` | `0` |
 | 12 | `CLAIM_ALL_FOR` | `CLAIM` | `0` |
+| 13 | `CLAIM_SHAREHOLDER_TO_CALLER_FOR` | `CLAIM` | `0` |
 | 20 | `FURNACE_ENTER_WITH_ETH_FOR` | `FURNACE_ENTER` | `tokenIdUsed` |
 | 21 | `FURNACE_ENTER_WITH_CLAIM_FOR` | `FURNACE_ENTER` | `tokenIdUsed` |
 | 22 | `FURNACE_ENTER_WITH_TOKEN_FOR` | `FURNACE_ENTER` | `tokenIdUsed` |

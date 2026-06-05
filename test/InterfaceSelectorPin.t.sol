@@ -95,6 +95,7 @@ contract InterfaceSelectorPin is Test {
     function test_iShareholderRoyalties_selectors_pinned() public pure {
         assertEq(IShareholderRoyalties.onTakeover.selector, bytes4(0xf1a66c6d));
         assertEq(IShareholderRoyalties.claimShareholder.selector, bytes4(0xab7aaaf5));
+        assertEq(IShareholderRoyalties.claimShareholderForTo.selector, bytes4(0x8f83ebd8));
     }
 
     function test_iMarketRouter_selectors_pinned() public pure {

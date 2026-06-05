@@ -139,6 +139,24 @@ MUST:
 MUST NOT:
 - Wrap `claimShareholderFor` in `try/catch` (reverts propagate).
 
+### `claimShareholderToCallerForUser`
+
+```solidity
+function claimShareholderToCallerForUser(address user) external nonReentrant;
+```
+
+MUST:
+- Revert `Errors.ZeroAddress()` if `user == address(0)`.
+- Revert `Errors.NotAuthorized()` if `user == msg.sender`.
+- Resolve the canonical `DelegationHub` via `_resolveShareholderDelegationHub()` (same Furnace-bundle agreement as `claimShareholderForUser`).
+- Revert `Errors.NotAuthorized()` unless `DelegationHub.isAuthorized(user, msg.sender, P_CLAIM_SHAREHOLDER_FOR | P_ROUTE_SHAREHOLDER_ETH_TO_CALLER)` is true — BOTH bits are required (`P_CLAIM_SHAREHOLDER_FOR` = `1 << 7`, `P_ROUTE_SHAREHOLDER_ETH_TO_CALLER` = `1 << 18`).
+- Call `royalties.claimShareholderForTo(user, payable(msg.sender))` — ETH-only by construction; the recipient is the caller (`msg.sender`), never an arbitrary address.
+- Emit `Events.DelegationSessionUsed(user, msg.sender, DelegationActionTypes.CLAIM_SHAREHOLDER_TO_CALLER_FOR, P_CLAIM_SHAREHOLDER_FOR | P_ROUTE_SHAREHOLDER_ETH_TO_CALLER, 0, block.timestamp)` (`CLAIM_SHAREHOLDER_TO_CALLER_FOR` = `13` in `DelegationActionTypes`).
+
+MUST NOT:
+- Wrap `claimShareholderForTo` in `try/catch` (reverts propagate).
+- Accept any recipient other than `msg.sender` (no arbitrary-recipient variant exists).
+
 ### `withdrawKingBalanceForUser`
 
 ```solidity

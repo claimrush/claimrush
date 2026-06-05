@@ -658,6 +658,60 @@ contract ShareholderRoyaltiesTest is Test {
         assertEq(alice.balance, balBefore + 0.25 ether);
     }
 
+    function testClaimShareholderForToRoutesEthToRecipientAndClearsForUser() public {
+        ClaimAllHelper helper = _deployCanonicalClaimAllHelper();
+
+        _primeIndex(200e18, 1 ether);
+        ve.setVeBalance(alice, 50e18);
+
+        uint256 userBalBefore = alice.balance;
+        uint256 recipientBalBefore = bob.balance;
+
+        vm.prank(address(helper));
+        royalties.claimShareholderForTo(alice, payable(bob));
+
+        // The user's claim is consumed, but the ETH lands on the routed recipient (looping bot).
+        assertEq(royalties.claimableEth(alice), 0, "user's claimable Baron ETH is consumed");
+        assertEq(alice.balance, userBalBefore, "user receives no ETH on the route-to-caller path");
+        assertEq(bob.balance, recipientBalBefore + 0.25 ether, "ETH is routed to the recipient");
+    }
+
+    function testClaimShareholderForToOnlyClaimAllHelper() public {
+        _deployCanonicalClaimAllHelper();
+
+        vm.prank(bob);
+        vm.expectRevert(Errors.OnlyClaimAllHelper.selector);
+        royalties.claimShareholderForTo(alice, payable(bob));
+    }
+
+    function testClaimShareholderForToRevertsOnZeroRecipient() public {
+        ClaimAllHelper helper = _deployCanonicalClaimAllHelper();
+
+        _primeIndex(200e18, 1 ether);
+        ve.setVeBalance(alice, 50e18);
+
+        vm.prank(address(helper));
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        royalties.claimShareholderForTo(alice, payable(address(0)));
+
+        assertEq(royalties.claimableEth(alice), 0.25 ether, "zero-recipient revert must not consume claimable ETH");
+    }
+
+    function testClaimShareholderForToZeroAmountIsNoop() public {
+        ClaimAllHelper helper = _deployCanonicalClaimAllHelper();
+
+        _primeIndex(200e18, 1 ether);
+        // alice has no ve balance → nothing claimable.
+        assertEq(royalties.claimableEth(alice), 0);
+
+        uint256 recipientBalBefore = bob.balance;
+
+        vm.prank(address(helper));
+        royalties.claimShareholderForTo(alice, payable(bob));
+
+        assertEq(bob.balance, recipientBalBefore, "no ETH moves when nothing is claimable");
+    }
+
     function testClaimShareholderForLockModeCallsFurnaceWhenCanonicalHelperAgrees() public {
         ClaimAllHelper helper = _deployCanonicalClaimAllHelper();
 

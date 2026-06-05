@@ -18,7 +18,7 @@ contract AlwaysValid1271 {
 ///      Earlier revisions accepted `uint256 delegateSeed` and
 ///      `uint256 permsSeed`. After the harness collapses these via
 ///      `address(uint160(seed))` (160 bits used, 96 bits ignored) and
-///      `permsSeed & DelegationPermissions.ALL` (only 18 bits used), the
+///      `permsSeed & DelegationPermissions.ALL` (only 19 bits used), the
 ///      high bits had no semantic effect on the contract under test.
 ///      Echidna's coverage tracker, however, treated every distinct
 ///      256-bit input as a candidate corpus entry, so the corpus kept

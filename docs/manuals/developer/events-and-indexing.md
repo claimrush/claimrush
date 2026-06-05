@@ -27,7 +27,7 @@ ClaimRush does not operate a single public subgraph URL. Indexers and analytics 
 | `KingAutoLockSkipped.reasonCode` | 1=NOT_OWNER, 2=LISTED, 3=EXPIRED, 4=INVALID_TOKEN_ID, 5=INVALID_DURATION, 0xFF=GAS_PRECHECK |
 | `FurnaceEnter.mode` | 0=ENTER_WITH_ETH, 1=ENTER_WITH_CLAIM, 2=LOCK_FURNACE, 3=ENTER_WITH_TOKEN, 4=EXTEND_WITH_BONUS |
 | `LockDelisted.reason` | 0=NORMAL, 1=EMERGENCY, 2=SOLD_INTO_OFFER (reserved; not emitted), 3=SOLD_TO_FURNACE, 4=EXPIRED, 5=APPROVAL_REVOKED (reserved; not emitted) |
-| `DelegationSessionUsed.actionTypeId` | 1=TAKEOVER_FOR; 2=MINECORE_SET_REIGN_RECIPIENTS (coarse `actionType` enum: `REIGN_RECIPIENTS`); 10-12=CLAIM; 20-22=FURNACE_ENTER; 30-32=VE_LOCK; 40-42=CONFIG (see `docs/manuals/developer/delegationhub.md`) |
+| `DelegationSessionUsed.actionTypeId` | 1=TAKEOVER_FOR; 2=MINECORE_SET_REIGN_RECIPIENTS (coarse `actionType` enum: `REIGN_RECIPIENTS`); 10-13=CLAIM; 20-22=FURNACE_ENTER; 30-32=VE_LOCK; 40-42=CONFIG (see `docs/manuals/developer/delegationhub.md`) |
 
 ## Key event groups
 

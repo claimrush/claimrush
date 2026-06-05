@@ -3,17 +3,33 @@ pragma solidity ^0.8.34;
 
 import {EchidnaSetup} from "./EchidnaSetup.sol";
 import {Constants} from "src/lib/Constants.sol";
+import {DelegationPermissions} from "src/lib/DelegationPermissions.sol";
+import {ClaimAllHelper} from "src/ClaimAllHelper.sol";
+
+/// @dev Delegate ("looping bot") that pulls a Baron's shareholder ETH to itself via
+///      the caller-only helper path. Accepts the routed ETH so custody genuinely
+///      leaves ShareholderRoyalties.
+contract ShareholderLoopBot {
+    function pull(ClaimAllHelper helper, address user) external {
+        helper.claimShareholderToCallerForUser(user);
+    }
+
+    receive() external payable {}
+}
 
 /// @title Echidna harness for ShareholderRoyalties ETH index solvency and flush safety.
 /// @dev Invariants from the invariants document Section 5.
 contract EchidnaShareholder is EchidnaSetup {
     address[3] internal actors;
 
+    ShareholderLoopBot internal loopBot;
+
     constructor() payable {
         _deployAndWire();
         actors[0] = address(0x20000);
         actors[1] = address(0x30000);
         actors[2] = address(0x40000);
+        loopBot = new ShareholderLoopBot();
     }
 
     // ================================================================
@@ -69,6 +85,24 @@ contract EchidnaShareholder is EchidnaSetup {
         if (durationSeconds > Constants.MAX_LOCK_DURATION) durationSeconds = Constants.MAX_LOCK_DURATION;
         try royalties.claimShareholder(Constants.SHAREHOLDER_MODE_LOCK_FURNACE, 0, durationSeconds, false, 0) {}
             catch {}
+    }
+
+    /// @dev Delegated caller-only routing of Baron ETH through ClaimAllHelper.
+    ///      `address(this)` is the Baron (grantor); `loopBot` is the delegate. With the
+    ///      route bit granted, the helper forwards the Baron's collected ETH to the bot
+    ///      (custody leaves the contract). The strict disjoint-buckets and crystallised-
+    ///      sum identities must hold across the move; without the route bit the call must
+    ///      revert and leave state untouched.
+    function action_claimShareholderToCallerForUser(bool grantRouteBit) public {
+        uint256 perms = DelegationPermissions.P_CLAIM_SHAREHOLDER_FOR;
+        if (grantRouteBit) {
+            perms |= DelegationPermissions.P_ROUTE_SHAREHOLDER_ETH_TO_CALLER;
+        }
+        try delegationHub.setSession(address(loopBot), perms, type(uint64).max) {}
+        catch {
+            return;
+        }
+        try loopBot.pull(claimAllHelper, address(this)) {} catch {}
     }
 
     // ================================================================
