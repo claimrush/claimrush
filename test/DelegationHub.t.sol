@@ -86,7 +86,7 @@ contract DelegationHubTest is Test {
         hub.setSessionBySig(user, delegate, perms, expiry, 0, deadline, staleSig);
     }
 
-    // ---- L-1 fix: past-expiry session is rejected ----
+    // ---- Past-expiry session is rejected ----
 
     function testSetSessionRevertsPastExpiry() public {
         vm.warp(1000);

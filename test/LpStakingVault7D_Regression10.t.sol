@@ -104,7 +104,7 @@ contract LpStakingVault7D_Regression10Test is Test {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // L-4: minHarvestClaimFloor blocks harvests when set too high
+    // minHarvestClaimFloor blocks harvests when set too high
     // ═══════════════════════════════════════════════════════════════════
 
     function test_minHarvestClaimFloor_blocksHarvestWhenTooHigh() public {

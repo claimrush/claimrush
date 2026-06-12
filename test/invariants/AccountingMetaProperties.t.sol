@@ -7,7 +7,7 @@ import {Test} from "forge-std/Test.sol";
 /// @notice Reusable abstract test mixins that encode the six accounting
 ///         meta-properties from `docs/security/invariants-v1.0.0.md` § "15.
 ///         Accounting meta-properties (M1-M6)" and `docs/security/threat-map-v1.0.0.md`
-///         § "12. Cross-cutting: accounting floor drift (`TM-AccountingFloorDrift`)".
+///         § "12. Cross-cutting: accounting floor drift".
 ///
 ///         Each mixin is `abstract` — concrete per-contract suites override the
 ///         hooks below (`_setup*`, `_doAction*`, `_quote*`, `_observeReserve*`)

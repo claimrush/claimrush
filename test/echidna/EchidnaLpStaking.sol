@@ -24,7 +24,7 @@ contract EchidnaLpStaking is EchidnaSetup {
     /// @dev Tracks total LP staked through the harness (for cross-check invariants).
     uint256 internal ghost_totalStaked;
 
-    /// @dev Tracks previous rewardPerTokenStored to verify monotonicity (I-7 fix).
+    /// @dev Tracks previous rewardPerTokenStored to verify monotonicity.
     uint256 internal ghost_lastRPT;
 
     constructor() payable {
@@ -145,7 +145,7 @@ contract EchidnaLpStaking is EchidnaSetup {
     }
 
     /// @dev Invariant §14: rewardPerTokenStored is monotonically non-decreasing.
-    ///      I-7 fix: compare against ghost_lastRPT instead of trivial >= 0 check.
+    ///      Compare against ghost_lastRPT instead of a trivial >= 0 check.
     function echidna_reward_per_token_monotonic() public returns (bool) {
         uint256 rpt = vault.rewardPerTokenStored();
         bool ok = rpt >= ghost_lastRPT;

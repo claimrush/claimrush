@@ -349,7 +349,7 @@ rules:
   # Slither and Aderyn provide semantic coverage for both concerns.
 
   # ============================================================
-  # Solidity – accounting floor drift (TM-AccountingFloorDrift, see
+  # Solidity – accounting floor drift on value-paying paths (see
   # docs/security/threat-map-v1.0.0.md § 12)
   # ============================================================
   # Flag any `Math.mulDiv(_, _, Constants.BPS_DENOM)` site under /src/**/*.sol
@@ -374,7 +374,6 @@ rules:
     metadata:
       category: security
       cwe: CWE-682
-      threat-map: TM-AccountingFloorDrift
       invariants: M1, M6
     message: >
       `Math.mulDiv(_, _, Constants.BPS_DENOM)` on a value-paying path without
