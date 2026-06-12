@@ -252,10 +252,7 @@ contract TimelockGovernanceTest is Test {
         assertEq(ve.owner(), owner, "VeClaimNFT owner should be moved out of timelock for setup");
         assertEq(ve.pendingOwner(), address(timelock), "VeClaimNFT pending owner should point back to timelock");
 
-        vm.setEnv("DEPLOYMENTS_MANIFEST_JSON", _timelockManifestJson());
-        vm.setEnv("ADMIN_SAFE", vm.toString(adminSafe));
-        vm.setEnv("TIMELOCK_ACTION", "schedule");
-        _primeSignerEnv();
+        _primeTimelockSimEnv();
 
         TimelockAcceptOwnership script = new TimelockAcceptOwnership();
         script.run();
@@ -276,10 +273,7 @@ contract TimelockGovernanceTest is Test {
         _moveAllOwnershipTargetsTo(owner);
         _assertOwnershipTargetsState(owner, address(0));
 
-        vm.setEnv("DEPLOYMENTS_MANIFEST_JSON", _timelockManifestJson());
-        vm.setEnv("ADMIN_SAFE", vm.toString(adminSafe));
-        vm.setEnv("TIMELOCK_ACTION", "schedule");
-        _primeSignerEnv();
+        _primeTimelockSimEnv();
 
         TimelockAcceptOwnership script = new TimelockAcceptOwnership();
         script.run();
@@ -306,10 +300,7 @@ contract TimelockGovernanceTest is Test {
     }
 
     function _testFreezeAndBurnScriptSimulatesSafeScheduleWithoutBroadcast() internal {
-        vm.setEnv("DEPLOYMENTS_MANIFEST_JSON", _timelockManifestJson());
-        vm.setEnv("ADMIN_SAFE", vm.toString(adminSafe));
-        vm.setEnv("TIMELOCK_ACTION", "schedule");
-        _primeSignerEnv();
+        _primeTimelockSimEnv();
 
         FreezeAndBurn script = new FreezeAndBurn();
         script.run();
@@ -328,11 +319,8 @@ contract TimelockGovernanceTest is Test {
         address oldMineCoreImpl = _implementationOf(address(mineCore));
         address newMineCoreImpl = address(new MineCoreTimelockV2(address(claim), address(ve), address(royalties)));
 
-        vm.setEnv("DEPLOYMENTS_MANIFEST_JSON", _timelockManifestJson());
-        vm.setEnv("ADMIN_SAFE", vm.toString(adminSafe));
-        vm.setEnv("TIMELOCK_ACTION", "schedule");
+        _primeTimelockSimEnv();
         vm.setEnv("MINE_CORE_NEW_IMPLEMENTATION", vm.toString(newMineCoreImpl));
-        _primeSignerEnv();
 
         TimelockRuntimeUpgrade script = new TimelockRuntimeUpgrade();
         script.run();
@@ -483,6 +471,21 @@ contract TimelockGovernanceTest is Test {
     function _primeSignerEnv() internal {
         vm.setEnv("LOCAL_PRIVATE_KEY", vm.toString(_SIMULATION_LOCAL_PK));
         vm.setEnv("PRIVATE_KEY", vm.toString(_SIMULATION_LOCAL_PK));
+    }
+
+    /// @dev Pin every env var the governance-script simulation paths read,
+    ///      including the manifest, the schedule action, and the broadcast
+    ///      signer. `TIMELOCK_CALLER` takes priority over `ADMIN_SAFE` in
+    ///      `TimelockScriptBase._timelockCallerOrZero`; pinning it to the
+    ///      PROPOSER-roled `adminSafe` keeps the resolved caller deterministic
+    ///      even when a peer suite sharing the process-global env clears
+    ///      `ADMIN_SAFE` mid-run.
+    function _primeTimelockSimEnv() internal {
+        vm.setEnv("DEPLOYMENTS_MANIFEST_JSON", _timelockManifestJson());
+        vm.setEnv("ADMIN_SAFE", vm.toString(adminSafe));
+        vm.setEnv("TIMELOCK_CALLER", vm.toString(adminSafe));
+        vm.setEnv("TIMELOCK_ACTION", "schedule");
+        _primeSignerEnv();
     }
 
     function _transferGovernanceToTimelock() internal {

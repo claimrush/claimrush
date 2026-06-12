@@ -858,7 +858,7 @@ Recommended upgradeability approach (v1.0.0):
 - **Direct permanent roots:** keep `ClaimToken` and `VeClaimNFT` direct.
 - **Proxy-backed runtime quartet:** deploy `MineCore`, `Furnace`, `MarketRouter`, and `ShareholderRoyalties` behind transparent proxies whose proxy addresses are the canonical runtime endpoints.
 - **Freeze remains a wiring lock:** all five freeze-gated contracts retain a one-way `freezeConfig()`, but `ClaimToken` is frozen and owner-renounced at wire time while the freeze-and-burn ceremony freezes `Furnace`, `MineCore`, `VeClaimNFT`, and `ShareholderRoyalties`.
-- **Proxy-admin governance remains live:** `freezeConfig()` does not disable transparent-proxy upgrades. The runtime quartet remains upgradeable through owned `ProxyAdmin` contracts governed by the timelock + multisig.
+- **Proxy-admin governance is live only until finality:** `freezeConfig()` does not disable transparent-proxy upgrades. Until finality, the runtime quartet is upgradeable through owned `ProxyAdmin` contracts governed by the timelock + multisig; the freeze-and-burn ceremony then renounces ownership on the four runtime `ProxyAdmin`s, making the quartet permanently non-upgradeable.
 - **DexAdapter remains direct:** `DexAdapter` is still deployed non-upgradeable; changes ship via redeploy + timelocked registry router-config rewiring through `EntryTokenRegistry.setRouterConfig(...)`.
   - Once the WETH/CLAIM hop or any token config exists, router/factory changes require a fresh registry deployment instead of an in-place rewire.
 

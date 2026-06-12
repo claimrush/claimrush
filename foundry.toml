@@ -48,7 +48,17 @@ depth = 256
 
 [rpc_endpoints]
 base_mainnet = "${BASE_MAINNET_RPC_URL}"
+# Public Base mainnet RPCs used as a fallback chain by
+# `test/fork/AerodromeForkBase.t.sol::_createBaseMainnetFork`. Each entry
+# is a free, key-less HTTPS endpoint that serves historical state at the
+# pinned FORK_BLOCK (29_000_000). The chain exists so a single endpoint
+# returning HTTP 5xx / rate-limiting cannot red the CI merge gate. Order
+# is `base.org` first (canonical), then community-operated providers.
 base_mainnet_public = "https://mainnet.base.org"
+base_mainnet_publicnode = "https://base-rpc.publicnode.com"
+base_mainnet_llamarpc = "https://base.llamarpc.com"
+base_mainnet_drpc = "https://base.drpc.org"
+base_mainnet_1rpc = "https://1rpc.io/base"
 
 [profile.fork]
 

@@ -399,6 +399,25 @@ export interface KeeperConfig {
   healthToken: string | null;
 
   alertWebhookUrl: string | null;
+
+  /**
+   * Low-gas alerting on the keeper EOA. When `gasBalanceMinWei` is non-null the
+   * daemon periodically reads its own native-token balance and posts a
+   * `keeper_low_gas_balance` alert (via `alertWebhookUrl`) whenever the balance
+   * falls below this floor. Null disables the check entirely. The keeper never
+   * pays itself — its balance only ever drops by tx gas — so a balance below a
+   * sane floor means it is approaching the point where it can no longer land
+   * maintenance txs and must be topped up.
+   */
+  gasBalanceMinWei: bigint | null;
+  /** How often to read the EOA balance for the low-gas check (seconds). */
+  gasBalanceCheckIntervalSecs: number;
+  /**
+   * Minimum gap between repeated low-gas alerts while the balance stays below
+   * the floor (seconds). The first crossing alerts immediately; subsequent
+   * re-alerts are throttled to this cadence to avoid an alert storm.
+   */
+  gasBalanceAlertRepeatSecs: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -591,6 +610,10 @@ const KeeperConfigSchema = z.object({
   healthToken: z.string().min(1).nullable(),
 
   alertWebhookUrl: HttpUrl.nullable(),
+
+  gasBalanceMinWei: z.bigint().min(0n).nullable(),
+  gasBalanceCheckIntervalSecs: z.number().int().min(15).max(86_400),
+  gasBalanceAlertRepeatSecs: z.number().int().min(60).max(604_800),
 });
 
 function resolveMaybeRelative(p: string | null | undefined): string | null | undefined {
@@ -664,6 +687,24 @@ function gweiToWei(gwei: number | null | undefined): bigint | null {
   const n = Number(gwei);
   if (!Number.isFinite(n) || n < 0) return null;
   return BigInt(Math.trunc(n)) * 1_000_000_000n;
+}
+
+// Parse a decimal ETH amount (e.g. "0.05") into wei exactly, without going
+// through IEEE-754 float. Returns null for unset/empty; throws on malformed
+// input so a typo in KEEPER_GAS_BALANCE_MIN_ETH fails fast at boot.
+function etherStringToWei(v: unknown, envName: string): bigint | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (!/^\d+(\.\d+)?$/.test(s)) {
+    throw new Error(`Invalid decimal ETH amount for ${envName}: ${s}`);
+  }
+  const [whole, frac = ''] = s.split('.');
+  if (frac.length > 18) {
+    throw new Error(`Too many decimals for ${envName}: ${s} (max 18 = wei precision)`);
+  }
+  const fracPadded = frac.padEnd(18, '0');
+  return BigInt(whole) * 1_000_000_000_000_000_000n + BigInt(fracPadded || '0');
 }
 
 const ALLOWED_DAEMON_TASKS: Set<string> = new Set([
@@ -1654,6 +1695,22 @@ export function loadConfigFromEnv(): KeeperConfig {
       ? String(alertWebhookUrlRaw).trim()
       : null;
 
+  // Low-gas floor: KEEPER_GAS_BALANCE_MIN_WEI (precise) wins over the friendlier
+  // decimal KEEPER_GAS_BALANCE_MIN_ETH. Either being set arms the check.
+  const gasBalanceMinWei =
+    parseBigIntNullableEnv(process.env.KEEPER_GAS_BALANCE_MIN_WEI, 'KEEPER_GAS_BALANCE_MIN_WEI') ??
+    etherStringToWei(process.env.KEEPER_GAS_BALANCE_MIN_ETH, 'KEEPER_GAS_BALANCE_MIN_ETH');
+  const gasBalanceCheckIntervalSecs = parseIntStrictEnv(
+    process.env.KEEPER_GAS_BALANCE_CHECK_INTERVAL_SECS,
+    'KEEPER_GAS_BALANCE_CHECK_INTERVAL_SECS',
+    { defaultValue: 1800 },
+  );
+  const gasBalanceAlertRepeatSecs = parseIntStrictEnv(
+    process.env.KEEPER_GAS_BALANCE_ALERT_REPEAT_SECS,
+    'KEEPER_GAS_BALANCE_ALERT_REPEAT_SECS',
+    { defaultValue: 21_600 },
+  );
+
   const cfg: KeeperConfig = {
     deployment,
     publicRpcUrl,
@@ -1817,6 +1874,10 @@ export function loadConfigFromEnv(): KeeperConfig {
     healthToken,
 
     alertWebhookUrl,
+
+    gasBalanceMinWei,
+    gasBalanceCheckIntervalSecs,
+    gasBalanceAlertRepeatSecs,
   };
 
   // Validate the fully-parsed config with zod so missing or malformed values

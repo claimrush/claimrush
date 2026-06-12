@@ -56,19 +56,39 @@ abstract contract AerodromeForkBase is Test {
 
     // --- Helpers ---
 
-    /// @dev Create a Base mainnet fork preferring a private RPC (`base_mainnet` alias,
-    ///      which resolves to `${BASE_MAINNET_RPC_URL}` in `foundry.toml`) and falling
-    ///      back to the public endpoint (`base_mainnet_public` -> `https://mainnet.base.org`)
-    ///      when the private URL is unset or unreachable. Keeps CI and contributors
-    ///      without a private endpoint working out-of-the-box while giving operators
-    ///      with an Alchemy/Infura/QuickNode key a faster, rate-limit-free path simply
-    ///      by exporting `BASE_MAINNET_RPC_URL`.
+    /// @dev Create a Base mainnet fork. Prefers the private RPC alias
+    ///      (`base_mainnet` -> `${BASE_MAINNET_RPC_URL}` in `foundry.toml`)
+    ///      and otherwise walks a chain of free, key-less public endpoints
+    ///      (`base_mainnet_public`, `base_mainnet_publicnode`,
+    ///      `base_mainnet_llamarpc`, `base_mainnet_drpc`, `base_mainnet_1rpc`).
+    ///      The first endpoint that returns a fork wins; the helper only
+    ///      reverts if every endpoint in the chain is unreachable. CI runs
+    ///      without `BASE_MAINNET_RPC_URL` set, so the public chain must stay
+    ///      tolerant of a single endpoint returning HTTP 5xx or rate-limiting
+    ///      — that is why a single fallback is not sufficient. Operators with
+    ///      an Alchemy/Infura/QuickNode key skip the public chain entirely by
+    ///      exporting `BASE_MAINNET_RPC_URL`.
     function _createBaseMainnetFork(uint256 blockNumber) internal returns (uint256) {
-        try vm.createSelectFork("base_mainnet", blockNumber) returns (uint256 id) {
-            return id;
-        } catch {
-            return vm.createSelectFork("base_mainnet_public", blockNumber);
+        string[6] memory endpoints = [
+            "base_mainnet",
+            "base_mainnet_public",
+            "base_mainnet_publicnode",
+            "base_mainnet_llamarpc",
+            "base_mainnet_drpc",
+            "base_mainnet_1rpc"
+        ];
+
+        for (uint256 i = 0; i < endpoints.length; i++) {
+            try vm.createSelectFork(endpoints[i], blockNumber) returns (uint256 id) {
+                return id;
+            } catch {
+                // Try the next endpoint in the chain.
+            }
         }
+
+        revert(
+            "AerodromeForkBase: every Base mainnet RPC in the fallback chain failed; set BASE_MAINNET_RPC_URL or check provider status"
+        );
     }
 
     function _seedPool(uint256 wethAmount, uint256 claimAmount) internal returns (uint256 lpMinted) {

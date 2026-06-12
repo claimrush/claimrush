@@ -10,6 +10,7 @@ import { buildDaemonTaskDefs, refreshMorningCacheForRewardTasks } from './tasks.
 import { parseIntStrict } from '../shared/env.js';
 import { CircuitBreakerStateError } from '../shared/circuit_breaker.js';
 import { parseChainIdStrict } from '../shared/chainId.js';
+import { postAlert } from '../shared/alert.js';
 import { currentTier, type Tier } from '../shared/tier_observer.js';
 import { EventBus, type TriggerReason } from './event_bus.js';
 import { resolveHotSubscriptions } from './hot_events.js';
@@ -232,6 +233,37 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
     // has fired is considered handled (it just becomes a no-op inner reject
     // on the outer Promise, which has already settled).
   });
+}
+
+/**
+ * Format a wei amount as a human-readable decimal ETH string (no float).
+ * Trailing zeros in the fractional part are trimmed.
+ */
+export function formatWeiAsEth(wei: bigint): string {
+  const neg = wei < 0n;
+  const abs = neg ? -wei : wei;
+  const whole = abs / 1_000_000_000_000_000_000n;
+  const frac = (abs % 1_000_000_000_000_000_000n).toString().padStart(18, '0').replace(/0+$/, '');
+  return `${neg ? '-' : ''}${whole}${frac ? `.${frac}` : ''}`;
+}
+
+/**
+ * Pure decision for the keeper low-gas alert. `below` is whether the balance
+ * is under the floor; `alert` is whether an alert should be emitted now, which
+ * is true on the first crossing (`lastAlertAtMs === 0`) and again only once the
+ * repeat interval has elapsed. Kept side-effect free for unit testing.
+ */
+export function decideGasBalanceAlert(args: {
+  balanceWei: bigint;
+  minWei: bigint;
+  nowMs: number;
+  lastAlertAtMs: number;
+  alertRepeatMs: number;
+}): { below: boolean; alert: boolean } {
+  const below = args.balanceWei < args.minWei;
+  if (!below) return { below: false, alert: false };
+  const due = args.lastAlertAtMs === 0 || args.nowMs - args.lastAlertAtMs >= args.alertRepeatMs;
+  return { below: true, alert: due };
 }
 
 export async function runDaemon(args: DaemonRunArgs): Promise<void> {
@@ -471,6 +503,14 @@ export async function runDaemon(args: DaemonRunArgs): Promise<void> {
   let lastMorningRefreshMs = 0;
   const MORNING_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // check every 6h (actual refresh is weekly)
 
+  // Low-gas watch state. The keeper EOA never receives value — its balance
+  // only ever drops by tx gas — so a balance below the configured floor is an
+  // operator-actionable signal that it is heading toward being unable to land
+  // maintenance txs. Disabled entirely when KEEPER_GAS_BALANCE_MIN_* is unset.
+  let lastGasBalanceCheckMs = 0;
+  let lastGasBalanceAlertMs = 0;
+  let gasBalanceLow = false;
+
   // -- Settlement state (only meaningful when settlementEnabled) --
   let sState: SettlementStateType | null = null;
   if (settlementEnabled) {
@@ -508,6 +548,70 @@ export async function runDaemon(args: DaemonRunArgs): Promise<void> {
         lastMorningRefreshMs = Date.now();
       } catch (e: any) {
         log(`morning-cache refresh error: ${String(e?.message ?? e)}`);
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // Low-gas watch on the keeper EOA (opt-in via KEEPER_GAS_BALANCE_MIN_*).
+    // Best-effort: a balance-read failure logs a warning and never disrupts
+    // the maintenance loop.
+    // ---------------------------------------------------------------
+    if (
+      config.gasBalanceMinWei != null &&
+      Date.now() - lastGasBalanceCheckMs >= config.gasBalanceCheckIntervalSecs * 1000
+    ) {
+      lastGasBalanceCheckMs = Date.now();
+      const minWei = config.gasBalanceMinWei;
+      try {
+        const balanceWei = await clients.publicClient.getBalance({
+          address: clients.account.address,
+        });
+        const nowMs = Date.now();
+        const decision = decideGasBalanceAlert({
+          balanceWei,
+          minWei,
+          nowMs,
+          lastAlertAtMs: lastGasBalanceAlertMs,
+          alertRepeatMs: config.gasBalanceAlertRepeatSecs * 1000,
+        });
+        if (decision.below) {
+          if (!gasBalanceLow) {
+            log(
+              `gas-balance: LOW — EOA ${clients.account.address} balance ${formatWeiAsEth(balanceWei)} ETH < floor ${formatWeiAsEth(minWei)} ETH`,
+            );
+          }
+          gasBalanceLow = true;
+          if (decision.alert) {
+            lastGasBalanceAlertMs = nowMs;
+            await postAlert(
+              config.alertWebhookUrl,
+              {
+                type: 'keeper_low_gas_balance',
+                action: 'gas_balance_check',
+                deployment: config.deployment,
+                reason: 'keeper EOA native balance below configured floor',
+                address: clients.account.address,
+                balanceWei: balanceWei.toString(),
+                balanceEth: formatWeiAsEth(balanceWei),
+                thresholdWei: minWei.toString(),
+                thresholdEth: formatWeiAsEth(minWei),
+              },
+              { log },
+            );
+          }
+        } else {
+          if (gasBalanceLow) {
+            log(
+              `gas-balance: recovered — EOA balance ${formatWeiAsEth(balanceWei)} ETH >= floor ${formatWeiAsEth(minWei)} ETH`,
+            );
+            // Re-arm so the next dip alerts immediately rather than waiting out
+            // the repeat interval from the previous low episode.
+            lastGasBalanceAlertMs = 0;
+          }
+          gasBalanceLow = false;
+        }
+      } catch (e: any) {
+        log(`gas-balance: balance read failed: ${String(e?.message ?? e)}`);
       }
     }
 
