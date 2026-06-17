@@ -168,7 +168,7 @@ above. Required and optional params are listed under each action.
 > for ABI cross-reference, but the user-facing verb is the one in the
 > table.
 
-### Simple writes
+### Direct writes
 
 #### `GET /api/mcp/v1/prepare/collect-all`
 
@@ -287,6 +287,7 @@ label `mcp-plugin`, or email security disclosures per `SECURITY.md`.
 
 ## See also
 
+- Whitepaper (Activity-Routed Ownership — Protocol Design): <https://claimru.sh/whitepaper>
 - User tutorial: <https://docs.claimru.sh/tutorials/use-with-ai-assistants>
 - Developer reference: [`docs/manuals/developer/base-mcp-plugin.md`](../docs/manuals/developer/base-mcp-plugin.md)
 - Architecture appendix: [`docs/architecture/base-mcp-plugin-appendix-v1.0.0.md`](../docs/architecture/base-mcp-plugin-appendix-v1.0.0.md)

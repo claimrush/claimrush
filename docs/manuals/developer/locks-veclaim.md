@@ -1,6 +1,6 @@
 # Locks (veCLAIM)
 
-`VeClaimNFT` is the ERC-721 contract that represents locked CLAIM positions. Each lock has an amount, expiry, and optional AutoMax flag. The lock's veCLAIM balance determines its share of Baron royalties via [ShareholderRoyalties](shareholderroyalties-barons.md). In the [CLAIM stream](protocol-overview.md), this is where committed CLAIM earns its yield.
+`VeClaimNFT` is the ERC-721 contract that represents locked CLAIM positions. Each lock has an amount, expiry, and optional AutoMax flag. The lock's veCLAIM balance determines its share of Baron royalties via [ShareholderRoyalties](shareholderroyalties-barons.md). In the [CLAIM stream](protocol-overview.md), this is where committed CLAIM earns its share of Baron royalties.
 
 > **TL;DR:** Each veCLAIM token has `(amount, lockEnd, autoMax, listed)`. ve weight = `amount * timeRemaining / 365d` (or rolling max when AutoMax is on). Lock creation and mutation routes through the Furnace; transfers route only via `MarketRouter ↔ Furnace`. AutoMax keeps the lock at max duration and accrues extension bonus permissionlessly.
 
@@ -15,7 +15,6 @@ Read sources behind each card on `/veclaim`:
 | Locked CLAIM (principal across every live lock) | `ProtocolStats.lockedSupplyClaim` (mirrors `VeClaimNFT.totalLockedClaim()` denominated in whole CLAIM) |
 | TVL (USD value of locked CLAIM) | `ProtocolStats.tvlUsd` / `tvlEth` |
 | Royalties to Barons (7d) | `ProtocolStats.royalties7dEth` / `royalties7dUsd` |
-| Royalty APY | `ProtocolStats.royalties7dApyBps` (`(1 + 7d return / 7)^365 − 1`, daily-compounded) |
 
 Integrators that want the same numbers off the indexer should query the equivalents under `TokenPricingSnapshot` and the takeover scan (see `subgraph/schema.graphql`); the public app exposes the canonical aggregation via `/api/stats/protocol`.
 

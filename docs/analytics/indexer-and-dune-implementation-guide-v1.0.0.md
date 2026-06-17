@@ -87,9 +87,6 @@ Required outputs in v1.0.0:
 
 Protocol boundaries:
 - No APY / ROI / net-earned long-horizon dashboards (v1).
-- Only basic, trailing-24h annualized estimates are in scope:
-  - “Estimated APR (24h)” (LP Staking Vault)
-  - “Estimated veAPR (24h)” (ve lockers)
 - Do not add additional leaderboards beyond those defined in `docs/analytics/leaderboards-ui-and-dune-compatible-v1.0.0.md` (update that document if the official set changes).
 
 ---

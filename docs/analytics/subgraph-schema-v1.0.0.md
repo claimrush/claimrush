@@ -128,12 +128,10 @@ Clarifications:
 
 
 
-### C1b) Info surfaces (pricing + APR) (required)
+### C1b) Info surfaces (pricing) (required)
 
-These singletons power the read-only info surfaces used across:
+These singletons power the read-only price info surfaces used across:
 - `/claim` (price + FDV)
-- `/locks` (veAPR)
-- `/lp-vault` (lpAPR)
 
 IDs:
 - `TokenPricingSnapshot.id` MUST always be `"1"`.
@@ -188,11 +186,10 @@ Semantics (MUST):
   - If `chainlink.ethUsdFeed.address` is zero in the active deployment manifest, both fields MUST be null.
   - If `ethUsdUpdatedAt` is older than `MAX_ETH_USD_FEED_AGE_SECONDS` (see `src/lib/Constants.sol`), both fields MUST be treated as unsafe and set to null.
 - `totalSupplyWei` is `ClaimToken.totalSupply()`.
-- APR fields follow `docs/spec/apr-calculation-spec-v1.0.0.md`.
 
 Nullability (MUST):
 - Any field may be null early in indexing or during degraded mode.
-- The UI MUST treat null as “unavailable” and hide price/APR surfaces accordingly.
+- The UI MUST treat null as “unavailable” and hide the affected price surfaces accordingly.
 
 ### C2) Users and aggregated stats
 
@@ -1092,12 +1089,12 @@ Minimum sources (once contracts exist):
 
 ## D) Required top-level queries
 
-### D0) Shared info surfaces (pricing + APR)
+### D0) Shared info surfaces (pricing)
 
 These surfaces are consumed by:
 - `/claim` (price + FDV)
-- `/locks` (veAPR)
-- `/lp-vault` (LP APR)
+
+The `aprSnapshot` entity remains in the schema for indexer/Dune consumers; the official UI does not surface APR/veAPR.
 
 Query (example):
 ```graphql

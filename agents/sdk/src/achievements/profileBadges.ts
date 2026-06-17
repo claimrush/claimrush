@@ -520,7 +520,7 @@ export const PROFILE_BADGES = [
   {
     id: 'META_BOT_USER',
     category: 'Explorer',
-    label: 'Bot User',
+    label: 'Smart Account',
     kind: 'single',
     rarity: 'Common',
     priority: 8,
@@ -528,7 +528,7 @@ export const PROFILE_BADGES = [
   {
     id: 'META_BOT_CROWN_AUTOPILOT',
     category: 'Explorer',
-    label: 'Bot King',
+    label: 'Autopilot',
     kind: 'single',
     rarity: 'Common',
     priority: 8,
@@ -840,9 +840,10 @@ export const BADGE_HOW_TO = {
     'Enable Crown auto-lock, Royalties auto-compound, and LP auto-compound.',
   META_AUTOMATION_TRIFECTA:
     'Have all three automations execute at least once (Crown, Royalties, LP).',
-  META_BOT_USER: 'Use Claimrush from a smart-contract address (any on-chain action).',
+  META_BOT_USER:
+    'Use Claimrush from a smart-contract wallet other than a Base Account — a Safe, a 4337 account, or an EIP-7702-upgraded EOA (any on-chain action).',
   META_BOT_CROWN_AUTOPILOT:
-    'Use a smart-contract address and have Crown auto-lock execute at least once.',
+    'Use a smart-contract wallet (other than a Base Account) and have any automation execute at least once (Crown auto-lock, Royalties auto-compound, or LP auto-compound).',
 } as const satisfies Record<ProfileBadgeId, BadgeHowTo>;
 
 export function getBadgeHowTo(id: ProfileBadgeId, tier: number | null): string | null {

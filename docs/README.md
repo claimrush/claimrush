@@ -48,7 +48,6 @@ Docs-only canonical address lists (mirrors the repo-root `deployments/*` manifes
 - [LP staking vault spec](spec/lp-staking-vault-spec.md)
 - [Maintenance hub](spec/maintenance-hub-spec-v1.0.0.md)
 - [Launch controller](spec/launch-controller-spec-v1.0.0.md)
-- [APR calculation](spec/apr-calculation-spec-v1.0.0.md)
 - [Marketplace correctness addendum](spec/marketplace-correctness-addendum-v1.0.0.md)
 - [King auto-lock](spec/king-autolock-spec-v1.0.0.md)
 

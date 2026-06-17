@@ -190,13 +190,13 @@ contract FurnaceQuoter_Coverage_Test is Test {
     // ═══════════════════════════════════════════════════════════════════
 
     function test_sellRoundTripLossBps_boundaries() public view {
-        // At MIN_LOCK_DURATION (7d): ceil(2500 * 7 / 365) = ceil(47.945) = 48
+        // At MIN_LOCK_DURATION (7d): ceil(5000 * 7 / 365) = ceil(95.89) = 96
         uint256 lossAt7d = quoter.sellRoundTripLossBps(7 days);
-        assertEq(lossAt7d, 48, "7d loss");
+        assertEq(lossAt7d, 96, "7d loss");
 
-        // At MAX_LOCK_DURATION (365d): ceil(2500 * 365 / 365) = 2500
+        // At MAX_LOCK_DURATION (365d): ceil(5000 * 365 / 365) = 5000
         uint256 lossAt365d = quoter.sellRoundTripLossBps(365 days);
-        assertEq(lossAt365d, 2500, "365d loss");
+        assertEq(lossAt365d, 5000, "365d loss");
     }
 
     function testFuzz_sellRoundTripLossBps_monotonic(uint256 d1, uint256 d2) public view {
@@ -440,7 +440,7 @@ contract FurnaceQuoter_Coverage_Test is Test {
         uint256 tokenId = ve.createLock(principal, 90 days, false);
         vm.stopPrank();
 
-        // Simple quote.
+        // Baseline quote.
         (uint256 lockAmount1, uint256 claimOut1, uint256 spreadBps1, uint256 lpReward1, uint256 reserveAdd1) =
             quoter.quoteSellLockToFurnace(alice, tokenId);
 

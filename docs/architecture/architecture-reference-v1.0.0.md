@@ -122,7 +122,7 @@ Goal: discourage rapid LP in/out sniping while keeping withdrawals predictable.
 
 Rationale:
 - Burn is price-support; fee-to-rewards is liquidity-support. v1.0.0 uses liquidity-support to accelerate market depth.
-- Rewards are composable: LP stakers see a single harvestable CLAIM balance funded by the Furnace bonus split + overflow drip + fee donations (Furnace-funded portions are streamed over `LP_STREAM_WINDOW` to smooth APY).
+- Rewards are composable: LP stakers see a single harvestable CLAIM balance funded by the Furnace bonus split + overflow drip + fee donations (Furnace-funded portions are streamed over `LP_STREAM_WINDOW` to smooth reward-rate spikes).
 - Avoids gauges/bribes while still providing a transparent incentive to deepen liquidity.
 
 
@@ -225,7 +225,7 @@ Over 2 years (63,072,000 seconds):
   - No cliff; incentives taper smoothly.
 - **Perpetual tail**:
   - Keeps game economically “alive” indefinitely.
-  - Allows late entrants to still build positions and earn yield,
+  - Allows late entrants to still build positions and earn rewards,
     without degenerate hyperinflation.
 
 
@@ -313,7 +313,7 @@ Final split:
 Reasoning:
 
 - 75% to King keeps taking the Crown profitable.
-- 25% to Barons gives a strong “ETH yield” pillar:
+- 25% to Barons gives a strong “ETH rewards” pillar:
   - This is the primary reason to lock CLAIM long-term.
 75/25 is a balanced point: Kings still care about ETH profit, and Barons
 get a meaningful share of every takeover. A lower Baron share weakens ve positions;
@@ -639,7 +639,7 @@ In v1.0.0 strict mode, the Furnace is the ONLY counterparty for lock settlements
 
 - Listing = limit sell to Furnace with a price floor (`minClaimOut`)
 - When the Furnace can meet the price floor, the listing settles:
-  - Duration-based penalty is deducted (25% at 365d, ~0.5% at 7d)
+  - Duration-based penalty is deducted (50% at 365d, ~1% at 7d)
   - Furnace books the retained cut into `reserveAdd` plus optional `lpReward` funding into the LP stream
   - Seller receives `claimOut`; the duration-based penalty is the gap `lockAmount - claimOut` booked by Furnace during sellback execution
   - Lock is burned

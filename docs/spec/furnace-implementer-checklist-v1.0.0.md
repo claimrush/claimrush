@@ -234,7 +234,7 @@ Event emission (required for analytics; v1.0.0):
 Source: spec §7.3.6 + env-config §3.4F.
 
 Goal:
-- Smooth all Furnace-funded LP rewards (bonus splits, overflow drip, sellback LP share) over time to avoid APY spikes.
+- Smooth all Furnace-funded LP rewards (bonus splits, overflow drip, sellback LP share) over time to avoid reward-rate spikes.
 
 Required behavior:
 - Maintain stream schedule state:

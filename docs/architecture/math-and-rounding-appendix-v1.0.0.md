@@ -533,7 +533,7 @@ Bounds:
 This subsection defines rounding and cursor semantics for the Furnace LP rewards stream (§7.3.6).
 
 Purpose:
-- Smooth LP APY by streaming any Furnace-funded LP rewards (bonus LP split, overflow drip, sellback LP share) linearly over `LP_STREAM_WINDOW` (14 days).
+- Smooth the LP reward rate by streaming any Furnace-funded LP rewards (bonus LP split, overflow drip, sellback LP share) linearly over `LP_STREAM_WINDOW` (14 days).
 
 State variables (Furnace):
 - `rate = lpStreamRatePerSec`

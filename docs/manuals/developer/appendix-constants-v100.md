@@ -168,7 +168,7 @@ The sellback quote is a single net payout (`claimOut`). The implied haircut is `
 | SELL_SPREAD_MAX_BPS | 7,000 |
 | SELL_SPREAD_FLOOR_7D_BPS | 120 |
 | SELL_SPREAD_GAMMA | 2 |
-| SELL_ROUND_TRIP_LOSS_MAX_BPS | 2,500 |
+| SELL_ROUND_TRIP_LOSS_MAX_BPS | 5,000 |
 | SELL_IMPACT_BPS_PER_STEP | 100 |
 | SELL_IMPACT_MAX_BPS | 1,500 |
 

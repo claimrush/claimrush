@@ -27,7 +27,7 @@ contract SecurityCriticalConstantsPinnedTest is Test {
     }
 
     function testSellRoundTripLossMaxBps() public pure {
-        assertEq(Constants.SELL_ROUND_TRIP_LOSS_MAX_BPS, 2_500, "SELL_ROUND_TRIP_LOSS_MAX_BPS pinned at 25%");
+        assertEq(Constants.SELL_ROUND_TRIP_LOSS_MAX_BPS, 5_000, "SELL_ROUND_TRIP_LOSS_MAX_BPS pinned at 50%");
     }
 
     function testSellImpactBpsPerStep() public pure {

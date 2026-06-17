@@ -88,7 +88,8 @@ contract EchidnaMEVOrdering is EchidnaSetup {
             // Sandwich is "successful" if the attacker's net CLAIM gain plus
             // residual ve outweighs their initial CLAIM input by more than
             // the documented sellback envelope (`SELL_ROUND_TRIP_LOSS_MAX_BPS`
-            // tolerance). Since the round-trip is designed to lose 2.5-15%,
+            // tolerance). Since the round-trip is designed to lose principal
+            // (scaling with remaining lock duration up to the max loss floor),
             // any net positive gain is outside the envelope.
             if (attackerClaimAfter > attackerClaimBefore && attackerVeAfter > preVictimAttackerVe) {
                 sawSandwichBeyondEnvelope = true;
@@ -216,7 +217,7 @@ contract EchidnaMEVOrdering is EchidnaSetup {
     ///      modeled in `action_backRunClaim`) can settle a user more ETH than the
     ///      contract's accounting reserves: the three ETH buckets — crystallised
     ///      stored claims, indexed-but-uncrystallised, and un-flushed pending carry
-    ///      — must always fit inside actual custody. A JIT-capture regression that
+    ///            — must always fit inside actual custody. A JIT-capture fault that
     ///      let a fresh lock withdraw beyond its indexed entitlement (dipping into
     ///      the pool or another holder's crystallised balance) would drop the
     ///      contract balance below reserved liabilities and trip this invariant.

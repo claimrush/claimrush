@@ -182,7 +182,6 @@ The Echidna properties `echidna_lp_debt_accounting_exact` and `echidna_total_cre
 
 ## Integrator notes
 
-- If you display APR, use the canonical APR spec in `docs/spec/apr-calculation-spec-v1.0.0.md`.
 - Do not label CLAIM rewards as "claim" in UI.
   Use **Harvest**.
 

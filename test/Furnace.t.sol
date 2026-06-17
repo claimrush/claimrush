@@ -1206,15 +1206,15 @@ contract FurnaceTest is Test {
     }
 
     function testRoundTripLossFloorAt365dExamples() public {
-        // With userSpotBonusBps = 25% and round-trip loss floor = 25% at 365d:
+        // With userSpotBonusBps = 25% and round-trip loss floor = 50% at 365d:
         // - buy 1,000 CLAIM @ 365d yields 1,250 lock
-        // - sell back immediately should return <= 750 CLAIM (i.e., >=25% loss)
+        // - sell back immediately should return <= 500 CLAIM (i.e., >=50% loss)
         uint256 floorBps = furnace.exposedSellRoundTripSpreadFloorBps(2_500, Constants.MAX_LOCK_DURATION);
-        assertEq(floorBps, 4_000, "365d: b=25%, loss=25% -> spread floor 40%");
+        assertEq(floorBps, 6_000, "365d: b=25%, loss=50% -> spread floor 60%");
 
         uint256 lockAmount = 1_250e18;
         uint256 claimOut = Math.mulDiv(lockAmount, 10_000 - floorBps, 10_000);
-        assertEq(claimOut, 750e18, "round-trip principal out (25% loss)");
+        assertEq(claimOut, 500e18, "round-trip principal out (50% loss)");
     }
 
     function testSellImpactDecay3h() public {

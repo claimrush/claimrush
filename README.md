@@ -36,10 +36,12 @@ All public protocol docs shipped with this release live under `docs/`.
 - [docs/manuals/developer/repo-map.md](docs/manuals/developer/repo-map.md)
 - [PUBLIC_RELEASE_POLICY.md](PUBLIC_RELEASE_POLICY.md)
 
+### Whitepaper
+- [Activity-Routed Ownership — Protocol Design (PDF)](docs/whitepaper/ClaimRush_Activity_Routed_Ownership_Protocol_Design_v1.0.0.pdf) — frozen snapshot; canonical home is <https://claimru.sh/whitepaper>
+
 ### Protocol spec
 - `docs/spec/spec-v1.0.0.md`
 - `docs/spec/entry-token-registry-v1.0.0.md` (allowlisted entry tokens + routing)
-- `docs/spec/apr-calculation-spec-v1.0.0.md`
 - `docs/spec/vault-spec.md` (Genesis LP Vault; required genesis infrastructure)
 - `docs/spec/lp-staking-vault-spec.md` (LP staking vault; on-protocol)
 

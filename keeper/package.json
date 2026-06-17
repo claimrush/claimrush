@@ -31,7 +31,7 @@
     "@claimrush/node-utils": "file:../packages/node-utils",
     "tsx": "^4.21.0",
     "viem": "^2.49.0",
-    "ws": "^8.20.1",
+    "ws": "^8.21.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -45,7 +45,8 @@
   },
   "overrides": {
     "viem": {
-      "ws": ">=8.20.1"
-    }
+      "ws": ">=8.21.0"
+    },
+    "esbuild": ">=0.28.1"
   }
 }

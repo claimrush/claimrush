@@ -76,7 +76,7 @@ library Constants {
     // Sellback: round-trip loss floor (principal loss) for an immediate buy→sell.
     // At MAX_LOCK_DURATION (365d), the floor is SELL_ROUND_TRIP_LOSS_MAX_BPS.
     // Scales linearly with remaining time, clamped to [MIN_LOCK_DURATION, MAX_LOCK_DURATION].
-    uint256 internal constant SELL_ROUND_TRIP_LOSS_MAX_BPS = 2_500; // 25.00%
+    uint256 internal constant SELL_ROUND_TRIP_LOSS_MAX_BPS = 5_000; // 50.00%
 
     // Sellback: burst impact add-on (extra spread) based on recent sell volume.
     // The cumulative sell volume decays linearly over BONUS_DECAY_WINDOW (3h).

@@ -525,23 +525,11 @@ If you need “current state” style panels:
 - Use “latest event” patterns (pause toggles, routing/registry config set, guardian changed).
 - Use deterministic formulas driven by events (example: takeover price from last `Takeover`).
 
-## Estimated APR (24h) — LP Staking Vault
+## Reward and royalty datasets (off-chain)
 
-This is an off-chain metric only (UI/indexer/Dune).
-- APR is trailing 24h annualized (APR, not APY).
-- Excludes impermanent loss (IL), price PnL, gas, and compounding.
+These off-chain (UI/indexer/Dune) datasets describe reward and royalty flows in native terms. The official UI does not surface APR/veAPR/APY.
 
-Threshold rule (required):
-- If `avgTVL24hUsd < MIN_APR_TVL_USD`, APR MUST be treated as unavailable (NULL).
-
-Definition (required):
-- `APR24h = APR_ANNUALIZATION_DAYS * (rewardsValue24hUsd / avgTVL24hUsd)`
-
-Where:
-- `rewardsValue24hUsd` uses `LpRewardsNotified.amountClaim` summed over the last 24h × CLAIM/USD.
-- `avgTVL24hUsd` is the 24h time-average USD value of `totalStakedLP * lpValueUsd`.
-
-Required datasets (inputs):
+LP Staking Vault reward inputs:
 - LP vault reward funding events:
   - `LpRewardsNotified(amountClaim)`
   - Note: upstream funders may swallow `notifyRewards` reverts to avoid DoS. In that case you can observe CLAIM `Transfer` logs (Furnace → LP vault) without a matching `LpRewardsNotified` in the same tx; rewards will be accounted once a later notify succeeds (balance-delta accounting).
@@ -554,33 +542,6 @@ Required datasets (inputs):
   - ETH/USD (Chainlink)
   - CLAIM/ETH TWAP (30m) from canonical CLAIM/WETH pool (to derive CLAIM/USD)
 
-IN SCOPE in this repo for v1.0.0: Dune outputs (views/materializations):
-- `lp_vault_rewards_claim_24h`
-- `lp_vault_rewards_usd_24h`
-- `lp_vault_tvl_usd_timeseries` (hourly or block snapshots)
-- `lp_vault_avg_tvl_usd_24h`
-- `lp_vault_est_apr_bps_24h` (NULL when `avgTVL24hUsd < MIN_APR_TVL_USD`)
-
-Reference:
-- `docs/spec/apr-calculation-spec-v1.0.0.md`
-
-## Estimated veAPR (24h) — ve lockers (Barons)
-
-This is an off-chain metric only (UI/indexer/Dune).
-- veAPR is trailing 24h annualized (APR, not APY).
-- Driven by recent takeover activity and can be spiky.
-
-Definition (required):
-- `veAPR24h = APR_ANNUALIZATION_DAYS * (shareholderEthAllocated24hUsd / totalLockedClaimUsd)`
-
-Where:
-- `shareholderEthAllocated24hUsd` uses `ShareholderTakeoverAllocation.amountEth` summed over the last 24h × ETH/USD.
-- `totalLockedClaimUsd` uses a derived total locked CLAIM from ve lock events (`LockCreated` / `LockAmountIncreased` / `LockUnlocked`) × CLAIM/USD.
-
-IN SCOPE in this repo for v1.0.0: Dune outputs (views/materializations):
-- `ve_shareholder_eth_24h`
-- `ve_total_locked_claim`
-- `ve_est_apr_bps_24h`
-
-Reference:
-- `docs/spec/apr-calculation-spec-v1.0.0.md`
+Baron royalty inputs:
+- `shareholderEthAllocated24h` uses `ShareholderTakeoverAllocation.amountEth` summed over the last 24h.
+- Total locked CLAIM is derived from ve lock events (`LockCreated` / `LockAmountIncreased` / `LockUnlocked`).

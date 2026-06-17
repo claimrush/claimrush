@@ -2061,7 +2061,7 @@ Source of truth (exact math + rounding):
 All LP rewards that are funded by Furnace MUST be **streamed over time** to `LpStakingVault7D`.
 
 Goal:
-- Avoid large spikes/drops in LP rewards APY due to discrete large Furnace entries or single large sellbacks.
+- Avoid large spikes/drops in the LP reward rate due to discrete large Furnace entries or single large sellbacks.
 
 Constant (locked):
 - `LP_STREAM_WINDOW = 14 days`
@@ -2541,7 +2541,7 @@ A Bonus Target Escrow is a standing order that executes into the Furnace once th
 ### 8.3 Constraints & invariants
 
 - 0% protocol fee (no treasury skim).
-- Listing settlements: duration-based penalty (25% at 365d, ~0.5% at 7d) is the retained sellback cut `lockAmount - claimOut` (not a protocol fee). Seller receives `claimOut`. Furnace books that cut as `reserveAdd` plus optional `lpReward` funding into the LP stream.
+- Listing settlements: duration-based penalty (50% at 365d, ~1% at 7d) is the retained sellback cut `lockAmount - claimOut` (not a protocol fee). Seller receives `claimOut`. Furnace books that cut as `reserveAdd` plus optional `lpReward` funding into the LP stream.
 - Bonus target escrow execution routes CLAIM into Furnace (0% fee).
 - Prices denominated only in CLAIM.
 - Listed locks cannot be mutated in VeClaimNFT:
