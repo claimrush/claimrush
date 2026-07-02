@@ -450,15 +450,28 @@ Indexing rules (required):
 - `ReignRecipientsState.updateCount` MUST increment once per event.
 - `ReignRecipientsSetEvent.isMidReignUpdate` MUST be `true` iff `updateCount > 1` for that reign (used for “Recipients changed mid-reign” alerts).
 
-### C3c) King auto-lock events (required)
+### C3c) King CLAIM settlement events (required)
 
-MineCore emits `KingAutoLockConfigured`, `KingAutoLockExecuted`, `KingAutoLockSkipped`, and `KingAutoLockFailed` events for the keeper-driven auto-lock automation.
+On dethrone, a King's mined CLAIM is split: a liquid slice is minted directly to the
+recipient and the remainder is force-locked into veCLAIM. MineCore emits
+`KingClaimLiquidPaid` for the liquid slice, and `KingAutoLockConfigured`,
+`KingAutoLockExecuted`, `KingAutoLockSkipped`, and `KingAutoLockFailed` for the
+keeper-driven lock automation of the remainder.
 
 These events do **not** have dedicated `*Event` entity types in v1.0.0. They are normalized into `ActivityItem` entities with `kind` values:
 - `KING_AUTOLOCK_CONFIGURED`
 - `KING_AUTOLOCK_EXECUTED`
 - `KING_AUTOLOCK_SKIPPED`
 - `KING_AUTOLOCK_FAILED`
+- `KING_CLAIM_LIQUID_PAID`
+
+For `KING_CLAIM_LIQUID_PAID`, `ActivityItem.amountClaimWei` is the liquid CLAIM paid and
+`ActivityItem.bps` is the applied liquid fraction (basis points). The same values are
+mirrored onto the dethroned `Reign` as `liquidClaimPaidWei` and `liquidBpsApplied`
+(null until settlement, and when the liquid slice is zero). Note that
+`KingAutoLockExecuted.principalClaim` (and the `Skipped`/`Failed` analogues) carry the
+**locked** slice only, not total mined CLAIM — `ReignFinalized.totalClaimMined` remains
+the authoritative reign total.
 
 Consumers querying auto-lock status should filter `ActivityItem.kind` rather than looking for a standalone event entity. The full config payload (duration, minVeOut, etc.) is not stored as a dedicated entity in v1.0.0.
 
@@ -1901,6 +1914,7 @@ MineCore:
 - `KingAutoLockExecuted` (stored as `ActivityItem.kind = KING_AUTOLOCK_EXECUTED`)
 - `KingAutoLockSkipped` (stored as `ActivityItem.kind = KING_AUTOLOCK_SKIPPED`)
 - `KingAutoLockFailed` (stored as `ActivityItem.kind = KING_AUTOLOCK_FAILED`)
+- `KingClaimLiquidPaid` (stored as `ActivityItem.kind = KING_CLAIM_LIQUID_PAID`)
 - `ShareholderRoyaltiesTakeoverFailed`
 - `ShareholderRoyaltiesFlushFailed`
 - `DelegationSessionUsed`

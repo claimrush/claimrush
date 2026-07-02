@@ -90,6 +90,8 @@ dataSources:
           handler: handleKingAutoLockSkipped
         - event: KingAutoLockFailed(indexed uint256,indexed address,uint256,bytes)
           handler: handleKingAutoLockFailed
+        - event: KingClaimLiquidPaid(indexed uint256,indexed address,uint256,uint256)
+          handler: handleKingClaimLiquidPaid
         - event: ReignRecipientsSet(indexed uint256,indexed address,indexed address,address)
           handler: handleReignRecipientsSet
           receipt: true

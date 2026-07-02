@@ -190,13 +190,13 @@ contract FurnaceQuoter_Coverage_Test is Test {
     // ═══════════════════════════════════════════════════════════════════
 
     function test_sellRoundTripLossBps_boundaries() public view {
-        // At MIN_LOCK_DURATION (7d): ceil(5000 * 7 / 365) = ceil(95.89) = 96
+        // At MIN_LOCK_DURATION (7d): ceil(9900 * 7 / 365) = ceil(189.86) = 190
         uint256 lossAt7d = quoter.sellRoundTripLossBps(7 days);
-        assertEq(lossAt7d, 96, "7d loss");
+        assertEq(lossAt7d, 190, "7d loss");
 
-        // At MAX_LOCK_DURATION (365d): ceil(5000 * 365 / 365) = 5000
+        // At MAX_LOCK_DURATION (365d): ceil(9900 * 365 / 365) = 9900
         uint256 lossAt365d = quoter.sellRoundTripLossBps(365 days);
-        assertEq(lossAt365d, 5000, "365d loss");
+        assertEq(lossAt365d, 9900, "365d loss");
     }
 
     function testFuzz_sellRoundTripLossBps_monotonic(uint256 d1, uint256 d2) public view {

@@ -491,6 +491,44 @@
   },
   {
     "type": "function",
+    "name": "kingLiquidShareBps",
+    "inputs": [
+      {
+        "name": "king",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "kingWindowTakeovers",
+    "inputs": [
+      {
+        "name": "king",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "lastShareholderRetryTs",
     "inputs": [],
     "outputs": [
@@ -1400,6 +1438,37 @@
   },
   {
     "type": "event",
+    "name": "KingClaimLiquidPaid",
+    "inputs": [
+      {
+        "name": "reignId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "liquidBps",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "KingEthCredited",
     "inputs": [
       {
@@ -1876,6 +1945,11 @@
   {
     "type": "error",
     "name": "InvariantViolation",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "LockRouteUnavailable",
     "inputs": []
   },
   {

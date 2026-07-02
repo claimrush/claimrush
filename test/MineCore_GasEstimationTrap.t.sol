@@ -311,7 +311,9 @@ contract MineCoreGasEstimationTrapTest is Test {
         (,, uint256 pinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
         assertTrue(pinnedTokenId != 0, "pinnedTokenId not set");
         assertEq(ve.balanceOf(alice), 1, "alice veNFT count");
-        assertEq(claim.balanceOf(alice), 0, "alice must not receive liquid CLAIM on happy path");
+        // Only the takeover-window liquid slice is paid; the locked remainder mints the veNFT above.
+        uint256 expLiquid = (mineCore.getReignInfo(1).totalClaimMined * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(claim.balanceOf(alice), expLiquid, "alice receives only her takeover-window liquid share");
     }
 
     /// @dev Quantifies the gas floor at `_settlePrevKingClaim` entry required to keep

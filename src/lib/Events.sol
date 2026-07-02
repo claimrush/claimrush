@@ -155,6 +155,13 @@ library Events {
 
     event KingAutoLockSkipped(uint256 indexed reignId, address indexed user, uint256 principalClaim, uint8 reasonCode);
 
+    /// @notice Liquid CLAIM slice paid to a dethroned King's recipient at reign finalization.
+    /// @dev The liquid slice equals the King's share of the last KING_LIQUID_WINDOW takeovers
+    ///      (clamped to KING_LIQUID_SHARE_MAX_BPS); the remainder is force-locked. `liquidBps` is the
+    ///      applied fraction in basis points so indexers can reconstruct the split without replaying
+    ///      the takeover window.
+    event KingClaimLiquidPaid(uint256 indexed reignId, address indexed recipient, uint256 amount, uint256 liquidBps);
+
     event KingAutoLockFailed(uint256 indexed reignId, address indexed user, uint256 principalClaim, bytes revertData);
 
     /// @notice Emitted when a user withdraws from their pending CLAIM balance (king auto-lock fallback bucket).

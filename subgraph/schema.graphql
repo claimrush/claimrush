@@ -270,6 +270,13 @@ type Reign @entity(immutable: false) {
   totalClaimMinedWei: BigInt # set at finalization only
   totalEthToKingWei: BigInt # set at finalization only
 
+  # Liquid CLAIM slice paid directly to the dethroned King at settlement, and the
+  # applied fraction in basis points. The locked remainder routes to veCLAIM. Both
+  # are set when MineCore emits KingClaimLiquidPaid for this reignId; null until then
+  # (and remain null when the liquid slice is zero, i.e. a 100%-locked settlement).
+  liquidClaimPaidWei: BigInt
+  liquidBpsApplied: BigInt
+
   startedByTakeover: Takeover!
   finalizedBy: ReignFinalizedEvent
 
@@ -1211,6 +1218,9 @@ type ActivityItem @entity(immutable: true) {
   otherUser: User
   amountEthWei: BigInt
   amountClaimWei: BigInt
+  # Basis-points context for kinds that carry a fraction (e.g. the applied liquid
+  # share for KING_CLAIM_LIQUID_PAID). Null for kinds with no bps dimension.
+  bps: BigInt
 }
 
 # -----------------------------------------------------------------------------

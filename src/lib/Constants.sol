@@ -36,6 +36,16 @@ library Constants {
     uint256 internal constant KING_ETH_SHARE_PCT = 75;
     uint256 internal constant KING_ETH_SHARE_DENOM = 100;
 
+    // King-stream liquid share.
+    // A dethroned King's mined CLAIM is split into a liquid slice and a force-locked slice. The
+    // liquid slice equals the King's share of the last KING_LIQUID_WINDOW takeovers (by count),
+    // clamped to KING_LIQUID_SHARE_MAX_BPS. The remainder is force-locked into veCLAIM. The
+    // takeover price-doubling reset forces players to ping-pong the Crown, so in competitive play
+    // no single address sustains more than ~50% of the window; the clamp guarantees that bound even
+    // in a degenerate window (a single active address in dead hours), so liquid can never exceed 50%.
+    uint256 internal constant KING_LIQUID_WINDOW = 100;
+    uint256 internal constant KING_LIQUID_SHARE_MAX_BPS = 5_000; // 50.00%
+
     // Swaps — 300s accommodates Base L2 sequencer throughput constraints
     // and Aerodrome router execution latency.
     uint256 internal constant SWAP_DEADLINE_SECONDS = 300;
@@ -68,7 +78,11 @@ library Constants {
 
     // Sellback (lock → liquid CLAIM) spreads (driven by userSpotBonusBps)
     uint256 internal constant SELL_SPREAD_MIN_BPS = 500;
-    uint256 internal constant SELL_SPREAD_MAX_BPS = 7_000;
+    // Upper bound for every sell-spread component (system curve, duration factor, burst
+    // impact, and the round-trip loss floor). Set to 99% so a full-duration lock cannot be
+    // exited for more than ~1% of principal; this is the ceiling that lets the round-trip
+    // floor below actually reach 99% instead of being clamped down.
+    uint256 internal constant SELL_SPREAD_MAX_BPS = 9_900;
     // Minimum total sell spread at MIN_LOCK_DURATION (7d).
     uint256 internal constant SELL_SPREAD_FLOOR_7D_BPS = 120; // 1.2%
     uint256 internal constant SELL_SPREAD_GAMMA = 2;
@@ -76,7 +90,9 @@ library Constants {
     // Sellback: round-trip loss floor (principal loss) for an immediate buy→sell.
     // At MAX_LOCK_DURATION (365d), the floor is SELL_ROUND_TRIP_LOSS_MAX_BPS.
     // Scales linearly with remaining time, clamped to [MIN_LOCK_DURATION, MAX_LOCK_DURATION].
-    uint256 internal constant SELL_ROUND_TRIP_LOSS_MAX_BPS = 5_000; // 50.00%
+    // A full-duration (incl. autoMax) lock retains ~1% of principal on an early exit, which
+    // is what removes liquid CLAIM value from the Crown takeover economics.
+    uint256 internal constant SELL_ROUND_TRIP_LOSS_MAX_BPS = 9_900; // 99.00%
 
     // Sellback: burst impact add-on (extra spread) based on recent sell volume.
     // The cumulative sell volume decays linearly over BONUS_DECAY_WINDOW (3h).

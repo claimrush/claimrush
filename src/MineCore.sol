@@ -115,27 +115,58 @@ contract MineCore is UpgradeableProtocolBase, IMineCore {
     mapping(uint256 => ReignInfo) internal reignInfo;
     mapping(address => uint256[]) internal kingReigns;
 
-    // King auto-lock (optional): route King-stream CLAIM through the Furnace
+    // King-stream CLAIM lock target: the force-locked slice of each reign's mined CLAIM (the
+    // portion not paid out as the liquid takeover-share slice) is routed into the Furnace.
 
-    /// @notice Per-king opt-in configuration for auto-locking King-stream mined CLAIM into the Furnace.
-    /// @dev Off by default. When enabled, MineCore will attempt to route the dethroned King's mined
-    ///      CLAIM through `Furnace.enterWithClaimFor(...)` at reign finalization.
+    /// @notice Per-recipient lock-target selection for the force-locked slice of King-stream CLAIM.
+    /// @dev At reign finalization MineCore pays a liquid slice (the King's takeover-window share,
+    ///      clamped to `KING_LIQUID_SHARE_MAX_BPS`) and force-locks the remainder by routing it
+    ///      through `Furnace.enterWithClaimFor(...)`. This config governs only the locked slice's
+    ///      destination.
     ///
-    /// Design notes:
-    /// - `targetTokenId == 0` selects "create-once" mode:
-    ///   - the first successful auto-lock creates a new veNFT and stores its id in `pinnedTokenId`.
-    ///   - subsequent auto-locks top up that pinned lock (no new veNFTs).
-    /// - `targetTokenId != 0` selects "existing lock" mode and `pinnedTokenId` is unused (but preserved).
+    /// Destination resolution (see `_routeClaimToLock`):
+    /// - Default (no selection): a single create-once perpetual (autoMax) lock. The first lock is
+    ///   created and stored in `pinnedTokenId`; every later reign tops up that same lock, so an
+    ///   active King never accumulates new veNFTs.
+    /// - `targetTokenId != 0`: the recipient selected an existing lock they own (the "select another
+    ///   lock" path, set via `setKingAutoLockConfig`); settlement tops it up. If it becomes unusable,
+    ///   the route falls back to the pinned/fresh autoMax lock.
+    ///
+    /// Storage layout is preserved from the prior opt-in design. `enabled` no longer gates whether
+    /// locking happens (locking is unconditional); `createAutoMax`/`durationSeconds` are not consulted
+    /// for newly created locks (those are always autoMax). `targetTokenId`, `pinnedTokenId`, and
+    /// `minVeOut` remain load-bearing.
     struct KingAutoLockConfig {
         bool enabled;
-        bool createAutoMax; // only meaningful when `targetTokenId == 0` (create-once)
-        uint32 durationSeconds; // 0 allowed only when `targetTokenId != 0` ("use remaining")
+        bool createAutoMax;
+        uint32 durationSeconds;
         uint256 targetTokenId;
         uint256 pinnedTokenId;
         uint256 minVeOut;
     }
 
     mapping(address => KingAutoLockConfig) internal kingAutoLockConfig;
+
+    // ------------------------------------------------------------
+    // King-stream liquid share — takeover window (appended state — keep last for layout safety)
+    // ------------------------------------------------------------
+
+    /// @dev Fixed array length must be an in-file constant expression (the compiler rejects a
+    ///      cross-library constant here). MUST equal `Constants.KING_LIQUID_WINDOW`; pinned by
+    ///      `SecurityCriticalConstantsPinned.t.sol`.
+    uint256 private constant TAKEOVER_WINDOW_LEN = 100;
+
+    /// @notice Ring buffer of the last `TAKEOVER_WINDOW_LEN` takeover King identities.
+    /// @dev `address(0)` slots are unwritten (window not yet full). A King address is never zero, so
+    ///      `address(0)` is a safe "empty slot" sentinel and no separate fill counter is needed.
+    ///      Appended last; any future state MUST follow this fixed array to preserve proxy layout.
+    address[TAKEOVER_WINDOW_LEN] internal takeoverWindow;
+
+    /// @notice Next write index into `takeoverWindow` (wraps modulo `KING_LIQUID_WINDOW`).
+    uint256 internal takeoverWindowCursor;
+
+    /// @notice Per-address count of takeovers currently inside the window. Decremented on eviction.
+    mapping(address => uint256) internal takeoverWindowTakeovers;
 
     modifier whenNotFrozen() {
         if (configFrozen) revert Errors.ConfigFrozen();
@@ -721,25 +752,35 @@ contract MineCore is UpgradeableProtocolBase, IMineCore {
         if (to == address(0)) revert Errors.ZeroAddress();
         uint256 amount = pendingKingClaim[user];
         if (amount == 0) return;
+
+        // King-stream CLAIM is always locked — never paid out liquid. Route the credited CLAIM
+        // (already held by this contract) into a veCLAIM lock for `to`. Reverts on failure (e.g.
+        // Furnace locking paused, or amount below MIN_LOCK_AMOUNT with no existing lock) so the
+        // credit is preserved for a later retry.
+        (bool ok,,) = _routeClaimToLock(to, amount);
+        if (!ok) revert Errors.LockRouteUnavailable();
+
         pendingKingClaim[user] = 0;
         totalPendingKingClaim -= amount;
-        IERC20(address(claim)).safeTransfer(to, amount);
         emit Events.PendingClaimWithdrawn(user, to, amount);
     }
 
-    // King auto-lock configuration (opt-in)
+    // King-stream CLAIM lock-target configuration
 
-    /// @notice Configure optional auto-locking of King-stream mined CLAIM into the Furnace.
-    /// @dev Off by default. When enabled, MineCore will attempt to route the dethroned King's mined CLAIM
-    ///      through the Furnace (best-effort) during reign finalization.
+    /// @notice Select which veCLAIM lock receives this caller's force-locked King-stream CLAIM.
+    /// @dev King-stream CLAIM is ALWAYS locked (never liquid). This setter only chooses the destination:
+    ///      - targetTokenId == 0: use the default create-once perpetual (autoMax) lock (created and
+    ///        reused across all reigns). This is the default and needs no call.
+    ///      - targetTokenId != 0: route future settlement into an existing lock the caller owns
+    ///        ("select another lock"). Settlement tops it up; if it becomes unusable, the route falls
+    ///        back to the default autoMax lock.
+    ///      `enabled` no longer gates whether locking happens, and `createAutoMax`/`durationSeconds` are
+    ///      not consulted for newly created locks (those are always autoMax). They are retained for ABI
+    ///      and storage-layout compatibility. `minVeOut` is an optional slippage floor (0 == no floor).
     ///
-    /// Configuration modes:
-    /// - targetTokenId == 0: create-once mode. The first successful auto-lock creates a new veNFT and pins it.
-    /// - targetTokenId != 0: existing lock mode. Auto-lock always tops up the chosen tokenId.
-    ///
-    /// @param enabled Whether the feature is enabled.
-    /// @param targetTokenId Destination lock id, or 0 for create-once.
-    /// @param durationSeconds Desired lock duration. When targetTokenId == 0 this MUST be within protocol bounds.
+    /// @param enabled Retained for compatibility; does not affect whether locking occurs.
+    /// @param targetTokenId Destination lock id, or 0 for the default create-once autoMax lock.
+    /// @param durationSeconds Retained for compatibility. When targetTokenId == 0 this MUST be within protocol bounds.
     ///        When targetTokenId != 0, 0 means "use current remaining"; otherwise it is treated as a minimum.
     /// @param createAutoMax Only meaningful when targetTokenId == 0. If true, durationSeconds MUST equal MAX_LOCK_DURATION.
     /// @param minVeOut Slippage guard passed through to Furnace. If the Furnace call would revert (e.g. veOut < minVeOut),
@@ -875,11 +916,51 @@ contract MineCore is UpgradeableProtocolBase, IMineCore {
         kingReigns[king].push(reignId);
     }
 
-    // --- King auto-lock execution (opt-in, best-effort) ---
+    // --- King-stream liquid share: takeover window bookkeeping ---
 
-    // Minimum gasleft() required to enter the auto-lock branch. Below this threshold we
-    // short-circuit to the liquid-CLAIM path so the catch block and the rest of
-    // _executeTakeover are guaranteed enough budget to finalize.
+    /// @dev Record `newKing` as the most recent takeover in the rolling window. O(1): overwrite the
+    ///      oldest slot, decrementing the evicted King's count, then increment the new King's count.
+    function _recordTakeover(address newKing) internal {
+        uint256 cursor = takeoverWindowCursor;
+        address evicted = takeoverWindow[cursor];
+        if (evicted != address(0)) {
+            uint256 c = takeoverWindowTakeovers[evicted];
+            // Defensive: a populated slot always has a positive count, but never underflow.
+            if (c != 0) takeoverWindowTakeovers[evicted] = c - 1;
+        }
+        takeoverWindow[cursor] = newKing;
+        takeoverWindowTakeovers[newKing] += 1;
+        unchecked {
+            takeoverWindowCursor = (cursor + 1) % TAKEOVER_WINDOW_LEN;
+        }
+    }
+
+    /// @dev Liquid fraction (bps) of a dethroned King's mined CLAIM: their share of the last
+    ///      `KING_LIQUID_WINDOW` takeovers (fixed denominator), clamped to `KING_LIQUID_SHARE_MAX_BPS`.
+    function _kingLiquidBps(address king) internal view returns (uint256 bps) {
+        uint256 cnt = takeoverWindowTakeovers[king];
+        if (cnt == 0) return 0;
+        bps = (cnt * 10_000) / TAKEOVER_WINDOW_LEN;
+        if (bps > Constants.KING_LIQUID_SHARE_MAX_BPS) bps = Constants.KING_LIQUID_SHARE_MAX_BPS;
+    }
+
+    /// @notice Number of takeovers `king` currently holds inside the rolling liquid-share window.
+    function kingWindowTakeovers(address king) external view returns (uint256) {
+        return takeoverWindowTakeovers[king];
+    }
+
+    /// @notice Liquid fraction (bps) that `king`'s mined CLAIM would receive on dethrone right now.
+    /// @dev The remainder (`10_000 - this`) is force-locked into veCLAIM. View mirror of the split
+    ///      applied in `_settlePrevKingClaim`; the UI uses it to preview the liquid slice.
+    function kingLiquidShareBps(address king) external view returns (uint256) {
+        return _kingLiquidBps(king);
+    }
+
+    // --- King-stream CLAIM force-lock execution ---
+
+    // Minimum gasleft() required to attempt the lock inline. Below this threshold we credit the
+    // CLAIM for a later force-locked withdrawal so the rest of _executeTakeover is guaranteed
+    // enough budget to finalize. The credited CLAIM is still locked (never liquid) on withdrawal.
     //
     // Sized above the measured cost of the full auto-lock branch
     // (Furnace.enterWithClaimFor + veNFT mint + _pinShareholderObservedMin hook +
@@ -893,137 +974,151 @@ contract MineCore is UpgradeableProtocolBase, IMineCore {
     // takeover always has budget to finalize regardless of sub-call outcome.
     uint256 internal constant SETTLE_CLAIM_ENTER_RESERVE_GAS = 500_000;
 
-    function _settlePrevKingClaim(uint256 reignId, address king, uint256 claimAmount) internal {
+    /// @dev Settle a dethroned reign's mined CLAIM. The amount splits into a liquid slice — the
+    ///      King's share of the last `KING_LIQUID_WINDOW` takeovers, clamped to
+    ///      `KING_LIQUID_SHARE_MAX_BPS` — paid straight to `recipient`, and a force-locked remainder
+    ///      routed into veCLAIM. The liquid fraction is keyed to `king` (the reign's King identity,
+    ///      who earned the share by competing), while payout goes to `recipient` (which may be a
+    ///      routed bot under a delegated session). The locked slice keeps the never-brick fallback.
+    function _settlePrevKingClaim(uint256 reignId, address king, address recipient, uint256 claimAmount) internal {
         if (claimAmount == 0) return;
 
-        KingAutoLockConfig storage cfg = kingAutoLockConfig[king];
+        // Liquid slice = King's takeover-window share (clamped). The rest is force-locked.
+        uint256 liquidBps = _kingLiquidBps(king);
+        uint256 liquidAmount = (claimAmount * liquidBps) / 10_000;
+        uint256 lockAmount = claimAmount - liquidAmount;
 
-        // Gas pre-check — ensure the catch block will have adequate budget for cleanup.
-        if (cfg.enabled && gasleft() < SETTLE_CLAIM_MIN_GAS) {
-            _mintClaimToKingOrCredit(king, claimAmount);
-            emit Events.KingAutoLockSkipped(reignId, king, claimAmount, 0xFF);
+        // Liquid slice: a direct mint to the recipient. A plain ERC20 mint cannot brick the takeover.
+        // slither-disable-next-line reentrancy-no-eth
+        if (liquidAmount != 0) {
+            claim.mint(recipient, liquidAmount);
+            emit Events.KingClaimLiquidPaid(reignId, recipient, liquidAmount, liquidBps);
+        }
+
+        if (lockAmount == 0) return;
+
+        // Gas pre-check: on a tight budget, credit the locked slice for a later force-locked
+        // withdrawal instead of attempting the lock mid-takeover and risking an out-of-gas that
+        // bricks the takeover. Credited CLAIM is still locked (never liquid) when withdrawn.
+        if (gasleft() < SETTLE_CLAIM_MIN_GAS) {
+            _creditPendingKingClaim(recipient, lockAmount);
+            emit Events.KingAutoLockSkipped(reignId, recipient, lockAmount, 0xFF);
             return;
         }
 
-        // Default (disabled) path: mint liquid CLAIM to the dethroned king.
-        if (!cfg.enabled) {
-            _mintClaimToKingOrCredit(king, claimAmount);
+        // Mint the locked slice to this contract; it backs either the lock or the pending credit.
+        // slither-disable-next-line reentrancy-no-eth
+        claim.mint(address(this), lockAmount);
+
+        (bool ok, uint256 tokenIdUsed, bytes memory failData) = _routeClaimToLock(recipient, lockAmount);
+        if (ok) {
+            emit Events.KingAutoLockExecuted(reignId, recipient, lockAmount, tokenIdUsed);
             return;
         }
 
-        // Resolve destination (including pinned lock) and compute an effective duration for existing locks.
-        uint256 preResolvedTokenId = cfg.targetTokenId;
-        if (preResolvedTokenId == 0 && cfg.pinnedTokenId != 0) preResolvedTokenId = cfg.pinnedTokenId;
-        (bool ok, uint256 targetTokenId, uint256 durationSeconds, bool createAutoMax, uint8 reasonCode) = MineCoreHelper(
-                _helper
-            )
-            .resolveKingAutoLockDestination(
-                address(ve), king, preResolvedTokenId, cfg.durationSeconds, cfg.createAutoMax
-            );
+        // Lock route unavailable (Furnace paused, a first lock below MIN_LOCK_AMOUNT, stale wiring,
+        // ...). The CLAIM remains held by this contract; record the locked slice for a force-locked
+        // withdrawal. The locked slice never pays out liquid.
+        pendingKingClaim[recipient] += lockAmount;
+        totalPendingKingClaim += lockAmount;
+        emit Events.KingClaimCredited(recipient, lockAmount);
+        emit Events.KingAutoLockFailed(reignId, recipient, lockAmount, failData);
+    }
 
-        // If destination is invalid/unusable, do NOT create extra veNFTs. Fall back to liquid CLAIM.
-        if (!ok) {
-            // slither-disable-next-line reentrancy-no-eth
-            _mintClaimToKingOrCredit(king, claimAmount);
-            // Clear stale pinnedTokenId when the pinned lock is no longer usable.
-            // All failure reason codes (NOT_OWNER, LISTED, EXPIRED, INVALID_TOKEN_ID)
-            // indicate the pin is unusable — clear unconditionally.
-            if (cfg.targetTokenId == 0 && cfg.pinnedTokenId != 0) {
-                cfg.pinnedTokenId = 0;
-            }
-            emit Events.KingAutoLockSkipped(reignId, king, claimAmount, reasonCode);
-            return;
-        }
-
+    /// @dev Route `amount` CLAIM (already held by this contract) into a veCLAIM lock for `recipient`.
+    ///      Default destination is the recipient's create-once perpetual (autoMax) lock: the first
+    ///      lock is created and pinned, every later call tops up that same lock (so an active King
+    ///      never accumulates new veNFTs). A recipient may instead point future settlement at an
+    ///      existing lock they own via `setKingAutoLockConfig` (targetTokenId); if that lock becomes
+    ///      unusable the route falls back to the pinned/fresh autoMax lock. Returns (false, 0, reason)
+    ///      on any recoverable failure, leaving the CLAIM in this contract. Never reverts on the
+    ///      canonical paths so a takeover can never brick.
+    function _routeClaimToLock(address recipient, uint256 amount)
+        internal
+        returns (bool ok, uint256 tokenIdUsed, bytes memory failData)
+    {
         IFurnace f = furnace;
         address furnaceAddr = address(f);
 
-        // Defensive: keep king auto-lock fail-closed before touching any CLAIM if the live Furnace
-        // wiring is stale or foreign during the pre-freeze window. Otherwise MineCore can mint
-        // CLAIM to itself, approve a wrong Furnace, and let that contract pull the dethroned king
-        // payout without minting the intended ve lock.
+        // Fail-closed if the live Furnace wiring is missing or foreign (pre-freeze window).
         if (furnaceAddr == address(0)) {
-            _mintClaimToKingOrCredit(king, claimAmount);
-            emit Events.KingAutoLockFailed(
-                reignId, king, claimAmount, abi.encodeWithSelector(Errors.ZeroAddress.selector)
-            );
-            return;
+            return (false, 0, abi.encodeWithSelector(Errors.ZeroAddress.selector));
         }
         if (!_isReciprocallyWiredFurnace(furnaceAddr)) {
-            _mintClaimToKingOrCredit(king, claimAmount);
-            emit Events.KingAutoLockFailed(
-                reignId, king, claimAmount, abi.encodeWithSelector(Errors.WiringMismatch.selector)
-            );
-            return;
+            return (false, 0, abi.encodeWithSelector(Errors.WiringMismatch.selector));
         }
 
-        // Mint CLAIM to MineCore and route through the canonical Furnace entry flow.
-        // slither-disable-next-line reentrancy-no-eth
-        claim.mint(address(this), claimAmount);
-        _forceApprove(IERC20(address(claim)), furnaceAddr, claimAmount);
+        KingAutoLockConfig storage cfg = kingAutoLockConfig[recipient];
 
-        // `Furnace.enter*` requires `minVeOut > 0`. Treat 0 as a sentinel meaning "no floor" and clamp
-        // to 1 to preserve best-effort auto-lock behavior without allowing dust locks that mint 0 ve.
+        // Destination: an explicitly selected lock first, then the pinned create-once lock.
+        uint256 preResolvedTokenId = cfg.targetTokenId != 0 ? cfg.targetTokenId : cfg.pinnedTokenId;
+
+        uint256 targetTokenId;
+        uint256 durationSeconds;
+        bool createAutoMax;
+
+        if (preResolvedTokenId != 0) {
+            (bool resolved, uint256 rTokenId, uint256 rDuration, bool rAutoMax,) = MineCoreHelper(_helper)
+                .resolveKingAutoLockDestination(address(ve), recipient, preResolvedTokenId, 0, false);
+            if (resolved) {
+                targetTokenId = rTokenId;
+                durationSeconds = rDuration;
+                createAutoMax = rAutoMax;
+            } else {
+                // Selected/pinned lock is unusable. Clear a stale pin and create a fresh perpetual lock.
+                if (cfg.targetTokenId == 0 && cfg.pinnedTokenId != 0) cfg.pinnedTokenId = 0;
+                targetTokenId = 0;
+                durationSeconds = Constants.MAX_LOCK_DURATION;
+                createAutoMax = true;
+            }
+        } else {
+            // No selection and no pinned lock yet: create a perpetual (autoMax) lock and pin it.
+            targetTokenId = 0;
+            durationSeconds = Constants.MAX_LOCK_DURATION;
+            createAutoMax = true;
+        }
+
+        // `Furnace.enter*` requires `minVeOut > 0`. Treat 0 as "no floor" and clamp to 1.
         uint256 minVeOut = cfg.minVeOut;
         if (minVeOut == 0) minVeOut = 1;
 
-        // Forward gasleft() minus SETTLE_CLAIM_ENTER_RESERVE_GAS to Furnace.enterWithClaimFor
-        // so the catch block and the remainder of _executeTakeover (new-reign SSTOREs, events,
-        // hybrid refund) always have budget to finalize.
-        uint256 _gasLeft = gasleft();
-        uint256 gasForEnter = _gasLeft > SETTLE_CLAIM_ENTER_RESERVE_GAS ? _gasLeft - SETTLE_CLAIM_ENTER_RESERVE_GAS : 0;
+        // Forward gasleft() minus a reserve so the caller (takeover finalization) always retains budget.
+        uint256 gasLeft_ = gasleft();
+        uint256 gasForEnter = gasLeft_ > SETTLE_CLAIM_ENTER_RESERVE_GAS ? gasLeft_ - SETTLE_CLAIM_ENTER_RESERVE_GAS : 0;
+        if (gasForEnter == 0) return (false, 0, abi.encodeWithSelector(Errors.InvariantViolation.selector));
 
+        _forceApprove(IERC20(address(claim)), furnaceAddr, amount);
+
+        // Slither false-positive (reentrancy-no-eth): the only callers are the nonReentrant
+        // takeover-settlement path, and `f` is the reciprocally-wired trusted Furnace (checked
+        // above). The post-call writes to `cfg.pinnedTokenId` store the `tid` *returned by* this
+        // call, so checks-effects-interactions cannot be reordered ahead of it.
+        // slither-disable-next-line reentrancy-no-eth
         try f.enterWithClaimFor{gas: gasForEnter}(
-            king, claimAmount, targetTokenId, durationSeconds, createAutoMax, minVeOut
+            recipient, amount, targetTokenId, durationSeconds, createAutoMax, minVeOut
         ) returns (
-            uint256 tokenIdUsed
+            uint256 tid
         ) {
-            // Best-effort reset: must not revert so the successful lock is not lost.
             _bestEffortResetApproval(IERC20(address(claim)), furnaceAddr);
-
-            // In create-once mode, pin the first successfully created veNFT.
-            if (cfg.targetTokenId == 0 && cfg.pinnedTokenId == 0) {
-                cfg.pinnedTokenId = tokenIdUsed;
-            }
-
-            emit Events.KingAutoLockExecuted(reignId, king, claimAmount, tokenIdUsed);
+            // Pin the first successfully created lock so future settlement reuses it.
+            if (targetTokenId == 0 && cfg.pinnedTokenId == 0) cfg.pinnedTokenId = tid;
+            return (true, tid, "");
         } catch {
-            // In create-once mode, clear a stale pin so the next reign doesn't reuse
-            // a lock that may no longer be owned or usable by the new king.
-            if (cfg.targetTokenId == 0) {
-                cfg.pinnedTokenId = 0;
-            }
-
             bytes memory bounded = _boundedRevertData();
-
-            // Best-effort reset: must not revert so takeover is not bricked by approve failure.
+            // Clear a stale pin so a later attempt does not reuse an unusable create-once lock.
+            if (targetTokenId == 0 && cfg.targetTokenId == 0) cfg.pinnedTokenId = 0;
             _bestEffortResetApproval(IERC20(address(claim)), furnaceAddr);
-
-            // Use hardened SafeTransfer.callTransfer (return-data-bomb safe) instead
-            // of raw IERC20.transfer inside try/catch. Handles non-standard ERC20
-            // returns (no-return, bool, short) consistently with the rest of the
-            // codebase and avoids the subtle difference between transfer-returns-false
-            // and transfer-reverts in the fallback accounting.
-            if (!SafeTransfer.callTransfer(IERC20(address(claim)), king, claimAmount)) {
-                pendingKingClaim[king] += claimAmount;
-                totalPendingKingClaim += claimAmount;
-                emit Events.KingClaimCredited(king, claimAmount);
-            }
-
-            emit Events.KingAutoLockFailed(reignId, king, claimAmount, bounded);
+            return (false, 0, bounded);
         }
     }
 
-    /// @dev Mint CLAIM to self, then try transfer to recipient.
-    ///      On failure, credit pendingKingClaim for pull-payment withdrawal.
-    ///      Ensures a reverting recipient can never brick takeovers.
-    function _mintClaimToKingOrCredit(address recipient, uint256 amount) internal {
+    /// @dev Mint `amount` CLAIM to this contract and credit it to `recipient`'s pending balance for a
+    ///      later force-locked withdrawal. Used only when the lock route cannot run inline.
+    function _creditPendingKingClaim(address recipient, uint256 amount) internal {
         claim.mint(address(this), amount);
-        if (!SafeTransfer.callTransfer(IERC20(address(claim)), recipient, amount)) {
-            pendingKingClaim[recipient] += amount;
-            totalPendingKingClaim += amount;
-            emit Events.KingClaimCredited(recipient, amount);
-        }
+        pendingKingClaim[recipient] += amount;
+        totalPendingKingClaim += amount;
+        emit Events.KingClaimCredited(recipient, amount);
     }
 
     /// @notice Permissionless ve global checkpoint advancement.
@@ -1192,14 +1287,12 @@ contract MineCore is UpgradeableProtocolBase, IMineCore {
 
             emit Events.ReignFinalized(prevReignId, prevKing, prev.startTime, nowTs, claimMinedToPrevKing, kingShare);
 
-            // Settle King-stream CLAIM:
-            // - If claim recipient is the king identity, apply the king's auto-lock config (best-effort).
-            // - Otherwise, bypass auto-lock and mint liquid CLAIM to the configured recipient.
-            if (prevClaimRecipient == prevKing) {
-                _settlePrevKingClaim(prevReignId, prevKing, claimMinedToPrevKing);
-            } else if (claimMinedToPrevKing != 0) {
-                _mintClaimToKingOrCredit(prevClaimRecipient, claimMinedToPrevKing);
-            }
+            // Settle King-stream CLAIM. A liquid slice (the King's share of the last
+            // KING_LIQUID_WINDOW takeovers, clamped to 50%) is paid to the claim recipient; the
+            // remainder is force-locked into veCLAIM — a perpetual autoMax lock by default, or an
+            // existing lock the recipient selected. The liquid fraction is keyed to prevKing (the
+            // player who earned it by competing), the payout to the configured claim recipient.
+            _settlePrevKingClaim(prevReignId, prevKing, prevClaimRecipient, claimMinedToPrevKing);
         } else {
             // Genesis rule: 100% of takeover ETH to shareholders, and onTakeover uses reignId=0.
             _tryRoyaltiesTakeover(0, pricePaid);
@@ -1231,6 +1324,10 @@ contract MineCore is UpgradeableProtocolBase, IMineCore {
         r.totalEthToKing = 0;
 
         _appendKingReign(newKing, newReignId);
+
+        // Record this takeover in the rolling liquid-share window. Done after settling the previous
+        // reign so prevKing's share reflects the window as of their reign, not this dethroning.
+        _recordTakeover(newKing);
 
         emit Events.Takeover(newReignId, prevKing, newKing, pricePaid, newReferencePrice, nowTs);
 

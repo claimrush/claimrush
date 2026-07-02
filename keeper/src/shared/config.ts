@@ -358,6 +358,14 @@ export interface KeeperConfig {
   // single cadence knob moves them in lockstep; override individually to
   // decouple a task from the master period.
   compoundShareholderMinCadenceSecs: number;
+  /**
+   * Per-user intra-day spread window (seconds) for compound-shareholders. A
+   * deterministic per-user offset in `[0, this)` is added on top of the cadence
+   * floor so synchronized users fan out across the day instead of compounding
+   * in one batch. `0` disables spreading. Effective cadence becomes
+   * `[floor, floor + spread)`.
+   */
+  compoundShareholderSpreadSecs: number;
   compoundLpMinCadenceSecs: number;
   automaxOwnerCooldownSecs: number;
 
@@ -593,6 +601,7 @@ const KeeperConfigSchema = z.object({
   settlementStatePath: z.string().min(1),
 
   compoundShareholderMinCadenceSecs: z.number().int().min(3_600).max(604_800),
+  compoundShareholderSpreadSecs: z.number().int().min(0).max(86_400),
   compoundLpMinCadenceSecs: z.number().int().min(3_600).max(604_800),
   automaxOwnerCooldownSecs: z.number().int().min(3_600).max(604_800),
 
@@ -1326,6 +1335,15 @@ export function loadConfigFromEnv(): KeeperConfig {
     { min: 3_600, max: 604_800 },
   );
 
+  // Intra-day spread for compound-shareholders. 0 = no spread (eligible users
+  // batch together). A positive value fans synchronized users across the window
+  // with deterministic per-user jitter; effective cadence becomes
+  // [floor, floor + spread). Clamped to one day.
+  const compoundShareholderSpreadSecs = clamp(
+    parseIntStrict(process.env.KEEPER_COMPOUND_SHAREHOLDER_SPREAD_SECS, { defaultValue: 0 }) ?? 0,
+    { min: 0, max: 86_400 },
+  );
+
   const compoundLpMinCadenceSecs = clamp(
     parseIntStrict(process.env.KEEPER_COMPOUND_LP_MIN_CADENCE_SECS, {
       defaultValue: settlementPeriodSecs,
@@ -1857,6 +1875,7 @@ export function loadConfigFromEnv(): KeeperConfig {
     settlementStatePath: path.join(deploymentStateDir, 'settlement.json'),
 
     compoundShareholderMinCadenceSecs,
+    compoundShareholderSpreadSecs,
     compoundLpMinCadenceSecs,
     automaxOwnerCooldownSecs,
 

@@ -16,6 +16,7 @@ import {TimelockRuntimeUpgrade} from "script/TimelockRuntimeUpgrade.s.sol";
 import {ClaimAllHelper} from "src/ClaimAllHelper.sol";
 import {ClaimToken} from "src/ClaimToken.sol";
 import {Constants} from "src/lib/Constants.sol";
+import {Errors} from "src/lib/Errors.sol";
 import {DelegationHub} from "src/DelegationHub.sol";
 import {FurnaceQuoter} from "src/FurnaceQuoter.sol";
 import {IMarketRouter} from "src/interfaces/IMarketRouter.sol";
@@ -781,13 +782,18 @@ contract TimelockGovernanceTest is Test {
         mineCore.withdrawKingBalance();
         assertGt(alice.balance, aliceBefore, "withdrawKingBalance must work after burn");
 
-        // MineCore: user can withdraw pending CLAIM (fund proxy with CLAIM first)
-        vm.prank(address(mineCore));
-        claim.mint(address(mineCore), 200e18);
-        uint256 claimBefore = claim.balanceOf(alice);
+        // MineCore: King-stream CLAIM is force-locked on withdrawal (never paid liquid). Furnace
+        // locking is paused in this scenario, so withdrawPendingClaim correctly refuses to pay out and
+        // preserves the credit — proving the proxy still delegates into the implementation logic after
+        // burn (a domain revert, not a proxy failure) and that the credited CLAIM is never lost.
+        uint256 pendingBefore = mineCore.pendingKingClaim(alice);
+        assertGt(pendingBefore, 0, "alice should have a pending credit");
+        uint256 aliceClaimBefore = claim.balanceOf(alice);
         vm.prank(alice);
+        vm.expectRevert(Errors.LockRouteUnavailable.selector);
         mineCore.withdrawPendingClaim();
-        assertGt(claim.balanceOf(alice), claimBefore, "withdrawPendingClaim must work after burn");
+        assertEq(mineCore.pendingKingClaim(alice), pendingBefore, "pending credit must be preserved");
+        assertEq(claim.balanceOf(alice), aliceClaimBefore, "no liquid CLAIM paid out");
 
         // MarketRouter: user can delist (advance past listing cooldown)
         vm.roll(block.number + 1);

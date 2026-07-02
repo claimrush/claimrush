@@ -48,6 +48,37 @@ export function effectiveShareholderCadenceSeconds(
 ): number {
   return Math.max(keeperFloorSecs, userMinCadenceSeconds);
 }
+
+/**
+ * Deterministic per-user spread offset (seconds) added on top of the cadence
+ * floor so that many users that became eligible at the same time do NOT all
+ * compound in the same tick/transaction. The offset is derived from
+ * `(user, lastCompoundTs)` so it is:
+ *   - stable across keeper ticks while a user is waiting (no eligibility
+ *     flip-flop — once `now` passes the threshold it stays passed), and
+ *   - freshly re-randomized after each compound (genuine day-to-day jitter).
+ *
+ * The result is uniform-ish in `[0, spreadSecs)`. With `spreadSecs > 0` a batch
+ * of synchronized users fans out across the spread window on the very first
+ * cycle and never re-synchronizes. Effective per-user cadence becomes
+ * `[floor, floor + spreadSecs)`, so the floor stays the hard lower bound that
+ * clears the on-chain 24h limit. `spreadSecs <= 0` disables spreading.
+ */
+export function shareholderSpreadJitterSeconds(
+  user: string,
+  lastCompoundTs: bigint,
+  spreadSecs: number,
+): number {
+  if (!Number.isFinite(spreadSecs) || spreadSecs <= 0) return 0;
+  const key = `${addrNorm(user)}:${lastCompoundTs.toString()}`;
+  // FNV-1a 32-bit — cheap, deterministic, well-distributed for short keys.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h % Math.floor(spreadSecs);
+}
 const CHAIN_REWIND_TOLERANCE = 64n;
 // Always rescan a small overlap window to tolerate small L2 reorgs and RPC log edge cases.
 const SCAN_OVERLAP_BLOCKS = CHAIN_REWIND_TOLERANCE;
@@ -115,6 +146,17 @@ interface CompoundState {
    * cursor to lap the deferred set without retrying it.
    */
   pendingDeferredUsers: string[];
+  /**
+   * Per-user unix-second anchor (first time the keeper saw the user enabled)
+   * used to spread the *first-ever* compound. A user with on-chain
+   * `lastCompoundTs == 0` has no cadence anchor, so without this a freshly
+   * discovered cohort (e.g. the launch backlog, or several users enrolling in
+   * the same window) all clear at once and batch into a single
+   * `compoundForMany`. The first compound is instead deferred to
+   * `firstSeenSec + jitter(user)` so it lands inside the spread window.
+   * Cleared when a user is disabled/paused.
+   */
+  firstSeenSec: Record<string, number>;
 }
 
 interface EventItem {
@@ -138,6 +180,7 @@ function initState(): CompoundState {
     cursor: 0,
     failures: {},
     pendingDeferredUsers: [],
+    firstSeenSec: {},
   };
 }
 
@@ -174,6 +217,14 @@ function loadState(statePath: string, log?: (msg: string) => void): CompoundStat
         (x): x is string => typeof x === 'string' && !!x,
       )
     : [];
+  out.firstSeenSec =
+    raw.firstSeenSec && typeof raw.firstSeenSec === 'object'
+      ? Object.fromEntries(
+          Object.entries(raw.firstSeenSec as Record<string, unknown>).filter(
+            ([, v]) => typeof v === 'number' && Number.isFinite(v),
+          ) as Array<[string, number]>,
+        )
+      : {};
   return out;
 }
 
@@ -356,6 +407,9 @@ async function scanOptedInUsers({
     let cursor = parseNonNegativeSafeInteger(state.cursor, { defaultValue: 0 }) ?? 0;
     const failures: Record<string, FailureRecord> =
       state.failures && typeof state.failures === 'object' ? { ...state.failures } : {};
+    const firstSeenSec: Record<string, number> =
+      state.firstSeenSec && typeof state.firstSeenSec === 'object' ? { ...state.firstSeenSec } : {};
+    const nowSec = Math.floor(Date.now() / 1000);
 
     // Merge events and process in chronological order.
     // IMPORTANT: ShareholderAutoCompoundConfigured and ShareholderAutoCompoundPaused can interleave,
@@ -388,17 +442,24 @@ async function scanOptedInUsers({
       if (it.kind === 'cfg') {
         const enabled = !!l?.args?.enabled;
 
-        if (enabled) users = addUser(users, user);
-        else {
+        if (enabled) {
+          users = addUser(users, user);
+          // Anchor the first-compound spread the first time we see this user
+          // enabled. Stable across ticks/restarts (persisted) and reset on
+          // disable so a re-enable gets a fresh spread slot.
+          if (firstSeenSec[fk] == null) firstSeenSec[fk] = nowSec;
+        } else {
           // Disabled.
           const rm = removeUser(users, cursor, user);
           users = rm.users;
           cursor = rm.cursor;
+          delete firstSeenSec[fk];
         }
       } else {
         const rm = removeUser(users, cursor, user);
         users = rm.users;
         cursor = rm.cursor;
+        delete firstSeenSec[fk];
       }
     }
 
@@ -407,6 +468,7 @@ async function scanOptedInUsers({
       users,
       cursor,
       failures,
+      firstSeenSec,
       lastScannedBlock: to.toString(),
     };
 
@@ -564,16 +626,46 @@ async function selectBatch({
           parseNonNegativeSafeInteger(nextState.cursor, { defaultValue: 0 }) ?? 0,
           user,
         );
-        nextState = { ...nextState, users: rm.users, cursor: rm.cursor };
+        const fs = { ...(nextState.firstSeenSec ?? {}) };
+        delete fs[addrNorm(user)];
+        nextState = { ...nextState, users: rm.users, cursor: rm.cursor, firstSeenSec: fs };
         nextState = clearFailure(nextState, user);
         continue;
       }
+      const spreadWindowSecs = config.compoundShareholderSpreadSecs ?? 0;
       const effectiveCadenceSeconds = effectiveShareholderCadenceSeconds(
         config.compoundShareholderMinCadenceSecs,
         minCadenceSeconds,
       );
       if (effectiveCadenceSeconds > 0 && lastCompoundTs > 0n) {
-        if (nowTs < lastCompoundTs + BigInt(effectiveCadenceSeconds)) continue;
+        // Per-user spread jitter keeps a cohort of users that cleared the floor
+        // at the same time from compounding in one batch — they fan out across
+        // `[floor, floor + spreadSecs)` instead. The floor itself stays the hard
+        // lower bound, so the on-chain 24h cadence is always cleared.
+        const spreadSecs = shareholderSpreadJitterSeconds(user, lastCompoundTs, spreadWindowSecs);
+        if (nowTs < lastCompoundTs + BigInt(effectiveCadenceSeconds) + BigInt(spreadSecs)) continue;
+      } else if (lastCompoundTs === 0n && spreadWindowSecs > 0) {
+        // First-ever compound has no cadence anchor, so a freshly discovered
+        // cohort (launch backlog, or several users enrolling in the same window)
+        // would otherwise all be immediately eligible and batch into one
+        // `compoundForMany`. Defer the first compound to `firstSeen + jitter` so
+        // it lands somewhere inside the spread window instead. `firstSeen` is
+        // lazily anchored here (persisted) if the scan hasn't recorded it yet.
+        const fk = addrNorm(user);
+        let anchorSec = nextState.firstSeenSec?.[fk];
+        if (anchorSec == null || !Number.isFinite(anchorSec)) {
+          anchorSec = Number(nowTs);
+          nextState = {
+            ...nextState,
+            firstSeenSec: { ...(nextState.firstSeenSec ?? {}), [fk]: anchorSec },
+          };
+        }
+        const jitterSecs = shareholderSpreadJitterSeconds(
+          user,
+          BigInt(anchorSec),
+          spreadWindowSecs,
+        );
+        if (nowTs < BigInt(anchorSec) + BigInt(jitterSecs)) continue;
       }
       needState.push({ user, tokenId, minEthToCompound });
     }

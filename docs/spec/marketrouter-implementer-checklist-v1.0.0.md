@@ -170,7 +170,7 @@ Source: spec §8.2.
 Implement the functions in §8.2, preserving:
 - CLAIM-only prices (v1.0.0 policy)
 - 0% protocol fee (no treasury skim)
-- Duration-based listing settlement penalty (mirrors Furnace round-trip loss: 50% at 365d, ~1% at 7d) — the retained cut is surfaced as `penalty = lockAmount - claimOut`, not a protocol fee
+- Duration-based listing settlement penalty (mirrors Furnace round-trip loss: 99% at 365d, ~1.9% at 7d) — the retained cut is surfaced as `penalty = lockAmount - claimOut`, not a protocol fee
 - Correct event emissions as specified
 - Correct escrow and execution semantics for bonus target escrow orders
 

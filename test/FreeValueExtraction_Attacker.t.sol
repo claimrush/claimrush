@@ -235,12 +235,29 @@ contract FreeValueExtractionAttackerTest is Test, EchidnaSetup {
         uint256 mined = mineCore.kingEmittedExposed(mineCore.currentReignLastAccrualTime(), block.timestamp);
         assertGt(mined, 0, "setup should accrue king emissions");
 
+        uint256 victimReign = mineCore.currentReignId();
         uint256 dethronePrice = mineCore.getCurrentTakeoverPrice();
         vm.prank(bob);
         mineCore.takeover{value: dethronePrice}(type(uint256).max);
 
         assertEq(claim.balanceOf(delegate), delegateClaimBefore, "delegate received CLAIM without route permission");
-        assertEq(claim.balanceOf(victim), victimClaimBefore + mined, "victim did not receive mined CLAIM");
+
+        // King-stream CLAIM accrues to the reign's claim recipient (the victim): a takeover-window
+        // liquid slice plus a force-locked remainder. The delegate gains nothing; the victim keeps the
+        // full value (split liquid + lock), so this is not a free-value-extraction path.
+        uint256 minedSettled = mineCore.getReignInfo(victimReign).totalClaimMined;
+        uint256 expLiquid = (minedSettled * mineCore.kingLiquidShareBps(victim)) / 10_000;
+        assertEq(
+            claim.balanceOf(victim) - victimClaimBefore,
+            expLiquid,
+            "victim receives only the takeover-window liquid slice"
+        );
+
+        (,, uint256 victimPin,,,) = mineCore.getKingAutoLockConfig(victim);
+        assertGt(victimPin, 0, "victim should receive a locked position");
+        assertEq(ve.ownerOf(victimPin), victim, "victim owns the locked position");
+        (uint256 lockedAmt,,,) = ve.getLockInfo(victimPin);
+        assertGe(lockedAmt, minedSettled - expLiquid, "victim's lock should hold the force-locked principal");
     }
 
     function _assertEnterSellRoundTripCannotPrintClaim(uint256 duration, bool autoMax) internal {

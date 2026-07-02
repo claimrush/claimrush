@@ -61,9 +61,14 @@ Genesis takeover (prevKing == 0x0):
 - ShareholderRoyalties.onTakeover uses reignId = 0
 
 King-stream CLAIM settlement (prevKing != 0x0):
-- mined CLAIM for the dethroned reign is minted to `reignClaimRecipient[prevReignId]` (fallback: prevKing)
-- if claim recipient equals the King identity, MineCore applies the King's auto-lock config (best-effort)
-- otherwise, MineCore mints liquid CLAIM directly to the recipient
+- mined CLAIM for the dethroned reign is split into a **liquid slice** and a **force-locked remainder**, both directed to `reignClaimRecipient[prevReignId]` (fallback: prevKing)
+- the liquid slice equals the King's share of the last `KING_LIQUID_WINDOW` (100) takeovers — `liquidBps = min(windowCount * 10_000 / 100, KING_LIQUID_SHARE_MAX_BPS)` — clamped to 50%. The share is keyed to the **King identity** (`prevKing`, the player who earned it), while the payout goes to the claim recipient. The liquid slice is a direct mint and emits `KingClaimLiquidPaid`
+- the remainder is force-locked into veCLAIM via `Furnace.enterWithClaimFor`: by default a single create-once perpetual (autoMax) lock that future reigns top up, or an existing lock the recipient selected via `setKingAutoLockConfig` (`targetTokenId`)
+- never-brick: if the lock route is unavailable (Furnace paused/foreign wiring, gas below `SETTLE_CLAIM_MIN_GAS`, or `enterWithClaimFor` reverts) the locked slice is credited to `pendingKingClaim` and force-locked on withdrawal — it is never paid out liquid
+
+Worked: 1 of 100 → 1% liquid / 99% locked; 20 of 100 → 20% / 80%; ≥50 of 100 → 50% (capped) / 50%.
+
+The takeover price resets to 2x the last paid on every takeover, so a King cannot cheaply re-take their own crown; players must ping-pong the Crown. With no self-succession a single address can hold at most 50 of the last 100 takeovers, so the liquid share tops out at 50% structurally; the on-chain clamp guards the same bound in degenerate low-activity windows.
 
 Payout mechanics:
 - The dethroned King payout is best-effort in-tx (fixed gas stipend).

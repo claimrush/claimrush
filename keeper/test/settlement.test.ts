@@ -21,6 +21,8 @@ import {
   populateSpreadBatches,
   loadSettlementState,
   IMMEDIATE_TASKS,
+  SPREAD_TASKS,
+  SETTLEMENT_TASK_NAMES,
 } from '../src/run/settlement.js';
 import type { SettlementState } from '../src/run/types.js';
 import type { KeeperConfig } from '../src/shared/config.js';
@@ -715,6 +717,46 @@ test('isSpreadPhaseComplete: false when harvest not done', () => {
   };
 
   assert.ok(!isSpreadPhaseComplete(state.current!));
+});
+
+test('isSpreadPhaseComplete: true for a harvest-only spread phase (no batches)', () => {
+  // compound-shareholders runs in the interval loop, not the window, so the
+  // spread phase schedules no batches. Once harvest is done the phase must
+  // complete and let the cycle close — otherwise it would idle "open" until
+  // window-close.
+  const config = makeConfig();
+  let state = makeState(THU_OPEN);
+  state = openCycle(state, THU_OPEN, config);
+  state = transitionToSpread(state);
+  state = markHarvestDone(state);
+
+  assert.deepEqual(state.current!.spreadBatchesPending, []);
+  assert.deepEqual(state.current!.spreadBatchesCompleted, []);
+  assert.ok(isSpreadPhaseComplete(state.current!));
+});
+
+test('isSpreadPhaseComplete: false when harvest-only and harvest not done', () => {
+  const config = makeConfig();
+  let state = makeState(THU_OPEN);
+  state = openCycle(state, THU_OPEN, config);
+  state = transitionToSpread(state);
+
+  assert.ok(!isSpreadPhaseComplete(state.current!));
+});
+
+// ---------------------------------------------------------------------------
+// Settlement task membership
+// ---------------------------------------------------------------------------
+
+test('compound-shareholders is NOT a settlement task (runs in the interval loop)', () => {
+  // The fixed wall-clock window + hard on-chain 24h cadence floor collapses a
+  // settlement-windowed shareholder compound to ~48h. Keeping it out of the
+  // settlement task set lets the daemon run it on its own interval, where the
+  // per-user 24h+5min floor is applied relative to each user's last compound.
+  assert.ok(!(SPREAD_TASKS as readonly string[]).includes('compound-shareholders'));
+  assert.ok(!(SETTLEMENT_TASK_NAMES as readonly string[]).includes('compound-shareholders'));
+  // harvest-staking stays in the spread phase.
+  assert.ok((SPREAD_TASKS as readonly string[]).includes('harvest-staking'));
 });
 
 // ---------------------------------------------------------------------------

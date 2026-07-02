@@ -56,17 +56,15 @@ contract RejectingClaimReceiver {
     receive() external payable {}
 }
 
-/// @notice Exercises every path through _settlePrevKingClaim.
+/// @notice Exercises the paths through _settlePrevKingClaim (King-stream CLAIM is always locked).
 /// @dev Paths:
 ///   1. claimAmount == 0 (early return)
-///   2. cfg.enabled && gasleft() < SETTLE_CLAIM_MIN_GAS (gas guard skip)
-///   3. !cfg.enabled (default liquid CLAIM)
-///   4. resolveKingAutoLockDestination returns !ok (destination failure)
-///   5. furnace == address(0) (no furnace)
-///   6. furnace not reciprocally wired
-///   7. enterWithClaimFor succeeds (auto-lock success)
-///   8. enterWithClaimFor reverts, direct transfer succeeds (catch -> liquid)
-///   9. enterWithClaimFor reverts, direct transfer fails (catch -> pendingKingClaim)
+///   2. gasleft() < SETTLE_CLAIM_MIN_GAS (gas guard -> pending credit, force-locked on withdrawal)
+///   3. default (no selection) -> create-once autoMax lock
+///   4. invalid selected/pinned target -> fresh autoMax lock fallback
+///   5. furnace == address(0) or not reciprocally wired -> pending credit
+///   6. enterWithClaimFor succeeds (lock created/topped up)
+///   7. enterWithClaimFor reverts -> pending credit (no liquid)
 contract MineCoreAutoLockPathsTest is Test {
     ClaimToken internal claim;
     VeClaimNFTHarness internal ve;
@@ -140,11 +138,12 @@ contract MineCoreAutoLockPathsTest is Test {
     }
 
     // -----------------------------------------------------------------------
-    // Path 3: auto-lock disabled (default) -> liquid CLAIM to king
+    // Default (no config) -> forced create-once autoMax lock
     // -----------------------------------------------------------------------
 
-    /// @notice Default path: auto-lock disabled, king receives liquid CLAIM.
-    function test_autoLock_disabled_liquidClaim() public {
+    /// @notice Default path: with no config, the dethroned king's CLAIM is force-locked into a fresh
+    ///         create-once autoMax veNFT. There is no liquid payout.
+    function test_autoLock_default_forcesLock() public {
         _takeover(alice);
         vm.warp(block.timestamp + 30 minutes);
 
@@ -152,7 +151,19 @@ contract MineCoreAutoLockPathsTest is Test {
         _takeover(bob); // dethrones alice
         uint256 claimAfter = IERC20(address(claim)).balanceOf(alice);
 
-        assertGt(claimAfter, claimBefore, "alice should receive liquid CLAIM");
+        // alice took 1 of the last-100 takeovers -> 1% liquid slice, the remaining 99% is force-locked.
+        uint256 mined = mineCore.getReignInfo(1).totalClaimMined;
+        uint256 expLiquid = (mined * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertGt(expLiquid, 0, "single-takeover liquid slice is positive");
+        assertEq(claimAfter - claimBefore, expLiquid, "alice receives only her takeover-window liquid share");
+
+        (,, uint256 pinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
+        assertGt(pinnedTokenId, 0, "a create-once lock should be pinned by default");
+        assertEq(ve.ownerOf(pinnedTokenId), alice, "alice owns the pinned lock");
+
+        (,, bool autoMax,) = ve.getLockInfo(pinnedTokenId);
+        assertTrue(autoMax, "default lock should be autoMax");
+
         _assertClaimSolvency();
     }
 
@@ -174,9 +185,11 @@ contract MineCoreAutoLockPathsTest is Test {
         vm.recordLogs();
         _takeover(bob); // dethrones alice, triggers auto-lock
 
-        // Alice should NOT receive liquid CLAIM (it went to Furnace).
+        // Alice receives only her 1% takeover-window liquid slice; the locked remainder goes to Furnace.
         uint256 claimAfter = IERC20(address(claim)).balanceOf(alice);
-        assertEq(claimAfter, claimBefore, "alice should NOT receive liquid CLAIM (auto-locked)");
+        uint256 mined = mineCore.getReignInfo(1).totalClaimMined;
+        uint256 expLiquid = (mined * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(claimAfter - claimBefore, expLiquid, "alice receives only her takeover-window liquid share");
 
         // Verify pinnedTokenId was set.
         (bool enabled,, uint256 pinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
@@ -187,19 +200,17 @@ contract MineCoreAutoLockPathsTest is Test {
     }
 
     // -----------------------------------------------------------------------
-    // Path 4: destination resolution failure -> liquid CLAIM fallback
+    // Destination resolution failure -> fresh autoMax lock fallback (never liquid)
     // -----------------------------------------------------------------------
 
-    /// @notice Auto-lock with invalid targetTokenId -> destination fails -> liquid CLAIM.
-    function test_autoLock_invalidTarget_fallbackLiquid() public {
+    /// @notice Auto-lock with an invalid pinned target -> resolution fails -> a fresh autoMax lock is
+    ///         created instead. King-stream CLAIM is never paid out liquid.
+    function test_autoLock_invalidTarget_fallbackFreshLock() public {
         _takeover(alice);
 
-        // Enable auto-lock targeting a nonexistent veNFT.
-        // We need to set the config such that resolveKingAutoLockDestination will fail.
-        // Use the harness to set a pinnedTokenId that doesn't exist.
+        // Enable auto-lock, then pin to a nonexistent token so resolveKingAutoLockDestination fails.
         vm.prank(alice);
         mineCore.setKingAutoLockConfig(true, 0, uint32(30 days), false, 1);
-        // Pin to a nonexistent token.
         mineCore.setKingAutoLockPinnedTokenIdForTest(alice, 99999);
 
         vm.warp(block.timestamp + 30 minutes);
@@ -208,12 +219,18 @@ contract MineCoreAutoLockPathsTest is Test {
         _takeover(bob);
         uint256 claimAfter = IERC20(address(claim)).balanceOf(alice);
 
-        // Should get liquid CLAIM (fallback after resolution failure).
-        assertGt(claimAfter, claimBefore, "alice should receive liquid CLAIM after resolution failure");
+        // Only the 1% liquid slice is paid; the locked remainder replaces the stale pin with a fresh autoMax lock.
+        uint256 mined = mineCore.getReignInfo(1).totalClaimMined;
+        uint256 expLiquid = (mined * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(claimAfter - claimBefore, expLiquid, "alice receives only her takeover-window liquid share");
 
-        // pinnedTokenId should be cleared.
         (,, uint256 pinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
-        assertEq(pinnedTokenId, 0, "stale pinnedTokenId should be cleared");
+        assertGt(pinnedTokenId, 0, "a fresh pin should replace the stale one");
+        assertTrue(pinnedTokenId != 99999, "stale pin must not be reused");
+        assertEq(ve.ownerOf(pinnedTokenId), alice, "alice owns the fresh lock");
+
+        (,, bool autoMax,) = ve.getLockInfo(pinnedTokenId);
+        assertTrue(autoMax, "fallback lock should be autoMax");
 
         _assertClaimSolvency();
     }

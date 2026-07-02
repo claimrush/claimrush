@@ -721,8 +721,16 @@ export async function runDaemon(args: DaemonRunArgs): Promise<void> {
           }
         }
 
-        // Compound-shareholders batches: schedule if not yet populated
-        if (cycle.spreadBatchesCompleted.length === 0 && cycle.spreadBatchesPending.length === 0) {
+        // Compound-shareholders batches: schedule if not yet populated.
+        // Only when `compound-shareholders` is configured as a settlement
+        // (spread) task. By default it runs in the interval loop instead, so
+        // the spread phase is harvest-only and this block is skipped — flipping
+        // it back into SPREAD_TASKS restores window-batched compounding.
+        if (
+          settlementTaskSet.has('compound-shareholders') &&
+          cycle.spreadBatchesCompleted.length === 0 &&
+          cycle.spreadBatchesPending.length === 0
+        ) {
           const compoundDef = defs['compound-shareholders'];
           if (compoundDef) {
             const mc = loadMorningCache(config.morningCachePath);

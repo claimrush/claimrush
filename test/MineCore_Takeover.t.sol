@@ -450,7 +450,13 @@ contract MineCoreTakeoverTest is Test {
 
         uint256 expectedKingMined = _emitted(t1, t2, T0, true);
         assertEq(r1.totalClaimMined, expectedKingMined);
-        assertEq(claim.balanceOf(alice), expectedKingMined);
+        // King-stream CLAIM splits into a takeover-window liquid slice (paid to alice) and a
+        // force-locked remainder. This minimal harness does not wire the Furnace entry-token registry,
+        // so the lock route is unavailable and the locked slice is credited as pending for a later
+        // force-locked withdrawal (the Furnace reserve is therefore unchanged).
+        uint256 expLiquid = (expectedKingMined * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(claim.balanceOf(alice), expLiquid, "alice receives only her takeover-window liquid share");
+        assertEq(mineCore.pendingKingClaim(alice), expectedKingMined - expLiquid, "locked slice credited as pending");
 
         // Furnace receives deterministic emissions across the same intervals.
         uint256 expectedFurnaceTotal = _emitted(0, t2, T0, false);

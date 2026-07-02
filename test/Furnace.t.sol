@@ -949,8 +949,13 @@ contract FurnaceTest is Test {
         (uint256 lockAmount,, uint256 spreadBps,,) = furnaceQuoter.quoteSellLockToFurnace(alice, tokenId);
         assertEq(lockAmount, Constants.MIN_LOCK_AMOUNT, "lock amount sanity");
 
-        // Floor should bind for min-duration sells in low-bonus regimes.
-        assertEq(spreadBps, Constants.SELL_SPREAD_FLOOR_7D_BPS, "min-duration spread floor");
+        // Floor should bind for min-duration sells in low-bonus regimes. Under the 99% round-trip
+        // loss policy the binding floor is the round-trip spread floor, which exceeds the static 7d
+        // floor even at min duration.
+        IFurnaceQuoter.SellLockQuoteBreakdown memory bd = furnaceQuoter.quoteSellLockToFurnaceBreakdown(alice, tokenId);
+        uint256 rtFloor = furnace.exposedSellRoundTripSpreadFloorBps(bd.bonusRefBpsUsed, Constants.MIN_LOCK_DURATION);
+        assertGt(rtFloor, Constants.SELL_SPREAD_FLOOR_7D_BPS, "round-trip floor should exceed static 7d floor");
+        assertEq(spreadBps, rtFloor, "min-duration spread floor binds to the round-trip floor");
     }
 
     function testSellQuoteBreakdownMatchesQuoteAndShowsSizeImpact() public {
@@ -1206,15 +1211,16 @@ contract FurnaceTest is Test {
     }
 
     function testRoundTripLossFloorAt365dExamples() public {
-        // With userSpotBonusBps = 25% and round-trip loss floor = 50% at 365d:
+        // With userSpotBonusBps = 25% and round-trip loss floor = 99% at 365d:
         // - buy 1,000 CLAIM @ 365d yields 1,250 lock
-        // - sell back immediately should return <= 500 CLAIM (i.e., >=50% loss)
+        // - the raw floor is ceil(10000*(2500+9900)/12500) = 9920, clamped to SELL_SPREAD_MAX_BPS (9900)
+        // - sell back immediately returns ~1% of the lock (i.e., ~99% loss)
         uint256 floorBps = furnace.exposedSellRoundTripSpreadFloorBps(2_500, Constants.MAX_LOCK_DURATION);
-        assertEq(floorBps, 6_000, "365d: b=25%, loss=50% -> spread floor 60%");
+        assertEq(floorBps, 9_900, "365d: b=25%, loss=99% -> spread floor clamped to 99%");
 
         uint256 lockAmount = 1_250e18;
         uint256 claimOut = Math.mulDiv(lockAmount, 10_000 - floorBps, 10_000);
-        assertEq(claimOut, 500e18, "round-trip principal out (50% loss)");
+        assertEq(claimOut, 12.5e18, "round-trip principal out (~99% loss)");
     }
 
     function testSellImpactDecay3h() public {

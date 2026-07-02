@@ -24,7 +24,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_SECS = 7 * 24 * 60 * 60;
 
 export const IMMEDIATE_TASKS = ['compound-lp', 'automax-bonus'] as const;
-export const SPREAD_TASKS = ['harvest-staking', 'compound-shareholders'] as const;
+// `compound-shareholders` is intentionally NOT a settlement task. A fixed
+// wall-clock settlement window attempts the compound once per cycle, and the
+// on-chain `ShareholderRoyalties` cadence floor is a hard 24h: because each
+// compound lands a few seconds past window-open, the next cycle's attempt is
+// always just short of 24h and skips, collapsing the effective cadence to
+// every other day (~48h). Running it in the normal interval loop instead makes
+// attempts floor-relative (see `compoundShareholderMinCadenceSecs`), so a
+// per-user 24h+5min floor clears the on-chain limit on the first eligible tick
+// and holds a ~daily cadence.
+export const SPREAD_TASKS = ['harvest-staking'] as const;
 export const SETTLEMENT_TASK_NAMES = [...IMMEDIATE_TASKS, ...SPREAD_TASKS] as const;
 
 // ---------------------------------------------------------------------------
@@ -502,9 +511,14 @@ export function getNextDueBatch(
 }
 
 export function isSpreadPhaseComplete(cycle: SettlementCycleState): boolean {
+  // Complete once harvest is done and no spread batch work remains. Gating on
+  // an empty pending queue (rather than requiring at least one scheduled batch)
+  // lets the phase close cleanly when there are no spread compound batches to
+  // schedule — e.g. when `compound-shareholders` runs in the interval loop
+  // instead of the window, leaving the spread phase as harvest-only.
   return (
     cycle.harvestCompleted &&
-    cycle.spreadBatchesCompleted.length > 0 &&
+    cycle.spreadBatchesPending.length === 0 &&
     cycle.spreadBatchesCompleted.every((b) => b.completed)
   );
 }

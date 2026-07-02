@@ -45,6 +45,12 @@ contract MineCoreHarness is MineCore {
         pendingKingClaim[user] = amount;
     }
 
+    /// @dev Force a King's takeover-window count, bypassing the no-self-succession bound, to exercise
+    ///      the defensive `> KING_LIQUID_SHARE_MAX_BPS` clamp in `_kingLiquidBps`.
+    function setTakeoverWindowCountForTest(address user, uint256 count) external {
+        takeoverWindowTakeovers[user] = count;
+    }
+
     function mintClaimForTest(address to, uint256 amount) external {
         claim.mint(to, amount);
     }

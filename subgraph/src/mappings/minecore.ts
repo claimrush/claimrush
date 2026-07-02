@@ -14,6 +14,7 @@ import {
   KingAutoLockExecuted,
   KingAutoLockFailed,
   KingAutoLockSkipped,
+  KingClaimLiquidPaid,
   ReignFinalized,
   ReignRecipientsSet,
   ShareholderRoyaltiesFlushFailed,
@@ -320,6 +321,9 @@ export function handleKingAutoLockConfigured(event: KingAutoLockConfigured): voi
   saveActivityItem(a);
 }
 
+// `principalClaim` here is the LOCKED slice only — the liquid slice (if any) is
+// settled separately via KingClaimLiquidPaid. The authoritative total mined for
+// the reign remains ReignFinalized.totalClaimMined.
 export function handleKingAutoLockExecuted(event: KingAutoLockExecuted): void {
   const protocol = loadOrCreateProtocol(event.block.number);
   protocol.mineCore = setBytesIfZero(protocol.mineCore, event.address);
@@ -337,6 +341,39 @@ export function handleKingAutoLockExecuted(event: KingAutoLockExecuted): void {
   a.tokenId = event.params.tokenIdUsed;
   a.amountClaimWei = event.params.principalClaim;
   saveActivityItem(a);
+}
+
+// Liquid CLAIM slice paid directly to the dethroned King's recipient at
+// settlement. `liquidBps` is the applied fraction of the reign's mined CLAIM;
+// the remainder is force-locked (KingAutoLockExecuted / Skipped / Failed). The
+// reign entity is enriched so per-reign liquid accounting is queryable without
+// replaying the takeover window.
+export function handleKingClaimLiquidPaid(event: KingClaimLiquidPaid): void {
+  const protocol = loadOrCreateProtocol(event.block.number);
+  protocol.mineCore = setBytesIfZero(protocol.mineCore, event.address);
+  protocol.save();
+
+  const id = eventId(event);
+  const recipient = loadOrCreateUser(event.params.recipient);
+
+  const a = new ActivityItem(id);
+  a.kind = 'KING_CLAIM_LIQUID_PAID';
+  a.timestamp = event.block.timestamp;
+  a.txHash = event.transaction.hash;
+  a.reignId = event.params.reignId;
+  a.user = recipient.id;
+  a.amountClaimWei = event.params.amount;
+  a.bps = event.params.liquidBps;
+  saveActivityItem(a);
+
+  // The dethroned King's reign was created at their takeover, so it exists here
+  // regardless of event ordering within the settlement tx.
+  const reign = Reign.load(event.params.reignId.toString());
+  if (reign != null) {
+    reign.liquidClaimPaidWei = event.params.amount;
+    reign.liquidBpsApplied = event.params.liquidBps;
+    reign.save();
+  }
 }
 
 export function handleKingAutoLockSkipped(event: KingAutoLockSkipped): void {

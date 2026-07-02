@@ -210,6 +210,24 @@
       "offset": 0,
       "slot": "81",
       "type": "t_mapping(t_address,t_struct(KingAutoLockConfig)_storage)"
+    },
+    {
+      "label": "takeoverWindow",
+      "offset": 0,
+      "slot": "82",
+      "type": "t_array(t_address)_storage"
+    },
+    {
+      "label": "takeoverWindowCursor",
+      "offset": 0,
+      "slot": "182",
+      "type": "t_uint256"
+    },
+    {
+      "label": "takeoverWindowTakeovers",
+      "offset": 0,
+      "slot": "183",
+      "type": "t_mapping(t_address,t_uint256)"
     }
   ],
   "types": {
@@ -217,6 +235,11 @@
       "encoding": "inplace",
       "label": "address",
       "numberOfBytes": "20"
+    },
+    "t_array(t_address)_storage": {
+      "encoding": "inplace",
+      "label": "address[100]",
+      "numberOfBytes": "3200"
     },
     "t_array(t_uint256)_storage": {
       "encoding": "inplace",

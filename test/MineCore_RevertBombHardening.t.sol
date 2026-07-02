@@ -119,9 +119,17 @@ contract MineCoreRevertBombHardeningTest is Test {
         mineCore.takeover{value: price, gas: 4_000_000}(type(uint256).max);
 
         assertEq(mineCore.currentKing(), bob);
-        assertGt(claim.balanceOf(alice), 0);
 
-        // Auto-lock failed, so pinnedTokenId should remain unset.
+        // Alice's takeover-window liquid slice is paid; the locked slice's Furnace entry fails on the
+        // revert bomb, so that remainder is credited as pending (for a later force-locked withdrawal)
+        // and no lock is pinned.
+        uint256 mined1 = mineCore.getReignInfo(1).totalClaimMined;
+        uint256 expLiquid1 = (mined1 * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(claim.balanceOf(alice), expLiquid1, "alice receives only her takeover-window liquid share");
+        assertEq(
+            mineCore.pendingKingClaim(alice), mined1 - expLiquid1, "locked slice credited as pending on lock failure"
+        );
+
         (,, uint256 pinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
         assertEq(pinnedTokenId, 0);
     }

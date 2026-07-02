@@ -415,6 +415,17 @@
       "topic0": "0x0b91072b883a9ddbe59dfecb51b1e0c419c14d0daea4528ceaee1af3773f1580"
     },
     {
+      "name": "KingClaimLiquidPaid",
+      "signature": "KingClaimLiquidPaid(uint256,address,uint256,uint256)",
+      "indexed": [
+        true,
+        true,
+        false,
+        false
+      ],
+      "topic0": "0xecee6f8d6d6e5b91a62976a89027385f0b54c0ad305e2784d77fc0db87052af5"
+    },
+    {
       "name": "KingAutoLockFailed",
       "signature": "KingAutoLockFailed(uint256,address,uint256,bytes)",
       "indexed": [

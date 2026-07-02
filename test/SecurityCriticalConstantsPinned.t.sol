@@ -23,11 +23,11 @@ contract SecurityCriticalConstantsPinnedTest is Test {
     }
 
     function testSellSpreadMaxBps() public pure {
-        assertEq(Constants.SELL_SPREAD_MAX_BPS, 7_000, "SELL_SPREAD_MAX_BPS pinned at 70%");
+        assertEq(Constants.SELL_SPREAD_MAX_BPS, 9_900, "SELL_SPREAD_MAX_BPS pinned at 99%");
     }
 
     function testSellRoundTripLossMaxBps() public pure {
-        assertEq(Constants.SELL_ROUND_TRIP_LOSS_MAX_BPS, 5_000, "SELL_ROUND_TRIP_LOSS_MAX_BPS pinned at 50%");
+        assertEq(Constants.SELL_ROUND_TRIP_LOSS_MAX_BPS, 9_900, "SELL_ROUND_TRIP_LOSS_MAX_BPS pinned at 99%");
     }
 
     function testSellImpactBpsPerStep() public pure {
@@ -226,6 +226,14 @@ contract SecurityCriticalConstantsPinnedTest is Test {
 
     function testKingEthShareDenomPinned() public pure {
         assertEq(Constants.KING_ETH_SHARE_DENOM, 100, "KING_ETH_SHARE_DENOM pinned at 100");
+    }
+
+    function testKingLiquidWindowPinned() public pure {
+        assertEq(Constants.KING_LIQUID_WINDOW, 100, "KING_LIQUID_WINDOW pinned at last-100 takeovers");
+    }
+
+    function testKingLiquidShareMaxBpsPinned() public pure {
+        assertEq(Constants.KING_LIQUID_SHARE_MAX_BPS, 5_000, "KING_LIQUID_SHARE_MAX_BPS pinned at 50%");
     }
 
     function testMaxLockDuration() public pure {

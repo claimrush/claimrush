@@ -31,6 +31,9 @@ library Errors {
     error InvalidDuration();
     error LockExpired();
     error LockListedOrFrozen();
+    // King-stream CLAIM is always locked: the veCLAIM lock route is temporarily unavailable
+    // (Furnace locking paused, or a first lock below MIN_LOCK_AMOUNT). The credit is preserved.
+    error LockRouteUnavailable();
     error AutoMaxMismatch();
     error ListingNotActive();
     error ListingCooldown();

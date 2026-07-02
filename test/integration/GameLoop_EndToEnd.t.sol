@@ -153,7 +153,13 @@ contract GameLoopEndToEndIT is Test {
 
         uint256 expectedKingClaim = _emitted(s1.t1, t2, T0, true);
         assertEq(r1.totalClaimMined, expectedKingClaim);
-        assertEq(claim.balanceOf(alice), expectedKingClaim);
+        // King-stream CLAIM splits into a takeover-window liquid slice (paid to alice) and a
+        // force-locked remainder. This harness does not wire the Furnace entry-token registry, so the
+        // lock route is unavailable and the locked slice is credited as pending (held by MineCore),
+        // leaving the Furnace reserve unchanged below.
+        uint256 expLiquid = (expectedKingClaim * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(claim.balanceOf(alice), expLiquid, "alice receives only her takeover-window liquid share");
+        assertEq(mineCore.pendingKingClaim(alice), expectedKingClaim - expLiquid, "locked slice credited as pending");
 
         // Furnace stream is always mined and credited to reserve.
         uint256 expectedFurnaceTotal = _emitted(0, t2, T0, false);

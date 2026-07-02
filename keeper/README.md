@@ -185,10 +185,16 @@ Notes:
 
 An opt-in scheduling mode that consolidates reward-settlement tasks into a shared recurring cycle instead of running them on independent intervals. The cadence is set by `KEEPER_SETTLEMENT_PERIOD_SECS` — daily by default (`86400`); set `604800` for weekly.
 
-When enabled (`KEEPER_SETTLEMENT_ENABLED=1`), the four settlement tasks (`compound-shareholders`, `compound-lp`, `automax-bonus`, `harvest-staking`) are excluded from the normal interval-based loop and instead run within a 24-hour window each cycle:
+When enabled (`KEEPER_SETTLEMENT_ENABLED=1`), the settlement tasks (`compound-lp`, `automax-bonus`, `harvest-staking`) are excluded from the normal interval-based loop and instead run within a 24-hour window each cycle:
 
 - **Phase 1 (immediate):** `compound-lp` and `automax-bonus` run at window open (no DEX swap, no front-running risk).
-- **Phase 2 (spread):** `harvest-staking` runs once opportunistically; `compound-shareholders` runs in market-impact-budgeted batches across the remaining window.
+- **Phase 2 (spread):** `harvest-staking` runs once opportunistically.
+
+`compound-shareholders` is **not** a settlement task: it always runs in the normal interval loop. A fixed wall-clock window attempts the compound once per cycle, but the on-chain `ShareholderRoyalties` cadence floor is a hard 24h — because each compound lands a few seconds past window-open, the next cycle's attempt is always just short of 24h and skips, collapsing the effective cadence to ~48h. Running it on its own interval makes attempts floor-relative: with `KEEPER_COMPOUND_SHAREHOLDER_MIN_CADENCE_SECS` set just above 24h (e.g. `86700` = 24h+5min) the keeper only attempts once the contract will accept it, holding a ~daily cadence. Pair the floor with `KEEPER_COMPOUND_SHAREHOLDER_INTERVAL_SECS` (clamped to a 3600s / 60m minimum, e.g. `3600`) so an eligible user is picked up within one tick of the floor clearing.
+
+By default every user that has cleared the floor on a given tick is compounded together in one `compoundForMany` transaction. Set `KEEPER_COMPOUND_SHAREHOLDER_SPREAD_SECS` to fan them out instead: it adds a deterministic per-user jitter offset in `[0, spread)` on top of the floor (derived from `(user, lastCompoundTs)`, so it is stable while a user waits and re-randomizes after each compound). A synchronized cohort spreads across the window on the first cycle and never re-synchronizes. The effective per-user cadence becomes `[floor, floor + spread)`, so larger spreads buy more separation at the cost of a later worst-case cadence (e.g. `21600` = 6h fans ~10 users out roughly evenly and caps cadence near 30h).
+
+The spread also covers the **first-ever** compound. A user with on-chain `lastCompoundTs == 0` (never compounded — e.g. a freshly enrolled user, or a backlog discovered in one scan) has no cadence anchor, so without this they would all be immediately eligible and batch into a single transaction. Instead the first compound is deferred to `firstSeen + jitter(user)`, where `firstSeen` is the unix second the keeper first saw the user enabled (tracked per-user in `compound_shareholders.json`, reset on disable). This keeps the very first compound of a cohort inside the spread window too.
 
 Configuration env vars:
 

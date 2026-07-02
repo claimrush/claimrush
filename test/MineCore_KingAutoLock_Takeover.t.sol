@@ -245,12 +245,15 @@ contract MineCoreKingAutoLockTakeoverTest is Test {
         vm.prank(alice);
         mineCore.setKingAutoLockConfig(true, 0, dur, false, 1);
 
-        // Dethrone Alice; her King-stream CLAIM should be routed through Furnace and pinned.
+        // Dethrone Alice; her King-stream CLAIM splits into a 1% liquid slice (she took 1 of the last-100
+        // takeovers) and a 99% force-locked remainder routed through Furnace and pinned.
         vm.warp(block.timestamp + 1000);
         _takeover(bob);
 
-        // Liquid CLAIM should not be minted to Alice.
-        assertEq(claim.balanceOf(alice), 0, "alice should not receive liquid CLAIM");
+        // Alice receives only her takeover-window liquid slice; the rest is locked.
+        uint256 mined1 = mineCore.getReignInfo(1).totalClaimMined;
+        uint256 expLiquid1 = (mined1 * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(claim.balanceOf(alice), expLiquid1, "alice receives only her takeover-window liquid share");
 
         // A pinned veNFT should exist for Alice.
         (,, uint256 pinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
@@ -286,12 +289,14 @@ contract MineCoreKingAutoLockTakeoverTest is Test {
         vm.prank(alice);
         mineCore.setKingAutoLockConfig(true, 0, dur, false, 0);
 
-        // Dethrone Alice; her King-stream CLAIM should still be routed through Furnace (minVeOut clamped to 1).
+        // Dethrone Alice; the locked slice should still be routed through Furnace (minVeOut clamped to 1).
         vm.warp(block.timestamp + 1000);
         _takeover(bob);
 
-        // Liquid CLAIM should not be minted to Alice.
-        assertEq(claim.balanceOf(alice), 0, "alice should not receive liquid CLAIM");
+        // Alice receives only her takeover-window liquid slice; the locked remainder goes to Furnace.
+        uint256 mined1 = mineCore.getReignInfo(1).totalClaimMined;
+        uint256 expLiquid1 = (mined1 * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(claim.balanceOf(alice), expLiquid1, "alice receives only her takeover-window liquid share");
 
         // A pinned veNFT should exist for Alice.
         (,, uint256 pinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
@@ -299,7 +304,7 @@ contract MineCoreKingAutoLockTakeoverTest is Test {
         assertEq(ve.ownerOf(pinnedTokenId), alice, "ownerOf(pinned)");
     }
 
-    function testKingAutoLockSkipWhenPinnedNotOwned() public {
+    function testKingAutoLockRecreatesLockWhenPinnedNotOwned() public {
         uint256 t0 = mineCore.emissionStartTime();
         vm.warp(t0 + 1);
 
@@ -324,18 +329,34 @@ contract MineCoreKingAutoLockTakeoverTest is Test {
         assertEq(ve.ownerOf(pinnedTokenId), address(furnace), "pinned owner should be furnace");
         assertEq(ve.balanceOf(alice), 0, "alice should own 0 veNFTs after transfer");
 
-        // Alice retakes, then is dethroned again: auto-lock should be skipped and liquid CLAIM minted.
+        // Alice retakes, then is dethroned again: the stale pin is cleared and a FRESH autoMax lock is
+        // created for the locked slice; only her takeover-window liquid slice is paid out.
         vm.warp(mineCore.currentReignStartTime() + 1);
         _takeover(alice);
 
+        uint256 settledReign = mineCore.currentReignId();
+        uint256 liquidBefore = claim.balanceOf(alice);
         vm.warp(block.timestamp + 500);
         _takeover(charlie);
 
-        assertGt(claim.balanceOf(alice), 0, "alice should receive liquid CLAIM when pinned not owned");
-        assertEq(ve.balanceOf(alice), 0, "should not create new veNFT when pinned invalid");
+        uint256 minedSettled = mineCore.getReignInfo(settledReign).totalClaimMined;
+        uint256 expLiquid = (minedSettled * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(
+            claim.balanceOf(alice) - liquidBefore, expLiquid, "alice receives only her takeover-window liquid share"
+        );
+        assertEq(mineCore.pendingKingClaim(alice), 0, "no pending credit when the fresh lock succeeds");
+
+        (,, uint256 freshPinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
+        assertTrue(freshPinnedTokenId != 0, "fresh pinned lock should be created");
+        assertTrue(freshPinnedTokenId != pinnedTokenId, "stale pin must not be reused");
+        assertEq(ve.ownerOf(freshPinnedTokenId), alice, "alice owns the fresh lock");
+        assertEq(ve.balanceOf(alice), 1, "exactly one fresh veNFT");
+
+        (,, bool freshAutoMax,) = ve.getLockInfo(freshPinnedTokenId);
+        assertTrue(freshAutoMax, "fresh create-once lock should be AutoMax");
     }
 
-    function testKingAutoLockFailureFallsBackToLiquidClaim() public {
+    function testKingAutoLockFailureCreditsPendingNoLiquid() public {
         uint256 t0 = mineCore.emissionStartTime();
         vm.warp(t0 + 1);
 
@@ -346,13 +367,19 @@ contract MineCoreKingAutoLockTakeoverTest is Test {
         vm.prank(alice);
         mineCore.setKingAutoLockConfig(true, 0, uint32(Constants.MIN_LOCK_DURATION), false, type(uint256).max);
 
-        // Dethrone Alice: MineCore must NOT revert and must pay Alice liquid CLAIM.
+        // Dethrone Alice: MineCore must NOT revert. The liquid slice is paid; the locked slice's
+        // Furnace entry fails (impossible minVeOut) and is credited for a later force-locked withdrawal.
         vm.warp(block.timestamp + 1000);
         _takeover(bob);
 
-        assertGt(claim.balanceOf(alice), 0, "alice should receive liquid CLAIM on failure");
+        uint256 mined1 = mineCore.getReignInfo(1).totalClaimMined;
+        uint256 expLiquid1 = (mined1 * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(claim.balanceOf(alice), expLiquid1, "alice receives only her takeover-window liquid share");
+        assertEq(
+            mineCore.pendingKingClaim(alice), mined1 - expLiquid1, "locked slice credited as pending on lock failure"
+        );
 
-        // Since auto-lock failed, no pinned lock should be created.
+        // Since the lock failed, no pinned lock should be created.
         (,, uint256 pinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
         assertEq(pinnedTokenId, 0, "pinnedTokenId should remain unset on failure");
     }
@@ -405,25 +432,32 @@ contract MineCoreKingAutoLockTakeoverTest is Test {
         vm.warp(ve.lockStartOf(manualReplacementTokenId) + 1);
         _takeover(alice);
 
+        uint256 settledReign = mineCore.currentReignId();
         vm.warp(mineCore.currentReignStartTime() + 500);
         uint256 liquidClaimBefore = claim.balanceOf(alice);
         _takeover(charlie);
         uint256 liquidClaimAfter = claim.balanceOf(alice);
 
-        assertGt(liquidClaimAfter, liquidClaimBefore, "stale burned pin should fall back to liquid CLAIM");
+        // The locked slice clears the stale burned pin and creates a fresh autoMax lock in the same
+        // settlement (the manual replacement lock must NOT be auto-adopted). Only the takeover-window
+        // liquid slice is paid out.
+        uint256 minedSettled = mineCore.getReignInfo(settledReign).totalClaimMined;
+        uint256 expLiquid = (minedSettled * mineCore.kingLiquidShareBps(alice)) / 10_000;
+        assertEq(liquidClaimAfter - liquidClaimBefore, expLiquid, "stale burned pin pays only the liquid slice");
 
-        (
-            bool enabled,
-            uint256 targetTokenId,
-            uint256 clearedPinnedTokenId,
-            uint32 durationSeconds,
-            bool createAutoMax,
-        ) = mineCore.getKingAutoLockConfig(alice);
+        (bool enabled, uint256 targetTokenId, uint256 freshPinnedTokenId, uint32 durationSeconds, bool createAutoMax,) =
+            mineCore.getKingAutoLockConfig(alice);
         assertTrue(enabled, "create-once config should remain enabled");
         assertEq(targetTokenId, 0, "config should remain in create-once mode");
-        assertEq(clearedPinnedTokenId, 0, "burned pin should be cleared after skip");
+        assertTrue(freshPinnedTokenId != 0, "fresh create-once pin should be created");
+        assertTrue(freshPinnedTokenId != burnedPinnedTokenId, "burned token id must never be reused");
+        assertTrue(freshPinnedTokenId != manualReplacementTokenId, "manual replacement lock must not be auto-adopted");
         assertEq(durationSeconds, uint32(Constants.MAX_LOCK_DURATION), "duration should be preserved");
         assertTrue(createAutoMax, "createAutoMax intent should be preserved");
+        assertEq(ve.ownerOf(freshPinnedTokenId), alice, "fresh pin owner");
+
+        (,, bool freshAutoMax,) = ve.getLockInfo(freshPinnedTokenId);
+        assertTrue(freshAutoMax, "fresh create-once lock should be AutoMax");
 
         (uint256 manualAmountAfter,, bool manualAutoMaxAfter,) = ve.getLockInfo(manualReplacementTokenId);
         assertEq(
@@ -432,20 +466,17 @@ contract MineCoreKingAutoLockTakeoverTest is Test {
         assertEq(manualAutoMaxAfter, manualAutoMaxBefore, "manual replacement lock mode must remain unchanged");
         assertEq(ve.ownerOf(manualReplacementTokenId), alice, "manual replacement lock owner");
 
+        // A subsequent dethrone tops up the SAME fresh pin (no new veNFTs).
+        uint256 veCountBefore = ve.balanceOf(alice);
         vm.warp(mineCore.currentReignStartTime() + 1);
         _takeover(alice);
 
         vm.warp(mineCore.currentReignStartTime() + 500);
         _takeover(bob);
 
-        (,, uint256 freshPinnedTokenId,,,) = mineCore.getKingAutoLockConfig(alice);
-        assertTrue(freshPinnedTokenId != 0, "fresh create-once pin should be recreated");
-        assertTrue(freshPinnedTokenId != burnedPinnedTokenId, "burned token id must never be reused");
-        assertTrue(freshPinnedTokenId != manualReplacementTokenId, "manual replacement lock must not be auto-adopted");
-        assertEq(ve.ownerOf(freshPinnedTokenId), alice, "fresh pin owner");
-
-        (,, bool freshAutoMax,) = ve.getLockInfo(freshPinnedTokenId);
-        assertTrue(freshAutoMax, "fresh create-once lock should honor createAutoMax");
+        (,, uint256 pinAfterTopUp,,,) = mineCore.getKingAutoLockConfig(alice);
+        assertEq(pinAfterTopUp, freshPinnedTokenId, "should reuse the fresh pin");
+        assertEq(ve.balanceOf(alice), veCountBefore, "no new veNFTs on top-up");
     }
 
     function testDelegatedKingAutoLockCreateOnceAutoMaxConfigMintsFutureAutoMaxLock() public {
@@ -505,13 +536,11 @@ contract MineCoreKingAutoLockTakeoverTest is Test {
         // Accrue some emissions.
         vm.warp(block.timestamp + 1000);
 
-        uint32 dur = uint32(Constants.MIN_LOCK_DURATION);
-
         uint256 snap = vm.snapshot();
 
-        // --- Branch A: auto-lock on dethronement ---
+        // --- Branch A: forced autoMax auto-lock on dethronement ---
         vm.prank(alice);
-        mineCore.setKingAutoLockConfig(true, 0, dur, false, 1);
+        mineCore.setKingAutoLockConfig(true, 0, uint32(Constants.MAX_LOCK_DURATION), true, 1);
 
         vm.recordLogs();
         _takeover(bob);
@@ -521,26 +550,33 @@ contract MineCoreKingAutoLockTakeoverTest is Test {
             assertTrue(foundA, "FurnaceEnter not found (auto-lock)");
             assertGt(principalA, 0, "principalA");
 
-            // --- Branch B: manual enterWithClaim after receiving liquid CLAIM ---
+            // --- Branch B: manual enterWithClaim of the same principal and lock params ---
             vm.revertTo(snap);
 
-            // Dethrone without auto-lock: Alice receives liquid CLAIM.
-            _takeover(bob);
-            uint256 principal = claim.balanceOf(alice);
-            assertGt(principal, 0, "principal liquid");
-
-            // Alice manually enters Furnace with exactly the same principal.
+            // King-stream CLAIM is always locked, so there is no liquid payout to compare against.
+            // Use an impossible minVeOut so the King settlement credits pending instead of locking
+            // (no veNFT created, furnace reserve/supply untouched). The manual entry below is then the
+            // first lock at exactly the state the auto-lock saw in Branch A.
             vm.prank(alice);
-            claim.approve(address(furnace), principal);
+            mineCore.setKingAutoLockConfig(true, 0, uint32(Constants.MAX_LOCK_DURATION), true, type(uint256).max);
+
+            _takeover(bob);
+
+            // Mint the same principal to Alice and enter with the same canonical params the auto-lock uses.
+            vm.prank(address(mineCore));
+            claim.mint(alice, principalA);
+
+            vm.prank(alice);
+            claim.approve(address(furnace), principalA);
 
             vm.recordLogs();
             vm.prank(alice);
-            furnace.enterWithClaim(principal, 0, dur, false, 1);
+            furnace.enterWithClaim(principalA, 0, Constants.MAX_LOCK_DURATION, true, 1);
 
             Vm.Log[] memory logsB = vm.getRecordedLogs();
             (bool foundB, uint256 principalB, uint256 bonusB,) = _findFurnaceEnterBonus(logsB, alice);
             assertTrue(foundB, "FurnaceEnter not found (manual)");
-            assertEq(principalB, principal, "principalB");
+            assertEq(principalB, principalA, "principalB");
 
             assertEq(bonusA, bonusB, "bonus mismatch vs manual enterWithClaim");
         }

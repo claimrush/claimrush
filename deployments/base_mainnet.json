@@ -19,7 +19,8 @@
     "Do not use this file to publish leaderboard outputs; it is configuration only.",
     "After FinalizeGenesis on Base mainnet (May 13 09:00 EST), backfill aerodrome.claimWethPool / aerodrome.lpToken addresses and startBlocks from the finalize receipt before subgraph sync or public go-live.",
     "FurnaceQuoter is deployed inline by Wire.s.sol (not Deploy.s.sol). `scripts/deploy_prod.mjs --wire` recovers and records it in this manifest from Furnace.furnaceQuoter().",
-    "Canonical governance handoff is: FinalizeTimelockBootstrap, pre-schedule TimelockAcceptOwnership while the deployer still owns the contracts, wait for the operation to become ready, then run FinalizeOwnership and immediately execute the ready accept batch so direct owner() control does not stay on the deployer through the full timelock delay."
+    "Canonical governance handoff is: FinalizeTimelockBootstrap, pre-schedule TimelockAcceptOwnership while the deployer still owns the contracts, wait for the operation to become ready, then run FinalizeOwnership and immediately execute the ready accept batch so direct owner() control does not stay on the deployer through the full timelock delay.",
+    "2026-07-01 King-stream liquid-share + 99% sellback-floor upgrade (Timelock batch op 0x8297a6131fba26ee4e8dba770e9a2bcc4ea3c5ef6ac5d0a7c70f1bb05b7b018c, executed via the 2-of-3 Admin Safe): MineCore.implementation moved to 0xc8Cc196415db2616dca60a8f640cB8ee16E1aF91 (append-only takeover-window state; adds kingLiquidShareBps / kingWindowTakeovers views and the KingClaimLiquidPaid event) and Furnace was re-pointed to a fresh FurnaceQuoter 0xd0822072E4DDE17eE2b8255a95A17B38d3E54778 (SELL_ROUND_TRIP_LOSS_MAX_BPS / SELL_SPREAD_MAX_BPS = 9900, i.e. 99% full-duration floor). No state migration; every other implementation is byte-for-byte unchanged. Rollback targets: MineCore impl 0xA16530008ea9a5C291C046F6F3fbe26201911352, FurnaceQuoter 0x004A444e2F72fcC0df5De8729021633349aD40c2."
   ],
   "analytics": {
     "addressExclusions": []
@@ -35,7 +36,7 @@
     },
     "MineCore": {
       "address": "0xd4755998E3957B48F74bcbA08b842df64451EDa7",
-      "implementation": "0xA16530008ea9a5C291C046F6F3fbe26201911352",
+      "implementation": "0xc8Cc196415db2616dca60a8f640cB8ee16E1aF91",
       "proxyAdmin": "0xb235D6438745Ae44C247835B4737215b347D22c4",
       "proxyAdminOwner": "0x4fD26eb89D3468866d1a486DBCc02C3483b2Bf89",
       "startBlock": 46183959
@@ -117,8 +118,8 @@
       "startBlock": 46918753
     },
     "FurnaceQuoter": {
-      "address": "0x004A444e2F72fcC0df5De8729021633349aD40c2",
-      "startBlock": 47371540
+      "address": "0xd0822072E4DDE17eE2b8255a95A17B38d3E54778",
+      "startBlock": 47987602
     }
   },
   "aerodrome": {
