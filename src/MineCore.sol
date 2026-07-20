@@ -168,6 +168,13 @@ contract MineCore is UpgradeableProtocolBase, IMineCore {
     /// @notice Per-address count of takeovers currently inside the window. Decremented on eviction.
     mapping(address => uint256) internal takeoverWindowTakeovers;
 
+    /// @dev Block timestamp at which an in-reign pause began (0 when not paused / no king).
+    ///      Lets `setTakeoversPaused` exclude ONLY the paused interval from emission accrual
+    ///      instead of discarding the sitting king's pre-pause active accrual (audit F-2).
+    ///      MUST remain the last MineCore storage variable (this contract has no __gap); never
+    ///      reorder or insert a state variable above it.
+    uint256 internal pausedSince;
+
     modifier whenNotFrozen() {
         if (configFrozen) revert Errors.ConfigFrozen();
         _;
@@ -519,7 +526,14 @@ contract MineCore is UpgradeableProtocolBase, IMineCore {
     // Pause controls
 
     /// @notice Pause/unpause takeovers.
-    /// @dev MUST clamp currentReignLastAccrualTime on both transitions (SPEC §5.6.1).
+    /// @dev Excludes ONLY the paused interval from emission accrual (SPEC §5.6.1), preserving the
+    ///      sitting king's pre-pause active accrual. Emissions are minted lazily at the next
+    ///      takeover from `currentReignLastAccrualTime`; on pause we record `pausedSince`, and on
+    ///      unpause we advance the cursor by exactly the paused duration — rather than slamming the
+    ///      cursor to `block.timestamp` on pause, which previously forfeited the [cursor, pauseStart]
+    ///      active window (audit F-2). The post-pause window is re-priced as a single contiguous
+    ///      block shifted later on the ~2-year decay curve: negligible for short pauses and
+    ///      conservative (never over-mints) for longer ones.
     ///      NOTE: Price decay is intentionally NOT frozen during pause. After a pause > 1 hour
     ///      the first takeover on unpause will execute at the floor price (0.001 ETH).
     function setTakeoversPaused(bool paused) external onlyGuardian {
@@ -528,9 +542,13 @@ contract MineCore is UpgradeableProtocolBase, IMineCore {
 
         takeoversPaused = paused;
 
-        // Clamp accrual cursor so paused time is never mined later.
-        if (currentKing != address(0)) {
-            currentReignLastAccrualTime = block.timestamp;
+        // Exclude ONLY the paused interval from accrual, preserving pre-pause active accrual.
+        if (paused) {
+            if (currentKing != address(0)) pausedSince = block.timestamp;
+        } else if (pausedSince != 0) {
+            // Advance the cursor by the paused duration so [cursor, pauseStart] is still minted.
+            currentReignLastAccrualTime += block.timestamp - pausedSince;
+            pausedSince = 0;
         }
 
         emit Events.TakeoversPausedChanged(paused);

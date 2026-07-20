@@ -22,6 +22,7 @@ import {DelegationActionTypes} from "./lib/DelegationActionTypes.sol";
 import {SafeTransfer} from "./lib/SafeTransfer.sol";
 import {IFurnaceDripLens} from "./interfaces/IFurnaceDripLens.sol";
 import {FurnaceGuardHelper} from "./FurnaceGuardHelper.sol";
+import {FurnaceExtendHelper} from "./FurnaceExtendHelper.sol";
 import {UpgradeableProtocolBase} from "./lib/UpgradeableProtocolBase.sol";
 
 /// @notice Unified entry + bonus engine. All ETH→CLAIM+lock flows enforce minVeOut.
@@ -70,6 +71,12 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
     ///      The helper authorizes callers against the canonical CLAIM/ve roots so it remains proxy-safe
     ///      without storing the live proxy address in Furnace state.
     address payable internal immutable _guardHelper;
+
+    /// @dev Externalized `extendWithBonus` execution body. The two extend externals are pure
+    ///      msg.data-forwarding delegatecall shims into this helper (mirroring the merge path),
+    ///      which keeps the Furnace runtime under EIP-170 while the bonus-basis logic lives off-core.
+    ///      Canonical-bound to the same CLAIM/ve roots as `_guardHelper`.
+    address payable internal immutable _extendHelper;
 
     // Wiring (onlyOwner, upgradable via timelock)
 
@@ -223,6 +230,11 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
         claim = IClaimToken(_claim);
         ve = IVeClaimNFT(_ve);
         _guardHelper = payable(_helper);
+        // Self-deploy the extend-body helper, canonical-bound to the same CLAIM/ve roots and this
+        // Furnace's guard helper. Embedded here (rather than pre-deployed like the guard helper)
+        // because its creation code is small enough to stay well under the EIP-3860 initcode
+        // ceiling, and self-deployment keeps the Furnace constructor signature stable.
+        _extendHelper = payable(address(new FurnaceExtendHelper(_claim, _ve, _helper)));
 
         if (initialOwner != address(0)) {
             if (initialOwner.code.length == 23) revert Errors.DelegatedEOA();
@@ -238,6 +250,13 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
             lpSaleFundedDay = ts / 1 days;
         }
         _disableInitializers();
+    }
+
+    /// @notice The self-deployed `FurnaceExtendHelper` that holds the `extendWithBonus` body.
+    /// @dev Exposed for deploy-time verification and manifest recording; the address is fixed at
+    ///      Furnace-impl construction and immutable thereafter.
+    function extendHelper() external view returns (address) {
+        return _extendHelper;
     }
 
     function initialize(address initialOwner) external initializer {
@@ -936,6 +955,7 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
         furnaceReserve += q.reserveAdd;
 
         delete lastAutoMaxBonusClaim[tokenId];
+        delete bonusBasis[tokenId];
 
         if (q.lpReward != 0) {
             _fundLpStreamInternal(q.lpReward, false);
@@ -977,6 +997,10 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
         // It intentionally excludes any additional delta from extending an existing lock's prior principal.
         uint256 guardedVeOut;
         (guardedVeOut, tokenIdUsed) = _lockToDestination(user, amountLocked, targetTokenId, d, createAutoMax);
+
+        // Track user-supplied principal only (never `userBonus`) so the extend bonus basis reflects
+        // real capital committed, not Furnace-paid bonuses already folded into the lock.
+        bonusBasis[tokenIdUsed] += principalClaim;
 
         if (guardedVeOut < minVeOut) revert Errors.MinVeOutNotMet();
 
@@ -1059,73 +1083,56 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
     /// @notice Per-lock timestamp of the last AutoMax bonus claim.
     mapping(uint256 => uint256) public lastAutoMaxBonusClaim;
 
+    /// @notice Per-lock cumulative user-supplied principal, EXCLUDING Furnace-paid bonuses.
+    /// @dev The `extendWithBonus` duration-weight bonus is priced against this basis rather than the
+    ///      live `Lock.amount`. `Lock.amount` grows every time a bonus is added back into the lock,
+    ///      so pricing the next commitment off it would let a laddered sequence of extensions
+    ///      compound the bonus multiplicatively over a single commitment. Pricing off `bonusBasis`
+    ///      keeps the cumulative bonus path-independent. A value of 0 marks a lock created before
+    ///      this accounting existed; the first extend that touches it seeds the basis from the live
+    ///      `Lock.amount` once. MUST remain the last Furnace storage variable; append-only for proxy
+    ///      layout safety. Mutated off-core by `FurnaceExtendHelper` under delegatecall.
+    mapping(uint256 => uint256) public bonusBasis;
+
     /// @notice Extend a non-AutoMax lock's duration and receive a bonus on the existing
     ///         principal for the incremental commitment. No new capital required.
     ///         AutoMax locks must use `claimAutoMaxBonus` instead.
-    /// @param tokenId The lock to extend.
-    /// @param durationSeconds Target total remaining duration (clamped to [MIN, MAX]).
-    /// @param minBonusOut Minimum bonus CLAIM; reverts if not met. Pass 0 to skip guard.
-    function extendWithBonus(uint256 tokenId, uint256 durationSeconds, uint256 minBonusOut)
+    /// @dev Body offloaded to `FurnaceExtendHelper.extendWithBonus(uint256,uint256,uint256)` via a
+    ///      msg.data-forwarding assembly delegatecall (selectors match). `nonReentrant` +
+    ///      `whenLockingEnabled` are held for the full delegatecall and the helper's callback into
+    ///      `__bonusAmmFromHelper`. The bonus is priced against `bonusBasis` (see the helper).
+    ///      Parameters (tokenId, durationSeconds, minBonusOut) are forwarded verbatim via msg.data.
+    function extendWithBonus(
+        uint256,
+        /* tokenId */
+        uint256,
+        /* durationSeconds */
+        uint256 /* minBonusOut */
+    )
         external
         nonReentrant
         whenLockingEnabled
         returns (uint256 bonusClaim)
     {
-        bonusClaim = _extendWithBonus(msg.sender, tokenId, durationSeconds, minBonusOut);
+        return _delegateToHelper(_extendHelper);
     }
 
     /// @notice Delegated extend: caller extends `user`'s lock; bonus accrues to the lock.
-    function extendWithBonusFor(address user, uint256 tokenId, uint256 durationSeconds, uint256 minBonusOut)
+    /// @dev Body + delegation gate offloaded to
+    ///      `FurnaceExtendHelper.extendWithBonusFor(address,uint256,uint256,uint256)` via
+    ///      msg.data-forwarding delegatecall. Bonus + principal both stay with `user`.
+    function extendWithBonusFor(
+        address, /* user */
+        uint256, /* tokenId */
+        uint256, /* durationSeconds */
+        uint256 /* minBonusOut */
+    )
         external
         nonReentrant
         whenLockingEnabled
         returns (uint256 bonusClaim)
     {
-        if (user == address(0)) revert Errors.ZeroAddress();
-        _requireDelegated(user, DelegationPermissions.P_VE_EXTEND_LOCK_FOR);
-
-        bonusClaim = _extendWithBonus(user, tokenId, durationSeconds, minBonusOut);
-
-        _emitDelegationSession(
-            user, DelegationActionTypes.VE_EXTEND_LOCK_FOR, DelegationPermissions.P_VE_EXTEND_LOCK_FOR, tokenId
-        );
-    }
-
-    function _extendWithBonus(address user, uint256 tokenId, uint256 durationSeconds, uint256 minBonusOut)
-        internal
-        returns (uint256 bonusClaim)
-    {
-        (uint256 lockAmount, uint256 d, uint256 principalEff) =
-            FurnaceGuardHelper(_guardHelper).resolveExtendWithBonus(address(ve), user, tokenId, durationSeconds);
-
-        uint256 userBonus = 0;
-        if (principalEff > 0) {
-            (, userBonus,) = _applyBonusAmm(user, lockAmount, principalEff, d);
-        }
-
-        ve.extendLockToFor(user, tokenId, block.timestamp + d);
-
-        // VeClaimNFT._addToLock enforces `amount >= MIN_TOPUP_AMOUNT` to bound ceiling-rounding
-        // slope dust; reverting from the helper delegatecall would surface to the caller as
-        // `InvariantViolation`, which is misleading for what is really a "bonus too small to
-        // top up" condition. Sub-floor bonus dust is refunded back to `furnaceReserve` so the
-        // AMM debit (`reserveBefore - grossBonus`) stays balanced against actual CLAIM held by
-        // Furnace. This mirrors the `principalEff == 0` skip at the top of `_applyBonusAmm` —
-        // both paths now gracefully handle "extension too small to materially compensate"
-        // without reverting.
-        if (userBonus >= Constants.MIN_TOPUP_AMOUNT) {
-            _approveVeAndAddToLock(user, tokenId, userBonus);
-        } else if (userBonus > 0) {
-            furnaceReserve += userBonus;
-            userBonus = 0;
-        }
-
-        bonusClaim = userBonus;
-        if (minBonusOut > 0 && bonusClaim < minBonusOut) revert Errors.MinVeOutNotMet();
-
-        _syncFurnaceReserve();
-
-        emit Events.FurnaceEnter(user, MODE_EXTEND_WITH_BONUS, 0, 0, bonusClaim, tokenId);
+        return _delegateToHelper(_extendHelper);
     }
 
     // Merge with bonus (v1.0.0 — replaces VeClaimNFT.mergeLocks{,ForUser})
@@ -1134,7 +1141,7 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
     ///         duration component when the merge effectively extends the surviving lock.
     /// @dev Bonus is 0 when both inputs share the same effective remaining duration (including
     ///      both AutoMax). The surviving lock absorbs `fromAmount + intoAmount + bonusClaim`.
-    ///      Body offloaded to `FurnaceGuardHelper.mergeLocksWithBonus(uint256,uint256,uint256)` via
+    ///      Body offloaded to `FurnaceExtendHelper.mergeLocksWithBonus(uint256,uint256,uint256)` via
     ///      a msg.data-forwarding assembly delegatecall. Selectors match so the helper's
     ///      dispatcher resolves automatically. `nonReentrant` + `whenLockingEnabled` are held
     ///      for the full delegatecall and the helper's callback into `__bonusAmmFromHelper`.
@@ -1151,12 +1158,12 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
         whenLockingEnabled
         returns (uint256 bonusClaim)
     {
-        return _delegateMergeToHelper();
+        return _delegateToHelper(_extendHelper);
     }
 
     /// @notice Delegated merge: caller submits, `user` is the lock owner and bonus recipient.
     /// @dev Body + delegation gate offloaded to
-    ///      `FurnaceGuardHelper.mergeLocksWithBonusFor(address,uint256,uint256,uint256)`
+    ///      `FurnaceExtendHelper.mergeLocksWithBonusFor(address,uint256,uint256,uint256)`
     ///      via msg.data-forwarding delegatecall. Bonus + merged principal both stay with
     ///      `user` — the delegate cannot redirect value. Emits `DelegationSessionUsed` from
     ///      Furnace's address inside the helper body.
@@ -1171,14 +1178,15 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
         whenLockingEnabled
         returns (uint256 bonusClaim)
     {
-        return _delegateMergeToHelper();
+        return _delegateToHelper(_extendHelper);
     }
 
-    /// @dev Shared msg.data-forwarding delegatecall trampoline for the two merge externals.
-    ///      Returns the helper's `uint256 bonusClaim` via returndatacopy. Bubbles inner
-    ///      reverts verbatim so callers see the original typed errors.
-    function _delegateMergeToHelper() private returns (uint256 bonusClaim) {
-        address helper = _guardHelper;
+    /// @dev Shared msg.data-forwarding delegatecall trampoline for the merge and extend externals.
+    ///      Forwards verbatim calldata to `helper` (the extend helper holds both the extend and
+    ///      merge bodies; selectors match the helper bodies). Returns the helper's `uint256
+    ///      bonusClaim` via returndatacopy. Bubbles inner reverts verbatim so callers see the
+    ///      original typed errors.
+    function _delegateToHelper(address helper) private returns (uint256 bonusClaim) {
         // nosemgrep: sol-arbitrary-delegatecall
         // slither-disable-next-line controlled-delegatecall,low-level-calls
         assembly ("memory-safe") {
@@ -1312,7 +1320,7 @@ contract Furnace is UpgradeableProtocolBase, IERC721Receiver, IFurnace, IFurnace
         // gross bonus to the LP side.
         if (grossBonus == 0) return 0;
 
-        // Symmetric with `_extendWithBonus`: refund sub-MIN_TOPUP_AMOUNT user dust to reserve
+        // Symmetric with the extend body: refund sub-MIN_TOPUP_AMOUNT user dust to reserve
         // instead of reverting from `_addToLock`. The quoter preflight above prevents
         // permissionless keepers from consuming an AutoMax accrual window when the delivered
         // user bonus would be zero.

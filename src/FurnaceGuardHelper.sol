@@ -10,25 +10,12 @@ import {Errors} from "./lib/Errors.sol";
 import {SafeApprove} from "./lib/SafeApprove.sol";
 import {SafeERC20View} from "./lib/SafeERC20View.sol";
 import {SafeTransfer} from "./lib/SafeTransfer.sol";
-import {IDelegationHub} from "./interfaces/IDelegationHub.sol";
 import {IDexAdapter} from "./interfaces/IDexAdapter.sol";
 import {IEntryTokenRegistry} from "./interfaces/IEntryTokenRegistry.sol";
 import {IFurnaceQuoter} from "./interfaces/IFurnaceQuoter.sol";
 import {IMineCore} from "./interfaces/IMineCore.sol";
 import {IVeClaimNFT} from "./interfaces/IVeClaimNFT.sol";
 import {IWETH} from "./interfaces/IWETH.sol";
-import {DelegationActionTypes} from "./lib/DelegationActionTypes.sol";
-import {DelegationPermissions} from "./lib/DelegationPermissions.sol";
-
-/// @dev Local interface for the Furnace -> helper -> Furnace bonus AMM callback used by
-///      the merge body (which runs in delegatecall context). Defined here to avoid
-///      polluting the public `IFurnace` ABI; the matching `__bonusAmmFromHelper`
-///      function in Furnace authorizes by `msg.sender == address(this)`.
-interface IFurnaceMergeCallback {
-    function __bonusAmmFromHelper(address user, uint256 principalClaim, uint256 principalEff, uint256 lockDurationSec)
-        external
-        returns (uint256 grossBonus, uint256 userBonus, uint256 lpBonus);
-}
 
 /// @notice Externalized cross-contract guard checks for Furnace.
 /// @dev Bound to the canonical CLAIM/ve roots so proxied Furnace runtimes can share the same helper
@@ -66,6 +53,7 @@ contract FurnaceGuardHelper {
     uint256 internal constant _SLOT_EMERGENCY_REWIRE_EXECUTE_AFTER = 74;
     uint256 internal constant _SLOT_EMERGENCY_REWIRE_TARGET_VAULT = 75;
     uint256 internal constant _SLOT_LAST_AUTOMAX_BONUS_CLAIM = 78;
+    uint256 internal constant _SLOT_BONUS_BASIS = 79;
 
     uint256 internal constant _EMERGENCY_VAULT_REWIRE_DELAY = 7 days;
 
@@ -425,16 +413,47 @@ contract FurnaceGuardHelper {
         view
         returns (uint256 fromAmt, uint256 intoAmt, uint256 newRemaining, uint256 principalEff, uint256 durationDelta)
     {
+        (fromAmt, intoAmt, newRemaining, principalEff, durationDelta,,) =
+            _resolveMergeWithBonusInternal(ve_, user, fromTokenId, intoTokenId);
+    }
+
+    /// @notice Full merge preflight for the delegated execution body (`FurnaceExtendHelper`).
+    /// @dev Same computation as `resolveMergeWithBonus`, but also returns the shorter lock's
+    ///      `(tokenId, amount)` so the execution body can re-price the bonus against that lock's
+    ///      user-principal basis (`bonusBasis`). A plain `view` over ve state — no Furnace storage
+    ///      context required, so `FurnaceExtendHelper` reaches it via a regular external call.
+    function resolveMergeWithBonusFull(address ve_, address user, uint256 fromTokenId, uint256 intoTokenId)
+        external
+        view
+        returns (
+            uint256 fromAmt,
+            uint256 intoAmt,
+            uint256 newRemaining,
+            uint256 principalEff,
+            uint256 durationDelta,
+            uint256 shorterTokenId,
+            uint256 shorterAmt
+        )
+    {
         return _resolveMergeWithBonusInternal(ve_, user, fromTokenId, intoTokenId);
     }
 
     /// @dev Internal twin of `resolveMergeWithBonus`. Shared between the external view
     ///      and the in-helper merge body so both paths produce identical preflight
-    ///      semantics.
+    ///      semantics. Also returns the shorter lock's tokenId/amount so `_mergeBody`
+    ///      can re-price the bonus against that lock's user-principal basis.
     function _resolveMergeWithBonusInternal(address ve_, address user, uint256 fromTokenId, uint256 intoTokenId)
         internal
         view
-        returns (uint256 fromAmt, uint256 intoAmt, uint256 newRemaining, uint256 principalEff, uint256 durationDelta)
+        returns (
+            uint256 fromAmt,
+            uint256 intoAmt,
+            uint256 newRemaining,
+            uint256 principalEff,
+            uint256 durationDelta,
+            uint256 shorterTokenId,
+            uint256 shorterAmt
+        )
     {
         if (fromTokenId == intoTokenId) revert Errors.NotAuthorized();
 
@@ -453,15 +472,16 @@ contract FurnaceGuardHelper {
 
         uint256 longerRemaining;
         uint256 shorterRemaining;
-        uint256 shorterAmt;
         if (fromRemaining > intoRemaining) {
             longerRemaining = fromRemaining;
             shorterRemaining = intoRemaining;
             shorterAmt = intoAmt;
+            shorterTokenId = intoTokenId;
         } else {
             longerRemaining = intoRemaining;
             shorterRemaining = fromRemaining;
             shorterAmt = fromAmt;
+            shorterTokenId = fromTokenId;
         }
         newRemaining = longerRemaining;
         durationDelta = longerRemaining - shorterRemaining;
@@ -1484,6 +1504,7 @@ contract FurnaceGuardHelper {
 
         bytes32 sellerSlot = keccak256(abi.encode(tokenId, _SLOT_PENDING_SELL_SELLER));
         bytes32 lastBonusSlot = keccak256(abi.encode(tokenId, _SLOT_LAST_AUTOMAX_BONUS_CLAIM));
+        bytes32 basisSlot = keccak256(abi.encode(tokenId, _SLOT_BONUS_BASIS));
         address seller;
         assembly {
             seller := sload(sellerSlot)
@@ -1494,6 +1515,7 @@ contract FurnaceGuardHelper {
         assembly {
             sstore(sellerSlot, 0)
             sstore(lastBonusSlot, 0)
+            sstore(basisSlot, 0)
         }
 
         withdrawn = IVeClaimNFT(_ve).furnaceBurnAndWithdraw(tokenId, seller);
@@ -1570,204 +1592,15 @@ contract FurnaceGuardHelper {
         );
     }
 
-    // ── Merge with bonus (delegatecall body, EIP-170 offload) ──────────────────────────
+    // ── Merge with bonus ────────────────────────────────────────────────────────────
     //
-    // Furnace.mergeLocksWithBonus / mergeLocksWithBonusFor are msg.data-forwarding
-    // assembly shims into the two matching-selector functions below. They run with
-    // Furnace's storage and address (delegatecall context), so:
-    //   - SLOAD/SSTORE address Furnace's slots (via _SLOT_* pins),
-    //   - every emit produces a log with Furnace as the emitter,
-    //   - external calls back to `address(this).__bonusAmmFromHelper(...)` re-enter
-    //     Furnace's _applyBonusAmm without re-acquiring `nonReentrant` (the
-    //     wrapping merge external still owns the lock).
-    //
-    // Selectors are deliberately identical to Furnace's so the shim is a single
-    // `delegatecall(msg.data)` — no abi.encodeCall, which keeps Furnace runtime
-    // under EIP-170 with the required >=300-byte margin.
-
-    /// @dev Mirrors the canonical `Events.FurnaceMergeWithBonus` declaration. Required
-    ///      because Solidity's `emit` only resolves events declared in the current
-    ///      contract; topic0 parity is pinned in `test/InterfaceEventParity.t.sol`.
-    event FurnaceMergeWithBonus(
-        address indexed user,
-        uint256 indexed fromTokenId,
-        uint256 indexed intoTokenId,
-        uint256 fromAmount,
-        uint256 intoAmount,
-        uint256 newPrincipal,
-        uint256 newEnd,
-        bool newAutoMax,
-        uint256 durationDelta,
-        uint256 bonusClaim
-    );
-
-    /// @dev Mirrors `Events.DelegationSessionUsed` — emitted in delegatecall context
-    ///      from the `For` variant after the merge body completes.
-    event DelegationSessionUsed(
-        address indexed user,
-        address indexed delegate,
-        uint8 indexed actionType,
-        uint256 permsUsed,
-        uint256 refId,
-        uint256 timestamp
-    );
-
-    /// @dev Mirrors `Events.ReserveClamped` — emitted by the inlined reserve sync
-    ///      postlude when the accounting value drifts above the contract's actual
-    ///      available balance.
-    event ReserveClamped(
-        address indexed caller, uint256 oldReserve, uint256 newReserve, uint256 claimBalance, uint256 lpStreamLiability
-    );
-
-    /// @notice Delegated body for `Furnace.mergeLocksWithBonus(uint256,uint256,uint256)`.
-    /// @dev Selector matches Furnace's so msg.data forwarding works without re-encoding.
-    ///      Caller (Furnace's external) holds `nonReentrant` + `whenLockingEnabled` for
-    ///      the duration of this call.
-    function mergeLocksWithBonus(uint256 fromTokenId, uint256 intoTokenId, uint256 minBonusOut)
-        external
-        returns (uint256 bonusClaim)
-    {
-        _requireDelegatecallCanonicalFurnace();
-        bonusClaim = _mergeBody(msg.sender, fromTokenId, intoTokenId, minBonusOut);
-    }
-
-    /// @notice Delegated body for `Furnace.mergeLocksWithBonusFor(address,uint256,uint256,uint256)`.
-    /// @dev Selector matches Furnace's so msg.data forwarding works without re-encoding.
-    ///      Runs the canonical delegation-hub gate inline (slot-loaded `delegationHub`
-    ///      + `mineCore`) so Furnace runtime stays under EIP-170.
-    function mergeLocksWithBonusFor(address user, uint256 fromTokenId, uint256 intoTokenId, uint256 minBonusOut)
-        external
-        returns (uint256 bonusClaim)
-    {
-        _requireDelegatecallCanonicalFurnace();
-        if (user == address(0)) revert Errors.ZeroAddress();
-        _requireDelegatedFromHelper(user, DelegationPermissions.P_VE_MERGE_LOCKS_FOR);
-
-        bonusClaim = _mergeBody(user, fromTokenId, intoTokenId, minBonusOut);
-
-        emit DelegationSessionUsed(
-            user,
-            msg.sender,
-            DelegationActionTypes.VE_MERGE_LOCKS_FOR,
-            DelegationPermissions.P_VE_MERGE_LOCKS_FOR,
-            intoTokenId,
-            block.timestamp
-        );
-    }
-
-    /// @dev Shared merge orchestration. Runs in Furnace storage context; uses the helper's
-    ///      `_claim` / `_ve` immutables (canonical-bound at construction) so the merge
-    ///      can never act against a different token pair than the canonical Furnace.
-    function _mergeBody(address user, uint256 fromTokenId, uint256 intoTokenId, uint256 minBonusOut)
-        internal
-        returns (uint256 bonusClaim)
-    {
-        (uint256 fromAmt, uint256 intoAmt, uint256 newRemaining, uint256 principalEff, uint256 durationDelta) =
-            _resolveMergeWithBonusInternal(_ve, user, fromTokenId, intoTokenId);
-
-        uint256 userBonus = 0;
-        if (principalEff > 0) {
-            (, userBonus,) = IFurnaceMergeCallback(address(this))
-                .__bonusAmmFromHelper(user, fromAmt + intoAmt, principalEff, newRemaining);
-        }
-
-        (, uint256 newAmt, uint256 newEnd, bool newAutoMax) =
-            IVeClaimNFT(_ve).mergeLocksFor(user, fromTokenId, intoTokenId);
-
-        // Symmetric with `Furnace._extendWithBonus`: VeClaimNFT._addToLock enforces
-        // `amount >= MIN_TOPUP_AMOUNT` to bound ceiling-rounding slope dust. A sub-floor
-        // user-side bonus (possible when `durationDelta` is positive but tiny relative to
-        // the merged principal) would revert here as `MinLockAmountNotMet`, which the
-        // wrapping Furnace delegatecall surfaces as `InvariantViolation`. The dust is
-        // refunded back to `furnaceReserve` so the AMM debit (`reserveBefore - grossBonus`)
-        // stays balanced against actual CLAIM held by Furnace. `furnaceReserve` lives at
-        // the pinned slot `_SLOT_FURNACE_RESERVE` on the Furnace storage layout — we are
-        // running as `delegatecall` from Furnace, so direct `sstore` against that slot
-        // mutates the canonical reserve.
-        if (userBonus >= Constants.MIN_TOPUP_AMOUNT) {
-            SafeERC20.forceApprove(IERC20(_claim), _ve, userBonus);
-            IVeClaimNFT(_ve).addToLockFor(user, intoTokenId, userBonus);
-            SafeERC20.forceApprove(IERC20(_claim), _ve, 0);
-        } else if (userBonus > 0) {
-            assembly {
-                let r := sload(_SLOT_FURNACE_RESERVE)
-                sstore(_SLOT_FURNACE_RESERVE, add(r, userBonus))
-            }
-            userBonus = 0;
-        }
-
-        bonusClaim = userBonus;
-        if (minBonusOut > 0 && bonusClaim < minBonusOut) revert Errors.MinVeOutNotMet();
-
-        _syncFurnaceReserveDelegated();
-
-        emit FurnaceMergeWithBonus(
-            user,
-            fromTokenId,
-            intoTokenId,
-            fromAmt,
-            intoAmt,
-            newAmt + userBonus,
-            newEnd,
-            newAutoMax,
-            durationDelta,
-            bonusClaim
-        );
-    }
-
-    /// @dev Inlined twin of Furnace's delegation gate. Reads `delegationHub` + `mineCore`
-    ///      via slot pins and runs the same canonical-wiring + isAuthorized check.
-    function _requireDelegatedFromHelper(address user, uint256 requiredPerms) internal view {
-        address hub;
-        address core;
-        assembly {
-            hub := sload(_SLOT_DELEGATION_HUB)
-            core := sload(_SLOT_MINE_CORE)
-        }
-        if (hub == address(0)) revert Errors.ZeroAddress();
-        if (hub.code.length == 0) revert Errors.WiringMismatch();
-        if (core == address(0) || core.code.length == 0) revert Errors.WiringMismatch();
-        if (
-            _staticcallAddress(core, _SEL_FURNACE) != address(this)
-                || _staticcallAddress(core, _SEL_DELEGATION_HUB) != hub
-                || _staticcallAddress(core, _SEL_CLAIM) != _claim || _staticcallAddress(core, _SEL_VE) != _ve
-        ) {
-            revert Errors.WiringMismatch();
-        }
-        if (!IDelegationHub(hub).isAuthorized(user, msg.sender, requiredPerms)) revert Errors.NotAuthorized();
-    }
-
-    /// @dev Inlined twin of `Furnace._syncFurnaceReserve`. Computes liability from the
-    ///      LP stream slot pins, reads the live CLAIM balance, and clamps `furnaceReserve`
-    ///      down via SSTORE if it has drifted above the available cap.
-    function _syncFurnaceReserveDelegated() internal {
-        uint256 carry;
-        uint256 finish;
-        uint256 rate;
-        uint256 lastStreamUpdate;
-        uint256 oldReserve;
-        assembly {
-            carry := sload(_SLOT_LP_STREAM_CARRY)
-            finish := sload(_SLOT_LP_STREAM_PERIOD_FINISH)
-            rate := sload(_SLOT_LP_STREAM_RATE_PER_SEC)
-            lastStreamUpdate := sload(_SLOT_LP_STREAM_LAST_UPDATE)
-            oldReserve := sload(_SLOT_FURNACE_RESERVE)
-        }
-
-        uint256 liability = carry;
-        if (rate != 0 && finish != 0 && finish > lastStreamUpdate) {
-            liability += (finish - lastStreamUpdate) * rate;
-        }
-        uint256 bal = IERC20(_claim).balanceOf(address(this));
-        uint256 cap = bal > liability ? bal - liability : 0;
-
-        if (oldReserve > cap) {
-            assembly {
-                sstore(_SLOT_FURNACE_RESERVE, cap)
-            }
-            emit ReserveClamped(msg.sender, oldReserve, cap, bal, liability);
-        }
-    }
+    // The merge preflight/bonus resolution lives here (`resolveMergeWithBonus` /
+    // `resolveMergeWithBonusFull` / `_resolveMergeWithBonusInternal` / `_resolveLockForMerge`,
+    // all pure `view` over ve state). The delegated *execution* body
+    // (`Furnace.mergeLocksWithBonus[For]` -> `FurnaceExtendHelper._mergeBody`) reaches this
+    // preflight via a regular external `view` call and runs the state transition + bonus
+    // payout in Furnace's storage context. Consolidating the execution body alongside the
+    // extend body in `FurnaceExtendHelper` keeps this helper's runtime under EIP-170.
 
     /// @dev Compute decayed sell impact volume + addition.
     function computeAccruedSellImpactVolume(uint256 currentVol, uint256 lastUpdate, uint256 addAmount)
@@ -1838,6 +1671,11 @@ contract FurnaceGuardHelper {
         address claimToken,
         address recipient
     ) external payable returns (uint256 principalClaim) {
+        // slither-disable-start reentrancy-balance
+        // `_requireFurnaceOrSelf` restricts callers to the Furnace, whose external entrypoints are
+        // `nonReentrant`, so no callback can re-enter this path. The pre/post `balanceOf` delta is the
+        // intended measurement of CLAIM actually delivered by the router — a fresh post-swap read, not
+        // an exploitable stale balance.
         _requireFurnaceOrSelf();
         (bool stable, address pool) = IEntryTokenRegistry(registry).getWethClaimHop();
         if (pool == address(0)) revert Errors.WethClaimHopNotSet();
@@ -1849,10 +1687,17 @@ contract FurnaceGuardHelper {
         routes[0] = IDexAdapter.Route({from: weth, to: claimToken, stable: stable, factory: factory});
 
         uint256 deadline = block.timestamp + Constants.SWAP_DEADLINE_SECONDS;
-        uint256[] memory amounts =
-            IDexAdapter(router).swapExactETHForTokens{value: msg.value}(0, routes, recipient, deadline);
-        principalClaim = amounts[amounts.length - 1];
+        // SECURITY: measure the CLAIM actually delivered to `recipient` rather than trusting the
+        // router's self-reported `amounts` return value. `claimToken` is validated == the canonical
+        // CLAIM upstream (getValidatedRouterConfig), so a hostile/buggy router CANNOT inflate
+        // `principalClaim` beyond the CLAIM it really delivered. This keeps the caller-supplied
+        // `minVeOut` a sound end-to-end bound and prevents the Furnace reserve from backing a
+        // fabricated principal (audit F-1).
+        uint256 balBefore = IERC20(claimToken).balanceOf(recipient);
+        IDexAdapter(router).swapExactETHForTokens{value: msg.value}(0, routes, recipient, deadline);
+        principalClaim = IERC20(claimToken).balanceOf(recipient) - balBefore;
         if (principalClaim == 0) revert Errors.AmountZero();
+        // slither-disable-end reentrancy-balance
     }
 
     /// @notice Execute an ERC20 → CLAIM swap via the DexAdapter.
@@ -1869,6 +1714,9 @@ contract FurnaceGuardHelper {
         address claimToken,
         address recipient
     ) external returns (uint256 principalClaim) {
+        // slither-disable-start reentrancy-balance
+        // See `executeSwapEthToClaim`: the caller is gated to the `nonReentrant` Furnace and the
+        // pre/post `balanceOf` delta measures CLAIM actually delivered, so the post-call read is intended.
         _requireFurnaceOrSelf();
         if (tokenIn == weth) {
             IWETH(weth).withdraw(amountIn);
@@ -1881,12 +1729,15 @@ contract FurnaceGuardHelper {
         _forceApprove(IERC20(tokenIn), router, amountIn);
 
         uint256 deadline = block.timestamp + Constants.SWAP_DEADLINE_SECONDS;
-        uint256[] memory amounts =
-            IDexAdapter(router).swapExactTokensForTokens(amountIn, 0, dexRoutes, recipient, deadline);
-        principalClaim = amounts[amounts.length - 1];
+        // SECURITY: measure delivered CLAIM rather than trusting the router's return value
+        // (see executeSwapEthToClaim; audit F-1).
+        uint256 balBefore = IERC20(claimToken).balanceOf(recipient);
+        IDexAdapter(router).swapExactTokensForTokens(amountIn, 0, dexRoutes, recipient, deadline);
+        principalClaim = IERC20(claimToken).balanceOf(recipient) - balBefore;
         if (principalClaim == 0) revert Errors.AmountZero();
 
         _forceApprove(IERC20(tokenIn), router, 0);
+        // slither-disable-end reentrancy-balance
     }
 
     function _forceApprove(IERC20 token, address spender, uint256 value) internal {

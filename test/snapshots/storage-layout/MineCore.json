@@ -228,6 +228,12 @@
       "offset": 0,
       "slot": "183",
       "type": "t_mapping(t_address,t_uint256)"
+    },
+    {
+      "label": "pausedSince",
+      "offset": 0,
+      "slot": "184",
+      "type": "t_uint256"
     }
   ],
   "types": {

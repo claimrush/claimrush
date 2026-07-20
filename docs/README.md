@@ -28,7 +28,7 @@ This folder contains the canonical v1.0.0 documentation bundled with the repo.
 ## Security reporting
 
 - Security contact: `security@claimru.sh` (or see `https://claimru.sh/security`).
-- Do not report vulnerabilities via unsolicited DMs or Telegram/Discord "support".
+- ClaimRush has an official community Discord, but Discord is never used for wallet support. Admins will never DM first, request funds, or ask for seed phrases. Report vulnerabilities through the published security channels.
 - See `SECURITY.md` in the repo root for our disclosure policy.
 
 ## Deployment manifests (addresses + start blocks)

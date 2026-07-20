@@ -260,58 +260,74 @@ contract MineCoreTest is Test {
         // Ensure block.timestamp is safely > 100 for the test setup arithmetic.
         vm.warp(1000);
 
-        mineCore.setReignStateForTest(alice, block.timestamp - 100, 1 ether, 0);
+        // Alice reigns with a realistic accrual cursor (= reign start).
+        mineCore.setReignStateForTest(alice, block.timestamp - 100, 1 ether, block.timestamp - 100);
         mineCore.setGenesisKingClaimCollectedForTest(true);
 
+        // Non-guardian cannot toggle.
         vm.prank(bob);
         vm.expectRevert(Errors.OnlyGuardian.selector);
         mineCore.setTakeoversPaused(false);
 
-        uint256 t0 = block.timestamp;
+        // Unpause to the live state; with no prior tracked pause the cursor is unchanged.
         vm.prank(owner);
         mineCore.setTakeoversPaused(false);
         assertFalse(mineCore.takeoversPaused());
-        assertEq(mineCore.currentReignLastAccrualTime(), t0);
+        uint256 cursorBefore = mineCore.currentReignLastAccrualTime();
+        assertEq(cursorBefore, 900, "unpause without a tracked pause preserves the cursor");
 
-        vm.warp(block.timestamp + 123);
-        uint256 t1 = block.timestamp;
+        // audit F-2: pausing mid-reign must NOT advance the cursor (pre-pause accrual is preserved).
+        vm.warp(block.timestamp + 123); // t = 1123
         vm.prank(owner);
         mineCore.setTakeoversPaused(true);
         assertTrue(mineCore.takeoversPaused());
-        assertEq(mineCore.currentReignLastAccrualTime(), t1);
+        assertEq(mineCore.currentReignLastAccrualTime(), cursorBefore, "pause must not discard accrual");
+
+        // audit F-2: unpause advances the cursor by exactly the paused duration (only paused time excluded).
+        vm.warp(block.timestamp + 50); // paused 50s; t = 1173
+        vm.prank(owner);
+        mineCore.setTakeoversPaused(false);
+        assertEq(mineCore.currentReignLastAccrualTime(), cursorBefore + 50, "unpause excludes only paused time");
     }
 
     function testSetTakeoversPaused_doubleToggleClampNeverGoesBackwards() public {
         vm.warp(1000);
 
-        mineCore.setReignStateForTest(alice, block.timestamp - 100, 1 ether, 0);
+        mineCore.setReignStateForTest(alice, block.timestamp - 100, 1 ether, block.timestamp - 100);
         mineCore.setGenesisKingClaimCollectedForTest(true);
 
+        // Unpause to the live state; cursor unchanged (no prior tracked pause).
         vm.prank(owner);
         mineCore.setTakeoversPaused(false);
-        uint256 t0 = mineCore.currentReignLastAccrualTime();
-        assertEq(t0, 1000);
+        uint256 c0 = mineCore.currentReignLastAccrualTime();
+        assertEq(c0, 900, "cursor preserved through initial unpause");
 
+        // audit F-2: pause must not advance the cursor.
         vm.warp(1100);
         vm.prank(owner);
         mineCore.setTakeoversPaused(true);
-        uint256 t1 = mineCore.currentReignLastAccrualTime();
-        assertEq(t1, 1100);
-        assertGe(t1, t0);
+        uint256 c1 = mineCore.currentReignLastAccrualTime();
+        assertEq(c1, c0, "pause does not advance the cursor");
+        assertGe(c1, c0);
 
+        // audit F-2: unpause after 100s paused advances the cursor by exactly that duration.
         vm.warp(1200);
         vm.prank(owner);
         mineCore.setTakeoversPaused(false);
-        uint256 t2 = mineCore.currentReignLastAccrualTime();
-        assertEq(t2, 1200);
-        assertGe(t2, t1);
+        uint256 c2 = mineCore.currentReignLastAccrualTime();
+        assertEq(c2, c0 + 100, "unpause advances by the paused duration only");
+        assertGe(c2, c1);
 
+        // Pause again: cursor still does not move.
         vm.warp(1300);
         vm.prank(owner);
         mineCore.setTakeoversPaused(true);
-        uint256 t3 = mineCore.currentReignLastAccrualTime();
-        assertEq(t3, 1300);
-        assertGe(t3, t2);
+        uint256 c3 = mineCore.currentReignLastAccrualTime();
+        assertEq(c3, c2, "pause does not advance the cursor");
+        assertGe(c3, c2);
+
+        // Monotonic non-decreasing throughout (never goes backwards).
+        assertGe(c3, c0);
     }
 
     function testPauseDoesNotFreezeTakeoverPriceDecay() public {

@@ -32,6 +32,10 @@ ALLOWLIST: set[str] = {
     # Guard/helper contracts auto-deployed by their parent; logic is exercised
     # transitively through Furnace and MineCore test suites.
     "FurnaceGuardHelper.sol",
+    # Delegatecall-only execution body auto-deployed by Furnace; its extend/merge
+    # logic runs in Furnace's storage context and is exercised transitively
+    # through the Furnace extend/merge suites.
+    "FurnaceExtendHelper.sol",
     "MineCoreHelper.sol",
 }
 

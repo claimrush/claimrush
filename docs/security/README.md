@@ -29,8 +29,9 @@ security documents):
   response targets, safe-harbor expectations, and what to include in a
   report.
 
-Do **not** report vulnerabilities via public GitHub issues,
-unsolicited DMs, or Telegram/Discord "support" chats.
+Do **not** report vulnerabilities via public GitHub issues or direct messages.
+
+ClaimRush has an official community Discord, but Discord is never used for wallet support. Admins will never DM first, request funds, or ask for seed phrases. Use email or GitHub private vulnerability reporting for security reports.
 
 ## Public verification surfaces
 

@@ -192,6 +192,12 @@
       "offset": 0,
       "slot": "78",
       "type": "t_mapping(t_uint256,t_uint256)"
+    },
+    {
+      "label": "bonusBasis",
+      "offset": 0,
+      "slot": "79",
+      "type": "t_mapping(t_uint256,t_uint256)"
     }
   ],
   "types": {

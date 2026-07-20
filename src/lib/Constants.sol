@@ -10,6 +10,15 @@ library Constants {
     // Minimum ve lock duration (applies to new locks; existing locks may have less remaining)
     uint256 internal constant MIN_LOCK_DURATION = 7 days;
 
+    // Minimum remaining duration for an existing lock to be an eligible King-stream force-lock
+    // destination. The force-locked slice of a dethroned King's mined CLAIM must retain the
+    // anti-recycling horizon that the 50% liquid clamp assumes; routing it into a short lock would
+    // let ~100% of the slice become liquid within that lock's remaining window. Set to the full
+    // MAX_LOCK_DURATION so only a full-duration (or AutoMax) lock qualifies; anything shorter falls
+    // back to the default create-once AutoMax lock. Distinct from MIN_LOCK_DURATION, which governs
+    // ordinary user entries.
+    uint256 internal constant KING_FORCE_LOCK_MIN_DURATION = MAX_LOCK_DURATION;
+
     // Minimum ve lock amount for minting (createLock / createLockFor)
     uint256 internal constant MIN_LOCK_AMOUNT = 1_000e18; // 1,000 CLAIM
 

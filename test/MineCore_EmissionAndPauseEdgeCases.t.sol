@@ -224,7 +224,8 @@ contract MineCore_EmissionAndPauseEdgeCases_Test is Test {
     // Pause emission clamping tests
     // ---------------------------------------------------------------
 
-    /// @notice Pausing clamps accrual cursor, preventing emissions during pause.
+    /// @notice audit F-2: pausing excludes ONLY the paused interval from accrual and preserves
+    ///         the sitting king's pre-pause active accrual (it does not slam the cursor to now).
     function test_pauseUnpause_clampsEmissions() public {
         vm.deal(alice, 10 ether);
         vm.deal(bob, 10 ether);
@@ -245,9 +246,9 @@ contract MineCore_EmissionAndPauseEdgeCases_Test is Test {
         vm.prank(owner);
         mineCore.setTakeoversPaused(true);
 
-        // Accrual should be clamped to pause time.
+        // audit F-2: the cursor is NOT advanced on pause, so pre-pause active accrual survives.
         uint256 accrualAfterPause = mineCore.currentReignLastAccrualTime();
-        assertEq(accrualAfterPause, block.timestamp, "accrual should clamp to pause time");
+        assertEq(accrualAfterPause, accrualAfterTakeover, "pause must preserve the pre-pause accrual cursor");
 
         // Advance 5000 more seconds (paused time).
         vm.warp(block.timestamp + 5000);
@@ -256,13 +257,56 @@ contract MineCore_EmissionAndPauseEdgeCases_Test is Test {
         vm.prank(owner);
         mineCore.setTakeoversPaused(false);
 
-        // Accrual should be clamped to unpause time (skipping paused time).
+        // audit F-2: unpause advances the cursor by exactly the 5000s paused duration, so only
+        // the paused interval is excluded and the 1000s of pre-pause active accrual is preserved.
         uint256 accrualAfterUnpause = mineCore.currentReignLastAccrualTime();
-        assertEq(accrualAfterUnpause, block.timestamp, "accrual should clamp to unpause time");
+        assertEq(accrualAfterUnpause, block.timestamp - 1000, "unpause excludes only paused time");
 
         // Verify king/reignId/startTime/referencePrice NOT mutated by pause.
         assertEq(mineCore.currentKing(), alice, "king should not change on pause");
         assertEq(mineCore.currentReignId(), 1, "reignId should not change on pause");
+    }
+
+    /// @notice audit F-2 regression: a pause/unpause during a reign preserves the king's pre-pause
+    ///         active emissions at the next takeover (only the paused interval is excluded),
+    ///         instead of forfeiting the entire pre-pause window.
+    function test_pauseUnpause_preservesPrePauseKingEmission() public {
+        vm.deal(alice, 10 ether);
+        vm.deal(bob, 10 ether);
+
+        // Alice becomes king at emStart+100.
+        vm.warp(emStart + 100);
+        vm.prank(alice);
+        mineCore.takeover{value: Constants.TAKEOVER_PRICE_FLOOR}(type(uint256).max);
+
+        // Alice actively reigns 500s, then the guardian pauses (incident).
+        vm.warp(emStart + 600);
+        vm.prank(owner);
+        mineCore.setTakeoversPaused(true);
+
+        // Paused 300s, then unpause.
+        vm.warp(emStart + 900);
+        vm.prank(owner);
+        mineCore.setTakeoversPaused(false);
+
+        // Cursor advanced by exactly the 300s pause -> emStart+400 (the 500s pre-pause preserved).
+        uint256 cursorAfter = mineCore.currentReignLastAccrualTime();
+        assertEq(cursorAfter, emStart + 400, "only the 300s pause is excluded");
+
+        // Let price decay to floor, then bob takes over (finalizes alice's reign).
+        vm.warp(emStart + 900 + Constants.TAKEOVER_DECAY_PERIOD);
+        uint256 takeoverTs = block.timestamp;
+        vm.prank(bob);
+        mineCore.takeover{value: Constants.TAKEOVER_PRICE_FLOOR}(type(uint256).max);
+
+        // Alice's reign mined CLAIM == king emission over the active window [cursorAfter, takeoverTs].
+        uint256 expectedActive = mineCore.kingEmittedExposed(cursorAfter, takeoverTs);
+        MineCoreHarness.ReignInfo memory info = mineCore.getReignInfo(1);
+        assertEq(info.totalClaimMined, expectedActive, "king mined == active-window emission");
+
+        // And it MUST exceed the OLD buggy 'post-unpause only' amount that discarded pre-pause active.
+        uint256 buggyPostUnpauseOnly = mineCore.kingEmittedExposed(emStart + 900, takeoverTs);
+        assertGt(info.totalClaimMined, buggyPostUnpauseOnly, "pre-pause active accrual preserved");
     }
 
     /// @notice Pausing when no king does not clamp accrual (no-op for accrual).

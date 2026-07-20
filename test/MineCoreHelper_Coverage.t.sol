@@ -974,14 +974,16 @@ contract MineCoreHelper_Coverage_Test is Test {
         assertEq(reason, 3); // KING_AUTOLOCK_REASON_EXPIRED
     }
 
-    function test_autoLock_expired_remainingBelowMin() public {
+    function test_autoLock_existingLock_remainingBelowForceLockMin_rejected() public {
         _deployMockVe();
         mockVe.setOwner(1, KING);
-        // remaining = 6 days < MIN_LOCK_DURATION (7 days)
+        // remaining = 6 days < KING_FORCE_LOCK_MIN_DURATION (== MAX_LOCK_DURATION). A non-AutoMax
+        // lock that no longer retains the full anti-recycling horizon is not an eligible King
+        // force-lock destination; settlement falls back to the default create-once AutoMax lock.
         mockVe.setLockInfo(1, 1000e18, block.timestamp + 6 days, false, false);
         (bool ok,,,, uint8 reason) = helper.resolveKingAutoLockDestination(address(mockVe), KING, 1, 30 days, false);
         assertFalse(ok);
-        assertEq(reason, 3); // KING_AUTOLOCK_REASON_EXPIRED
+        assertEq(reason, 5); // KING_AUTOLOCK_REASON_INVALID_DURATION
     }
 
     function test_autoLock_existingAutoMax_usesMaxDuration() public {
@@ -999,7 +1001,9 @@ contract MineCoreHelper_Coverage_Test is Test {
     function test_autoLock_existingLock_durationZero_usesRemaining() public {
         _deployMockVe();
         mockVe.setOwner(1, KING);
-        uint256 remaining = 100 days;
+        // Only a non-AutoMax lock that still retains the full force-lock horizon qualifies as a
+        // King force-lock destination (remaining >= KING_FORCE_LOCK_MIN_DURATION == MAX_LOCK_DURATION).
+        uint256 remaining = Constants.MAX_LOCK_DURATION;
         mockVe.setLockInfo(1, 1000e18, block.timestamp + remaining, false, false);
         (bool ok,, uint256 dur,,) = helper.resolveKingAutoLockDestination(address(mockVe), KING, 1, 0, false);
         assertTrue(ok);
@@ -1009,23 +1013,25 @@ contract MineCoreHelper_Coverage_Test is Test {
     function test_autoLock_existingLock_desiredBelowRemaining_clampsUp() public {
         _deployMockVe();
         mockVe.setOwner(1, KING);
-        uint256 remaining = 100 days;
+        uint256 remaining = Constants.MAX_LOCK_DURATION;
         mockVe.setLockInfo(1, 1000e18, block.timestamp + remaining, false, false);
-        // desired = 30 days < remaining = 100 days → clamped to remaining
+        // desired = 30 days < remaining → clamped up to remaining
         (bool ok,, uint256 dur,,) = helper.resolveKingAutoLockDestination(address(mockVe), KING, 1, 30 days, false);
         assertTrue(ok);
         assertEq(dur, remaining, "desired < remaining must clamp up");
     }
 
-    function test_autoLock_existingLock_desiredAboveRemaining_usesDesired() public {
+    function test_autoLock_existingLock_midLengthRemaining_rejected() public {
         _deployMockVe();
         mockVe.setOwner(1, KING);
-        uint256 remaining = 30 days;
+        // A partially-decayed non-AutoMax lock (remaining < KING_FORCE_LOCK_MIN_DURATION) can no
+        // longer serve as a force-lock destination even when a longer `desired` is requested: the
+        // force-lock slice is never extended, so only a full-horizon or AutoMax lock qualifies.
+        uint256 remaining = 300 days;
         mockVe.setLockInfo(1, 1000e18, block.timestamp + remaining, false, false);
-        // desired = 100 days > remaining = 30 days → uses desired
-        (bool ok,, uint256 dur,,) = helper.resolveKingAutoLockDestination(address(mockVe), KING, 1, 100 days, false);
-        assertTrue(ok);
-        assertEq(dur, 100 days, "desired > remaining must use desired");
+        (bool ok,,,, uint8 reason) = helper.resolveKingAutoLockDestination(address(mockVe), KING, 1, 100 days, false);
+        assertFalse(ok);
+        assertEq(reason, 5); // KING_AUTOLOCK_REASON_INVALID_DURATION
     }
 
     function test_validateKingAutoLockExistingTarget_acceptsValidTarget() public {

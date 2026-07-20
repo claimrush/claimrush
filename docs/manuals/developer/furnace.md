@@ -110,15 +110,19 @@ d            = clamp(durationSeconds, MIN_LOCK_DURATION, MAX_LOCK_DURATION)
 # Sub-bp duration-weight curve (Step 3); see env-config §3.4D.
 weightDelta  = durationWeight(d) - durationWeight(oldRemaining)
 principalEff = mulDiv( lockAmount, weightDelta, WEIGHT_DENOM )   # WEIGHT_DENOM = BPS_DENOM * WEIGHT_PRECISION
+# Price the extension on the user's committed principal basis, not the bonus-inflated live amount:
+basis        = bonusBasis[tokenId]              # per-lock user principal, EXCLUDES folded bonuses
+if basis == 0: basis = lockAmount               # seed once for a lock predating basis accounting
+if basis < lockAmount: principalEff = mulDiv( principalEff, basis, lockAmount )
 bonus        = bonusAMM(principalEff)   # same CPMM as entry path (Step 5)
 ```
 
-This is path-independent with respect to the duration weight curve: extending from 30d to 365d in one step yields the same `principalEff` as extending 30d → 180d → 365d in two steps. The AMM curve is concave, so splitting extensions gives slightly less total bonus — identical to the entry-side behavior. With deep virtual depth, the difference is negligible.
+`bonusBasis[tokenId]` tracks the cumulative user-supplied principal for a lock, seeded on entry and never increased by Furnace-paid bonuses. Because the bonus is priced on this fixed basis instead of the live `Lock.amount` (which grows every time a bonus is folded back into the lock), the cumulative bonus is path-independent: extending 30d → 365d in one step and 30d → 180d → 365d in two steps price the same `principalEff` (weight deltas are additive over the fixed basis). The bonus AMM is concave and its state is depleted by each call, so splitting an extension across rungs yields slightly *less* total bonus — never more.
 
-Execution flow:
+Execution flow (the body runs in `FurnaceExtendHelper` via `delegatecall` from the Furnace shim, in Furnace's storage context):
 1. Validate lock: not AutoMax, not listed, not expired, owned by user
-2. Compute `weightDelta` and `principalEff`
-3. Call `_applyBonusAmm(user, lockAmount, principalEff, d)` for `userBonus`
+2. Compute `weightDelta` and `principalEff`, then rescale `principalEff` by `basis / lockAmount`
+3. Re-enter Furnace via the auth-gated `__bonusAmmFromHelper(user, lockAmount, principalEff, d)` for `userBonus`
 4. Extend lock: `ve.extendLockToFor(user, tokenId, newEnd)`
 5. Apply the bonus payout floor (see [Bonus payout floor](#bonus-payout-floor)):
    - `userBonus >= MIN_TOPUP_AMOUNT` → `ve.addToLockFor(user, tokenId, userBonus)`
@@ -739,7 +743,7 @@ Several Furnace events — `BonusPaid`, `LpOverflowDripPaid`, `LockSoldToFurnace
 
 The four emergency / rescue functions are externally exposed by `Furnace` itself — the `Furnace`-side shim is a single inline-assembly trampoline (`_delegateMsgDataToHelper`) that forwards `msg.data` unchanged via `delegatecall` to `FurnaceGuardHelper` and bubbles the original typed-error selectors and return data on revert. External callers, event consumers, and integrators see only `Furnace`'s ABI surface. The split exists purely to keep `Furnace` under the EIP-170 24,576-byte ceiling.
 
-The two merge externals use a parallel pattern (`_delegateMergeToHelper`): a `nonReentrant whenLockingEnabled` shim on Furnace forwards `msg.data` via `delegatecall` to the helper's selector-matched body and decodes the returned `uint256 bonusClaim` from the free-memory pointer. The helper re-enters Furnace via a regular `CALL` to the auth-gated `__bonusAmmFromHelper(...)` to apply the bonus AMM split inside Furnace's own `nonReentrant` lock. `__bonusAmmFromHelper` itself only checks `msg.sender == address(this)`; it intentionally omits its own `nonReentrant` because the wrapping merge external still owns the lock.
+The two merge externals and the two `extendWithBonus` externals use a parallel pattern via one shared trampoline (`_delegateToHelper(address helper)`): a `nonReentrant whenLockingEnabled` shim on Furnace forwards `msg.data` via `delegatecall` to the selector-matched body and decodes the returned `uint256 bonusClaim` from the free-memory pointer. Merge forwards to `FurnaceGuardHelper`; extend forwards to `FurnaceExtendHelper` (a small canonical-bound helper Furnace self-deploys in its constructor, holding the extend body off-core to keep the Furnace runtime under EIP-170). Both helper bodies re-enter Furnace via a regular `CALL` to the auth-gated `__bonusAmmFromHelper(...)` to apply the bonus AMM split inside Furnace's own `nonReentrant` lock. `__bonusAmmFromHelper` itself only checks `msg.sender == address(this)`; it intentionally omits its own `nonReentrant` because the wrapping external still owns the lock.
 
 #### Swap execution
 

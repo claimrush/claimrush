@@ -44,6 +44,13 @@ Fields:
   - Existing lock mode (`targetTokenId != 0`):
     - `0` means "use current remaining duration" (no additional extension unless clamped).
     - otherwise treated as a minimum duration (MineCore will pass `max(durationSeconds, remaining)` to Furnace).
+    - The target lock MUST retain at least `KING_FORCE_LOCK_MIN_DURATION` of remaining duration
+      (equal to `MAX_LOCK_DURATION`), or be an AutoMax lock. The force-locked slice is never
+      extended when routed into an existing lock, so a shorter target would let ~100% of the slice
+      become liquid within that lock's remaining window — defeating the anti-recycling horizon the
+      50% liquid clamp assumes. A target that fails this check is rejected and settlement falls back
+      to the default create-once AutoMax lock. This bound is distinct from `MIN_LOCK_DURATION`, which
+      applies to ordinary user entries.
 - `createAutoMax` (bool)
   - Only meaningful in create-once mode (`targetTokenId == 0`).
   - If true, `durationSeconds` MUST equal `MAX_LOCK_DURATION` (VeClaimNFT autoMax semantics).
@@ -121,5 +128,5 @@ At reign finalization, MineCore:
    - Approve Furnace and call `Furnace.enterWithClaimFor(user, amount, ...)`.
    - If successful: the user receives a ve lock with the Furnace bonus.
    - If it fails for any reason: MineCore falls back to paying the same CLAIM amount as liquid CLAIM.
-   - **Existing-lock mode (non-AutoMax):** if the resolved destination lock’s remaining time is `< MIN_LOCK_DURATION`, MUST **not** call Furnace; treat as skip with `KingAutoLockSkipped` and `reasonCode = EXPIRED` (same liquid-CLAIM fallback as other skips).
+   - **Existing-lock mode (non-AutoMax):** if the resolved destination lock’s remaining time is `< KING_FORCE_LOCK_MIN_DURATION` (equal to `MAX_LOCK_DURATION`), MUST **not** call Furnace; treat as skip with `KingAutoLockSkipped` and `reasonCode = INVALID_DURATION` (same liquid-CLAIM fallback as other skips). The force-lock slice is never extended, so only a full-duration or AutoMax destination preserves the anti-recycling horizon; anything shorter falls back to the default create-once AutoMax lock.
 3. Always emits the existing `ReignFinalized` event with `totalClaimMined` equal to the principal King-stream emission.

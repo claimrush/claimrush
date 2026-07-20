@@ -72,6 +72,10 @@ contract ContractSizeGuard is Test {
         _assertUnderLimit("FurnaceGuardHelper.sol:FurnaceGuardHelper", "FurnaceGuardHelper");
     }
 
+    function test_eip170_FurnaceExtendHelper() public {
+        _assertUnderLimit("FurnaceExtendHelper.sol:FurnaceExtendHelper", "FurnaceExtendHelper");
+    }
+
     function test_eip170_MarketRouter() public {
         _assertUnderLimit("MarketRouter.sol:MarketRouter", "MarketRouter");
     }
@@ -148,6 +152,10 @@ contract ContractSizeGuard is Test {
 
     function test_eip3860_FurnaceGuardHelper() public {
         _assertInitcodeUnderLimit("FurnaceGuardHelper.sol:FurnaceGuardHelper", "FurnaceGuardHelper");
+    }
+
+    function test_eip3860_FurnaceExtendHelper() public {
+        _assertInitcodeUnderLimit("FurnaceExtendHelper.sol:FurnaceExtendHelper", "FurnaceExtendHelper");
     }
 
     function test_eip3860_MarketRouter() public {

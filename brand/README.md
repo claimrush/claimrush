@@ -12,6 +12,7 @@ This folder publishes the public ClaimRush brand canon: identifiers, logo assets
 - X:
   - **@claimrushgame**
   - **@claimrushdev**
+- Official community Discord: <https://discord.gg/mPjKU5Qfwb>
 
 ## Public brand canon
 - `copy/voice.md` - baseline voice rules and verb policy

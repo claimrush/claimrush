@@ -925,6 +925,10 @@ function updateDeploymentManifest({
     // and is not callable as a public surface. Recording its address under
     // contracts.Furnace.guardHelper lets bytecode-parity tooling resolve the immutable
     // slot from the manifest alone.
+    //
+    // Furnace also self-deploys a FurnaceExtendHelper in its constructor (immutable
+    // `_extendHelper`) that holds the extendWithBonus body. Recording that address under
+    // contracts.Furnace.extendHelper mirrors the guardHelper pin for parity tooling.
     if (manifestKey === "Furnace") {
       const guardHelperDeployment = pickLast(byName, "FurnaceGuardHelper");
       if (!guardHelperDeployment) {
@@ -938,6 +942,19 @@ function updateDeploymentManifest({
         die(`FurnaceGuardHelper ${guardHelperAddress} has no code`);
       }
       extra.guardHelper = guardHelperAddress;
+
+      const extendHelperDeployment = pickLast(byName, "FurnaceExtendHelper");
+      if (!extendHelperDeployment) {
+        die("broadcast missing deployment for FurnaceExtendHelper (required by Furnace impl as `address immutable`)");
+      }
+      const extendHelperAddress = normalizeAddress(extendHelperDeployment.contractAddress);
+      if (isZeroAddress(extendHelperAddress)) {
+        die("broadcast returned zero address for FurnaceExtendHelper");
+      }
+      if (!hasLiveCode({ rpcUrl, to: extendHelperAddress })) {
+        die(`FurnaceExtendHelper ${extendHelperAddress} has no code`);
+      }
+      extra.extendHelper = extendHelperAddress;
     }
 
     setManifestContract(manifest, manifestKey, proxyDeployment.contractAddress, proxyDeployment.blockNumber, extra);

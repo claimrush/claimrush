@@ -14,7 +14,8 @@
     "contracts.Furnace.guardHelper records the FurnaceGuardHelper deployed alongside the Furnace impl and pinned as `address immutable` on the impl's bytecode. It is not a separately-callable user surface; it exists in the manifest so that bytecode parity tooling can resolve the construction-time immutable.",
     "This file is NOT production-ready until all REQUIRED addresses + startBlocks are filled with non-zero values.",
     "2026-06-04: shareholder-forwarding upgrade rewire applied on Sepolia at block 42299703 -- DelegationHub, ClaimAllHelper, and the ShareholderRoyalties implementation were redeployed and re-wired into MineCore. Addresses + startBlocks above updated to the live values (verified via cast against https://sepolia.base.org). MineCore/Furnace/MarketRouter implementations are unchanged.",
-    "2026-06-29: King-stream liquid-share + 99% sellback-floor upgrade applied via a single Timelock batch (op 0x82cb90375fdc172807e42a15f82d3a40147a9329a42c24ed2ae06b50d0c9cb63). MineCore implementation upgraded to 0xEb56500c24774E29c540daB23Ec09488E7e8DB98 (force-locked dethrone settlement + takeover-window liquid slice) via ProxyAdmin.upgradeAndCall, and Furnace.furnaceQuoter re-pointed to a fresh FurnaceQuoter 0x540A272fF60fD2Acb326A1D3A95C03D4fb42b91e (SELL_ROUND_TRIP_LOSS_MAX_BPS/SELL_SPREAD_MAX_BPS = 9_900). Verified live: impl slot, furnaceQuoter(), sellRoundTripLossBps(365d)=9900. All other implementations unchanged."
+    "2026-06-29: King-stream liquid-share + 99% sellback-floor upgrade applied via a single Timelock batch (op 0x82cb90375fdc172807e42a15f82d3a40147a9329a42c24ed2ae06b50d0c9cb63). MineCore implementation upgraded to 0xEb56500c24774E29c540daB23Ec09488E7e8DB98 (force-locked dethrone settlement + takeover-window liquid slice) via ProxyAdmin.upgradeAndCall, and Furnace.furnaceQuoter re-pointed to a fresh FurnaceQuoter 0x540A272fF60fD2Acb326A1D3A95C03D4fb42b91e (SELL_ROUND_TRIP_LOSS_MAX_BPS/SELL_SPREAD_MAX_BPS = 9_900). Verified live: impl slot, furnaceQuoter(), sellRoundTripLossBps(365d)=9900. All other implementations unchanged.",
+    "2026-07-17: Furnace + MineCore implementation upgrade applied via two Timelock batches. Batch 1 (op 0x7330d8a5df22e495a55229a8e4a5f7a57af4b58ed365c5064f2ede381e3e1657) upgraded Furnace to 0xc5f04627d19dba51fa019fa01bc4a3d9cb989006 (path-independent extend/merge bonus accounting via a per-lock bonus-basis; guardHelper 0x31cc05f696870a9ba775b781f28ce51c8cc07988, self-deployed FurnaceExtendHelper 0xf336f161132561aDa62d9eF5740A90a0Fc17F182) and MineCore to 0x9af6e2688009e7d4ae4fa20537e677b59bf6f586 (King force-lock destination requires a full-horizon lock) via ProxyAdmin.upgradeAndCall. Batch 2 (op 0x34b237237b08e722d9ab47bea56ca8a33d66d916cb0bdb719618429b209c1b9e) re-pointed Furnace.furnaceQuoter to 0xe41f65f08c81f3191ab4b87d86f77df6b0607a86 (bonus-basis-aware quote/execute parity). Verified live: both EIP-1967 impl slots, furnaceQuoter(), bonusBasis() getter. All other implementations unchanged."
   ],
   "analytics": {
     "addressExclusions": []
@@ -30,7 +31,7 @@
     },
     "MineCore": {
       "address": "0x52Ac9B2eF3AcF163856F8Ea25f84e8eA55EAac56",
-      "implementation": "0xEb56500c24774E29c540daB23Ec09488E7e8DB98",
+      "implementation": "0x9Af6e2688009E7D4aE4fa20537E677b59bf6F586",
       "proxyAdmin": "0xe1e27499edEF49Ac2b49D4Cd55173633a4611eDc",
       "proxyAdminOwner": "0x806882B319AbdfB3a30D197feFea2d0D99A1BDF8",
       "startBlock": 41628571
@@ -48,8 +49,8 @@
     },
     "Furnace": {
       "address": "0x6E00092d60478C7b9fB96EB7Cc06Bb6d65E14D45",
-      "implementation": "0x650eA8A71f872D1d8547F29b056a03007c587eea",
-      "guardHelper": "0x526a21E2C1fB4c1471c0EA6DeBD3a562f2Bb6c3c",
+      "implementation": "0xC5f04627D19dba51fa019FA01BC4a3d9cB989006",
+      "guardHelper": "0x31CC05F696870a9BA775b781f28cE51C8Cc07988",
       "proxyAdmin": "0xeF871b2E1E983faEeaA138e6B2975aC18357C46e",
       "proxyAdminOwner": "0x806882B319AbdfB3a30D197feFea2d0D99A1BDF8",
       "startBlock": 41628570
@@ -112,8 +113,8 @@
       "startBlock": 42301710
     },
     "FurnaceQuoter": {
-      "address": "0x540A272fF60fD2Acb326A1D3A95C03D4fb42b91e",
-      "startBlock": 43491429
+      "address": "0xe41F65f08c81f3191Ab4B87D86f77dF6b0607A86",
+      "startBlock": 44264589
     }
   },
   "aerodrome": {

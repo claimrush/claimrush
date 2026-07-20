@@ -1,0 +1,6 @@
+# Suppression policy for OSV advisories that cannot be remediated by upgrading,
+# scoped to the subgraph tooling lockfile. Reviewed on each dependency bump.
+
+[[IgnoredVulns]]
+id = "GHSA-mp2f-45pm-3cg9"
+reason = "decompress@4.2.1 (transitive, dev-only via graph-cli codegen tooling). No fixed version is published upstream. The package only runs at subgraph build time to extract archives on a trusted developer/CI machine; it is never bundled into any deployed runtime, contract, worker, or frontend artifact. Re-evaluate when a patched release ships or graph-cli drops the dependency."

@@ -51,6 +51,7 @@ ALLOWED_CONSTANT_FILES=(
   "src/lib/DelegationPermissions.sol"
   "src/Furnace.sol"
   "src/FurnaceGuardHelper.sol"
+  "src/FurnaceExtendHelper.sol"
   "src/MineCore.sol"
   "src/MineCoreHelper.sol"
   "src/MarketRouter.sol"

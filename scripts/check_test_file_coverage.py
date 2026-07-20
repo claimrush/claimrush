@@ -23,10 +23,15 @@ TEST_DIR = ROOT / "test"
 
 # Contracts that are intentionally test-only or have non-standard test layouts.
 # MineCoreQuoter is a view-only quoter with no state mutations.
+# FurnaceExtendHelper holds the extend/merge execution bodies that run only via
+# delegatecall in Furnace's storage context, so it has no standalone test; it is
+# exercised through the Furnace extend/merge suites (e.g.
+# test/security/Furnace_ExtendWithBonusLadder.t.sol), same as FurnaceGuardHelper.
 KNOWN_EXCEPTIONS: set[str] = {
     "MineCoreQuoter",
     "FurnaceQuoter",
     "FurnaceGuardHelper",
+    "FurnaceExtendHelper",
     "MineCoreHelper",
 }
 

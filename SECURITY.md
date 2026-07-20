@@ -29,6 +29,13 @@ contract, and is capped at what the onchain state realistically allowed
 attackers to extract. Reporters must abide by the safe-harbour expectations
 below to qualify for recognition or discretionary awards.
 
+## Acknowledgments
+
+Researchers who report issues through coordinated disclosure and consent to
+attribution are credited here:
+
+- Pindarev — https://github.com/PavelPindarev/audits
+
 ## Reporting a vulnerability
 
 Please report security issues privately.
@@ -37,10 +44,9 @@ Preferred channels:
 - Email: `security@claimru.sh`
 - GitHub private vulnerability reporting (Security Advisories), if enabled for this repository
 
-Do not report vulnerabilities via:
-- public GitHub issues
-- unsolicited direct messages
-- Telegram/Discord “support” chats
+Do not report vulnerabilities via public GitHub issues or direct messages.
+
+ClaimRush has an official community Discord, but Discord is never used for wallet support. Admins will never DM first, request funds, or ask for seed phrases. Use the email or GitHub private reporting channel above for vulnerabilities.
 
 ## Severity and response
 

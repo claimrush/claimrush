@@ -35,6 +35,7 @@ interface IFurnaceRead {
     function getLpSaleRewardCapRemaining() external view returns (uint256);
 
     function lastAutoMaxBonusClaim(uint256 tokenId) external view returns (uint256);
+    function bonusBasis(uint256 tokenId) external view returns (uint256);
 
     function deploymentTime() external view returns (uint256);
     function mineCore() external view returns (address);
@@ -175,6 +176,16 @@ contract FurnaceQuoter is IFurnaceQuoter {
         uint256 newWeight = _durationWeight(d);
         uint256 delta = newWeight > oldWeight ? newWeight - oldWeight : 0;
         uint256 principalEff = Math.mulDiv(lockAmount, delta, Constants.WEIGHT_DENOM);
+
+        // Parity with `FurnaceExtendHelper._extendBody`: re-price the extension on the user's
+        // committed principal basis, not the live `lockAmount` (which already includes bonuses
+        // folded back into the lock). A 0 basis marks a lock predating basis accounting and falls
+        // back to the live amount. The rescale mirrors the execution path bit-for-bit.
+        uint256 basis = IFurnaceRead(furnace).bonusBasis(tokenId);
+        if (basis == 0) basis = lockAmount;
+        if (basis < lockAmount) {
+            principalEff = Math.mulDiv(principalEff, basis, lockAmount);
+        }
 
         if (principalEff > 0) {
             (, bonusClaim,) = _quoteBonusAmmView(principalEff);

@@ -300,7 +300,14 @@ contract MineCoreHelper {
         }
 
         uint256 remaining = lockEnd - block.timestamp;
-        if (remaining < Constants.MIN_LOCK_DURATION) return (false, 0, 0, false, KING_AUTOLOCK_REASON_EXPIRED);
+        // The King force-lock slice must land in a lock that retains the anti-recycling horizon the
+        // 50% liquid clamp assumes. A non-AutoMax lock is only eligible when its remaining duration
+        // is at least KING_FORCE_LOCK_MIN_DURATION; otherwise the caller falls back to the default
+        // create-once AutoMax lock. This prevents a King from collapsing the force-locked remainder
+        // to a self-created short lock and unlocking ~100% of the mined CLAIM within days.
+        if (remaining < Constants.KING_FORCE_LOCK_MIN_DURATION) {
+            return (false, 0, 0, false, KING_AUTOLOCK_REASON_INVALID_DURATION);
+        }
 
         uint256 desired = durationSeconds == 0 ? remaining : uint256(durationSeconds);
         if (desired < remaining) desired = remaining;

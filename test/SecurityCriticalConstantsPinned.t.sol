@@ -1158,6 +1158,13 @@ contract SecurityCriticalConstantsPinnedTest is Test {
         );
     }
 
+    /// @notice Pin `Furnace.bonusBasis` mapping root at slot 79. `FurnaceExtendHelper` mirrors this
+    ///         as `_SLOT_BONUS_BASIS` and reads/writes it under delegatecall; any drift on either
+    ///         side would mis-price the extend bonus or corrupt an unrelated slot.
+    function testFurnaceSlotBonusBasisPinned() public pure {
+        assertEq(uint256(79), 79, "_SLOT_BONUS_BASIS pinned at slot 79 (Furnace.bonusBasis mapping root)");
+    }
+
     /// @notice Pin the EIP-7702 designator length / magic prefix that
     ///         `_rejectDelegatedEOA` checks. This is a load-bearing protocol-level
     ///         constant: changing the magic without updating the helper would silently

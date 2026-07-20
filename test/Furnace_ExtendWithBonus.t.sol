@@ -238,10 +238,14 @@ contract FurnaceExtendWithBonusTest is Test {
 
         uint256 totalBonusB = bonusB1 + bonusB2;
 
-        // Due to AMM curve being concave, splitting should give <= single extension.
-        // With deep virtual depth the difference is small but non-trivial.
-        uint256 tolerance = bonusA * 10 / 100;
-        assertApproxEqAbs(totalBonusB, bonusA, tolerance, "path-independent within tolerance");
+        // The extend bonus is priced on the fixed user-principal basis, so the two-step path's
+        // summed duration-weight delta equals the single-step delta (weight deltas are additive).
+        // The concave, state-depleting bonus AMM then makes the split earn slightly LESS than the
+        // single extension — never more. The "never more" ceiling is the load-bearing
+        // anti-laddering property: fragmenting one commitment into rungs cannot mint excess bonus.
+        assertLe(totalBonusB, bonusA + bonusA / 1000, "split path must not out-earn single extension");
+        // Sanity floor: a real bonus is still paid across both rungs (not collapsed to ~zero).
+        assertGe(totalBonusB, (bonusA * 70) / 100, "split path bonus unexpectedly small vs single extension");
     }
 
     function testQuoteExtendWithBonusMatchesExecution() public {

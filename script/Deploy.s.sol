@@ -98,6 +98,7 @@ contract Deploy is BroadcastSignerBase {
         address furnaceImplementation;
         address furnaceProxyAdmin;
         address furnaceGuardHelper;
+        address furnaceExtendHelper;
         address market;
         address marketImplementation;
         address marketProxyAdmin;
@@ -260,6 +261,9 @@ contract Deploy is BroadcastSignerBase {
             d.furnaceGuardHelper = address(guardHelper);
             Furnace furnaceImpl = new Furnace(d.claimToken, d.ve, d.furnaceGuardHelper, address(0));
             d.furnaceImplementation = address(furnaceImpl);
+            // Furnace self-deploys its extend-body helper in the constructor; record its address
+            // (canonical-bound to the same CLAIM/ve roots + guard helper) for the manifest.
+            d.furnaceExtendHelper = furnaceImpl.extendHelper();
             d.furnace = address(
                 new FurnaceProxy(
                     d.furnaceImplementation, c.initialOwner, abi.encodeCall(Furnace.initialize, (c.initialOwner))
@@ -443,6 +447,7 @@ contract Deploy is BroadcastSignerBase {
         console2.log("Furnace:", d.furnace);
         console2.log("FurnaceImpl:", d.furnaceImplementation);
         console2.log("FurnaceGuardHelper:", d.furnaceGuardHelper);
+        console2.log("FurnaceExtendHelper:", d.furnaceExtendHelper);
         console2.log("FurnaceProxyAdmin:", d.furnaceProxyAdmin);
         console2.log("Royalties:", d.royalties);
         console2.log("RoyaltiesImpl:", d.royaltiesImplementation);

@@ -41,6 +41,7 @@ DEFAULT_CONTRACTS = [
     "Furnace",
     "FurnaceQuoter",
     "FurnaceGuardHelper",
+    "FurnaceExtendHelper",
     "MarketRouter",
     "ClaimAllHelper",
     "EntryTokenRegistry",
